@@ -8,11 +8,16 @@
         <span class="text-base font-medium text-ink-gray-8">{{ __('{0} selected', [selection.size]) }}</span>
       </div>
       <div class="flex items-center gap-1">
-        <Tooltip v-for="action in actions" :key="action.label" :text="action.label">
+        <Tooltip v-for="action in actions.filter((a) => !a.more)" :key="action.label" :text="action.label">
           <Button variant="ghost" :aria-label="action.label" @click="run(action)">
             <template #icon><component :is="action.icon" class="size-4" /></template>
           </Button>
         </Tooltip>
+        <Dropdown v-if="moreActions.length" :options="moreActions">
+          <Button variant="ghost" :aria-label="__('More')">
+            <template #icon><LucideEllipsis class="size-4" /></template>
+          </Button>
+        </Dropdown>
       </div>
     </div>
     <template v-else>
@@ -65,16 +70,19 @@
 <script setup lang="ts">
 import { type Component, computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, Dialog, PageHeader, TextInput, Tooltip, toast } from 'frappe-ui'
+import { Button, Dialog, Dropdown, PageHeader, TextInput, Tooltip, toast } from 'frappe-ui'
 import LucideArchive from '~icons/lucide/archive'
 import LucideArchiveRestore from '~icons/lucide/archive-restore'
+import LucideCalendarClock from '~icons/lucide/calendar-clock'
 import LucideClapperboard from '~icons/lucide/clapperboard'
 import LucideDownload from '~icons/lucide/download'
+import LucideEllipsis from '~icons/lucide/ellipsis'
 import LucideImageDown from '~icons/lucide/image-down'
 import LucideImageMinus from '~icons/lucide/image-minus'
 import LucideImagePlus from '~icons/lucide/image-plus'
 import LucideImageUp from '~icons/lucide/image-up'
 import LucideLayoutGrid from '~icons/lucide/layout-grid'
+import LucideMapPin from '~icons/lucide/map-pin'
 import LucideRotateCcw from '~icons/lucide/rotate-ccw'
 import LucideSearch from '~icons/lucide/search'
 import LucideStar from '~icons/lucide/star'
@@ -90,6 +98,7 @@ import {
   archive,
   clearSelection,
   download,
+  editMetadata,
   makeCollage,
   makeMovie,
   pickAlbumFor,
@@ -107,6 +116,7 @@ interface Action {
   label: string
   icon: Component
   keepSelection?: boolean
+  more?: boolean
   run: (names: string[]) => unknown
 }
 
@@ -146,6 +156,7 @@ const actions = computed<Action[]>(() => {
     label: __('Create movie'),
     icon: LucideClapperboard,
     keepSelection: true,
+    more: true,
     run: (names) =>
       makeMovie(
         names.filter((name) => !isVideo(rowFor(name))),
@@ -218,12 +229,33 @@ const actions = computed<Action[]>(() => {
       label: __('Create collage'),
       icon: LucideLayoutGrid,
       keepSelection: true,
+      more: true,
       run: (names) => makeCollage(names.filter((name) => !isVideo(rowFor(name)))),
+    },
+    {
+      label: __('Edit date'),
+      icon: LucideCalendarClock,
+      keepSelection: true,
+      more: true,
+      run: () => editMetadata('date', writable()),
+    },
+    {
+      label: __('Edit location'),
+      icon: LucideMapPin,
+      keepSelection: true,
+      more: true,
+      run: () => editMetadata('location', writable()),
     },
     { label: __('Archive'), icon: LucideArchive, run: (names) => archive(names) },
     toTrash,
   ]
 })
+
+const moreActions = computed(() =>
+  actions.value
+    .filter((action) => action.more)
+    .map((action) => ({ label: action.label, icon: action.icon, onClick: () => run(action) })),
+)
 
 async function run(action: Action) {
   await action.run([...selection])

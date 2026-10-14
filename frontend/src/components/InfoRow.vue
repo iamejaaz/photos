@@ -19,6 +19,7 @@
       </div>
       <div v-if="subtitle" class="text-sm text-ink-gray-5">{{ subtitle }}</div>
     </div>
+    <div v-if="$slots.action" class="-my-1 ml-auto shrink-0"><slot name="action" /></div>
   </div>
 </template>
 

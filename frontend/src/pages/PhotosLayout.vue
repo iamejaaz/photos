@@ -65,6 +65,8 @@
     <KeyboardShortcutsDialog v-model:open="showShortcuts" />
     <CollageDialog />
     <PhotosSettings />
+    <EditDateDialog />
+    <EditLocationDialog />
   </FrappeUIProvider>
 </template>
 
@@ -96,6 +98,8 @@ import CollageDialog from '../components/CollageDialog.vue'
 import LibraryShareDialog from '../components/LibraryShareDialog.vue'
 import MovieDialog from '../components/MovieDialog.vue'
 import PhotosSettings from '../components/settings/PhotosSettings.vue'
+import EditDateDialog from '../components/EditDateDialog.vue'
+import EditLocationDialog from '../components/EditLocationDialog.vue'
 import Lightbox from '../components/Lightbox.vue'
 import PhotosSidebar from '../components/PhotosSidebar.vue'
 import {

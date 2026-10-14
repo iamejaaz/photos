@@ -187,6 +187,25 @@ export const getSettings = () => call(`${SETTINGS}.get_settings`) as Promise<Set
 export const saveSettings = (values: Record<Feature, boolean>) =>
   call(`${SETTINGS}.save_settings`, values) as Promise<Settings>
 
+export interface PlaceMatch {
+  label: string
+  country: string
+  latitude: number
+  longitude: number
+}
+const EDIT = 'photos.api.edit'
+export const editDate = (files: string[], values: { taken_on?: string; shift_minutes?: number }) =>
+  call(`${EDIT}.edit_date`, { files, ...values })
+export const editLocation = (files: string[], place: PlaceMatch | null) =>
+  call(`${EDIT}.edit_location`, {
+    files,
+    latitude: place?.latitude ?? null,
+    longitude: place?.longitude ?? null,
+    place: place?.label ?? null,
+  })
+export const searchPlaces = (query: string) =>
+  call(`${EDIT}.search_places`, { query }) as Promise<PlaceMatch[]>
+
 export interface ImportJob {
   name: string
   status: 'Reading' | 'Ready' | 'Importing' | 'Done' | 'Failed'

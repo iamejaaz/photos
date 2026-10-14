@@ -155,6 +155,29 @@ export function makeCollage(files: string[]) {
 
 export const libraryShare = reactive({ open: false })
 
+export const editing = reactive<{ kind: 'date' | 'location' | null; files: string[]; version: number }>({
+  kind: null,
+  files: [],
+  version: 0,
+})
+export function editMetadata(kind: 'date' | 'location', files: string[]) {
+  editing.files = files
+  editing.kind = kind
+}
+export function metadataSaved(taken?: (photo: Photo) => string) {
+  editing.kind = null
+  editing.version++
+  if (!lightbox.open) {
+    clearSelection()
+    notifyUploaded()
+    return
+  }
+  if (taken)
+    activeFeed.value?.feed.rows
+      .filter((row) => editing.files.includes(row.name))
+      .forEach((row) => (row.taken = taken(row)))
+}
+
 export const settings = reactive<{ open: boolean; tab: string; data: Settings | null }>({
   open: false,
   tab: 'import',

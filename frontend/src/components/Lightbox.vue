@@ -6,24 +6,24 @@
           v-show="!lightbox.slideshow"
           class="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent p-3"
         >
-          <button class="lightbox-button" :aria-label="__('Close')" @click="close">
+          <button class="flex lightbox-button" :aria-label="__('Close')" @click="close">
             <LucideArrowLeft class="size-5" />
           </button>
           <div class="flex items-center gap-1">
             <Tooltip :text="__('Slideshow')">
-              <button class="lightbox-button max-sm:hidden" @click="lightbox.slideshow = true">
+              <button class="flex lightbox-button max-sm:hidden" @click="lightbox.slideshow = true">
                 <LucidePlay class="size-5" />
               </button>
             </Tooltip>
             <Tooltip v-if="albumName && loggedIn" :text="photo.liked ? __('Unlike') : __('Like')">
-              <button class="lightbox-button w-auto gap-1.5 px-3" @click="like">
+              <button class="flex lightbox-button w-auto gap-1.5 px-3" @click="like">
                 <LucideHeart class="size-5" :class="{ 'fill-current text-ink-red-4': photo.liked }" />
                 <span v-if="photo.likes" class="text-sm">{{ photo.likes }}</span>
               </button>
             </Tooltip>
             <Tooltip :text="__('Info')">
               <button
-                class="lightbox-button"
+                class="flex lightbox-button"
                 :class="{ 'bg-white/15': lightbox.showInfo }"
                 @click="lightbox.showInfo = !lightbox.showInfo"
               >
@@ -32,45 +32,45 @@
             </Tooltip>
             <template v-if="inDrive">
               <Tooltip :text="photo.is_favourite ? __('Remove from favourites') : __('Favourite')">
-                <button class="lightbox-button" @click="toggleFavourite([photo])">
+                <button class="flex lightbox-button" @click="toggleFavourite([photo])">
                   <LucideStar class="size-5" :class="{ 'fill-current': photo.is_favourite }" />
                 </button>
               </Tooltip>
               <Tooltip :text="__('Add to album')">
-                <button class="lightbox-button max-sm:hidden" @click="pickAlbumFor([photo.name])">
+                <button class="flex lightbox-button max-sm:hidden" @click="pickAlbumFor([photo.name])">
                   <LucideImagePlus class="size-5" />
                 </button>
               </Tooltip>
             </template>
             <Tooltip v-if="inDrive && !isVideo(photo)" :text="__('Edit')">
-              <button class="lightbox-button max-sm:hidden" @click="editing = true">
+              <button class="flex lightbox-button max-sm:hidden" @click="editing = true">
                 <LucideSlidersHorizontal class="size-5" />
               </button>
             </Tooltip>
             <Tooltip :text="__('Download')">
-              <a class="lightbox-button" :href="downloadUrl(photo.name, photo.album)">
+              <a class="flex lightbox-button" :href="downloadUrl(photo.name, photo.album)">
                 <LucideDownload class="size-5" />
               </a>
             </Tooltip>
             <template v-if="inDrive">
               <Tooltip :text="details.archived ? __('Unarchive') : __('Archive')">
-                <button class="lightbox-button max-sm:hidden" @click="toggleArchive">
+                <button class="flex lightbox-button max-sm:hidden" @click="toggleArchive">
                   <component :is="details.archived ? LucideArchiveRestore : LucideArchive" class="size-5" />
                 </button>
               </Tooltip>
               <Tooltip :text="__('Open in Drive')">
-                <button class="lightbox-button max-sm:hidden" @click="openInDrive">
+                <button class="flex lightbox-button max-sm:hidden" @click="openInDrive">
                   <LucideFolderOpen class="size-5" />
                 </button>
               </Tooltip>
             </template>
             <Dropdown :options="moreActions" placement="right">
-              <button class="lightbox-button sm:hidden" :aria-label="__('More')">
+              <button class="flex lightbox-button sm:hidden" :aria-label="__('More')">
                 <LucideEllipsisVertical class="size-5" />
               </button>
             </Dropdown>
             <Tooltip v-if="photo.write" :text="__('Move to trash')">
-              <button class="lightbox-button" @click="removeCurrent">
+              <button class="flex lightbox-button" @click="removeCurrent">
                 <LucideTrash2 class="size-5" />
               </button>
             </Tooltip>
@@ -109,7 +109,7 @@
 
         <button
           v-if="lightbox.index > 0 && !lightbox.slideshow"
-          class="lightbox-button absolute left-3 top-1/2 -translate-y-1/2 bg-black/30"
+          class="flex lightbox-button absolute left-3 top-1/2 -translate-y-1/2 bg-black/30"
           :aria-label="__('Previous')"
           @click="go(-1)"
         >
@@ -117,7 +117,7 @@
         </button>
         <button
           v-if="(lightbox.index < rows.length - 1 || feed?.feed.hasNext) && !lightbox.slideshow"
-          class="lightbox-button absolute right-3 top-1/2 -translate-y-1/2 bg-black/30"
+          class="flex lightbox-button absolute right-3 top-1/2 -translate-y-1/2 bg-black/30"
           :aria-label="__('Next')"
           @click="go(1)"
         >
@@ -153,7 +153,17 @@
               {{ __('Details') }}
             </div>
             <dl class="flex flex-col gap-3">
-              <InfoRow :icon="LucideCalendar" :title="takenTitle" :subtitle="takenSubtitle" />
+              <InfoRow :icon="LucideCalendar" :title="takenTitle" :subtitle="takenSubtitle">
+                <template v-if="photo.write" #action>
+                  <Button
+                    variant="ghost"
+                    :aria-label="__('Edit date')"
+                    @click="editMetadata('date', [photo.name])"
+                  >
+                    <template #icon><LucidePencil class="size-4" /></template>
+                  </Button>
+                </template>
+              </InfoRow>
               <InfoRow :icon="LucideImage" :title="details.file_name" :subtitle="sizeLine" />
               <InfoRow v-if="meta?.camera" :icon="LucideAperture" :title="meta.camera" />
               <InfoRow
@@ -164,7 +174,25 @@
                   meta.place ? `${meta.latitude.toFixed(4)}, ${meta.longitude.toFixed(4)}` : undefined
                 "
                 :href="`https://www.openstreetmap.org/?mlat=${meta.latitude}&mlon=${meta.longitude}#map=14/${meta.latitude}/${meta.longitude}`"
-              />
+              >
+                <template v-if="photo.write" #action>
+                  <Button
+                    variant="ghost"
+                    :aria-label="__('Edit location')"
+                    @click="editMetadata('location', [photo.name])"
+                  >
+                    <template #icon><LucidePencil class="size-4" /></template>
+                  </Button>
+                </template>
+              </InfoRow>
+              <button
+                v-else-if="photo.write"
+                class="flex items-center gap-3 text-left text-ink-gray-5 hover:text-ink-gray-8"
+                @click="editMetadata('location', [photo.name])"
+              >
+                <LucideMapPin class="size-5 shrink-0" />
+                {{ __('Add a location') }}
+              </button>
             </dl>
           </section>
           <section v-if="photoPeople.length">
@@ -246,7 +274,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Dropdown, LoadingIndicator, Tooltip, useKeyboardShortcut } from 'frappe-ui'
+import { Button, Dropdown, LoadingIndicator, Tooltip, useKeyboardShortcut } from 'frappe-ui'
 import dayjs from 'dayjs'
 import LucideAperture from '~icons/lucide/aperture'
 import LucideArchive from '~icons/lucide/archive'
@@ -264,6 +292,7 @@ import LucideImagePlus from '~icons/lucide/image-plus'
 import LucideHeart from '~icons/lucide/heart'
 import LucideInfo from '~icons/lucide/info'
 import LucideMapPin from '~icons/lucide/map-pin'
+import LucidePencil from '~icons/lucide/pencil'
 import LucidePlay from '~icons/lucide/play'
 import LucideSlidersHorizontal from '~icons/lucide/sliders-horizontal'
 import LucideStar from '~icons/lucide/star'
@@ -287,6 +316,8 @@ import {
   activeFeed,
   albums,
   archive,
+  editMetadata,
+  editing as metadataEdits,
   lightbox,
   notifyUploaded,
   pickAlbumFor,
@@ -390,10 +421,12 @@ const sizeLine = computed(() => {
 })
 
 watch(
-  () => photo.value?.name,
-  async (name) => {
-    loaded.value = false
-    details.value = null
+  [() => photo.value?.name, () => metadataEdits.version],
+  async ([name], previous) => {
+    if (name !== previous?.[0]) {
+      loaded.value = false
+      details.value = null
+    }
     if (!name) return
     if (lightbox.index >= rows.value.length - 3) feed.value?.loadMore()
     photoPeople.value = []
@@ -523,6 +556,6 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .lightbox-button {
-  @apply flex size-10 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 hover:text-white;
+  @apply size-10 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 hover:text-white;
 }
 </style>
