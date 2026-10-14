@@ -1,0 +1,103 @@
+<template>
+  <SettingsHeader
+    :title="__('Backup')"
+    :description="__('Photos and videos on this phone are copied to your library in the background.')"
+  />
+  <SettingsBody>
+    <div v-if="status" class="flex flex-col gap-6 pt-2">
+      <div v-if="!status.signedIn" class="text-base text-ink-gray-6">
+        {{ __('Backup is connecting to your account. Open this again in a moment.') }}
+      </div>
+      <template v-else>
+        <div
+          v-if="status.permission === 'prompt' || status.permission === 'denied'"
+          class="flex flex-col gap-2"
+        >
+          <div class="text-base text-ink-gray-7">
+            {{ __('Allow Photos to see the photos on this phone to back them up.') }}
+          </div>
+          <div>
+            <Button variant="solid" @click="allow">{{ __('Allow access') }}</Button>
+          </div>
+        </div>
+        <div v-else-if="status.permission === 'partial'" class="text-base text-ink-gray-6">
+          {{
+            __(
+              'Only the photos you picked are backed up. Allow all photos in Android settings to back up everything.',
+            )
+          }}
+        </div>
+        <div class="divide-y divide-outline-gray-1">
+          <SettingsRow :title="__('Back up this phone')" :description="summary">
+            <Switch :model-value="status.enabled" @update:model-value="set({ enabled: !!$event })" />
+          </SettingsRow>
+          <SettingsRow :title="__('Only on Wi-Fi')" :description="__('Saves mobile data.')">
+            <Switch :model-value="status.wifiOnly" @update:model-value="set({ wifiOnly: !!$event })" />
+          </SettingsRow>
+          <SettingsRow :title="__('Include videos')">
+            <Switch
+              :model-value="status.includeVideos"
+              @update:model-value="set({ includeVideos: !!$event })"
+            />
+          </SettingsRow>
+        </div>
+        <Progress v-if="status.running && status.total" :value="percent" size="sm" />
+        <ErrorMessage v-if="status.lastError" :message="status.lastError" />
+        <div>
+          <Button :loading="status.running" :disabled="!status.enabled" @click="runNow">{{
+            __('Back up now')
+          }}</Button>
+        </div>
+      </template>
+    </div>
+  </SettingsBody>
+</template>
+
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { Button, ErrorMessage, Progress, SettingsBody, SettingsHeader, SettingsRow, Switch } from 'frappe-ui'
+import dayjs from 'dayjs'
+
+import { type BackupStatus, photosBackup } from '../../native/backup'
+
+const status = ref<BackupStatus | null>(null)
+let stop: (() => void) | undefined
+
+photosBackup().then(async ({ plugin }) => {
+  status.value = await plugin.getStatus()
+  const handle = await plugin.addListener('status', (next) => (status.value = next))
+  stop = () => handle.remove()
+})
+onBeforeUnmount(() => stop?.())
+
+const percent = computed(() =>
+  status.value?.total ? Math.round((status.value.done / status.value.total) * 100) : 0,
+)
+const summary = computed(() => {
+  const value = status.value
+  if (!value?.enabled) return __('Off')
+  if (value.running) return __('Backing up {0} of {1}', [value.done, value.total])
+  const left = value.total - value.done
+  if (left > 0) return __('{0} items waiting', [left])
+  return value.lastRun
+    ? __('Up to date, checked at {0}', [dayjs(value.lastRun).format('h:mm A')])
+    : __('Starting…')
+})
+
+async function set(options: Partial<Pick<BackupStatus, 'enabled' | 'wifiOnly' | 'includeVideos'>>) {
+  const { plugin } = await photosBackup()
+  if (options.enabled && status.value?.permission === 'prompt')
+    status.value = await plugin.requestPermission()
+  status.value = await plugin.setOptions(options)
+}
+
+async function allow() {
+  const { plugin } = await photosBackup()
+  status.value = await plugin.requestPermission()
+}
+
+async function runNow() {
+  const { plugin } = await photosBackup()
+  await plugin.runNow()
+}
+</script>

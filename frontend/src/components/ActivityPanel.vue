@@ -13,7 +13,12 @@
         {{ __('No comments yet. Say something about these photos.') }}
       </p>
       <div v-for="item in items" :key="item.name" class="group flex gap-2.5">
-        <Avatar :label="item.full_name" :image="item.user_image ?? undefined" size="md" class="shrink-0" />
+        <Avatar
+          :label="item.full_name"
+          :image="item.user_image ? mediaUrl(item.user_image) : undefined"
+          size="md"
+          class="shrink-0"
+        />
         <div class="min-w-0 flex-1">
           <div class="flex items-baseline gap-1.5 text-sm">
             <span class="font-medium text-ink-gray-8">{{ item.full_name }}</span>
@@ -67,7 +72,7 @@ import LucideX from '~icons/lucide/x'
 
 import { initSocket } from '@/apps/drive/socket'
 import { useSessionStore } from '@/boot/session'
-import { type Activity, addComment, deleteActivity, getActivity, thumbnailUrl } from '../api'
+import { type Activity, addComment, deleteActivity, getActivity, mediaUrl, thumbnailUrl } from '../api'
 
 dayjs.extend(relativeTime)
 

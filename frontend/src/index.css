@@ -32,3 +32,10 @@ html.theme-switching * {
 body {
   margin: 0;
 }
+
+html.native .fixed.inset-0 {
+  top: var(--inset-top, 0px);
+  right: var(--inset-right, 0px);
+  bottom: var(--inset-bottom, 0px);
+  left: var(--inset-left, 0px);
+}

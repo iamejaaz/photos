@@ -1,5 +1,7 @@
 import { call } from 'frappe-ui'
 
+import { mediaSrc } from './native/mediaUrl'
+
 export interface Photo {
   name: string
   file_name: string
@@ -78,10 +80,11 @@ const CHUNK_SIZE = 20 * 1024 * 1024
 
 const MEDIA = 'photos.api.media'
 const inAlbum = (album?: string) => (album ? `&album=${encodeURIComponent(album)}` : '')
+export const mediaUrl = (url: string) => (import.meta.env.VITE_NATIVE ? mediaSrc(url) : url)
 export const thumbnailUrl = (name: string, album?: string) =>
-  `/api/method/${MEDIA}.thumbnail?entity_name=${name}${inAlbum(album)}`
+  mediaUrl(`/api/method/${MEDIA}.thumbnail?entity_name=${name}${inAlbum(album)}`)
 export const contentUrl = (name: string, album?: string) =>
-  `/api/method/${MEDIA}.content?entity_name=${name}&display=1${inAlbum(album)}`
+  mediaUrl(`/api/method/${MEDIA}.content?entity_name=${name}&display=1${inAlbum(album)}`)
 export const streamUrl = contentUrl
 export const downloadUrl = (name: string, album?: string) =>
   album
@@ -91,7 +94,7 @@ export const liveUrl = (photo: Photo) =>
   photo.live_video
     ? contentUrl(photo.live_video, photo.album)
     : photo.motion_photo
-      ? `/api/method/${MEDIA}.content?entity_name=${photo.name}&motion=1${inAlbum(photo.album)}`
+      ? mediaUrl(`/api/method/${MEDIA}.content?entity_name=${photo.name}&motion=1${inAlbum(photo.album)}`)
       : null
 export const isVideo = (photo: Photo) => photo.mime_type?.startsWith('video/')
 
@@ -180,7 +183,7 @@ export interface PhotoPerson {
 }
 const PEOPLE = 'photos.api.people'
 export const PERSON_PHOTOS = `${PEOPLE}.person_photos`
-export const faceUrl = (face: string) => `/api/method/${PEOPLE}.face_thumbnail?face=${face}`
+export const faceUrl = (face: string) => mediaUrl(`/api/method/${PEOPLE}.face_thumbnail?face=${face}`)
 export const getPeople = (includeHidden = false) =>
   call(`${PEOPLE}.people`, { include_hidden: includeHidden }) as Promise<{
     enabled: boolean

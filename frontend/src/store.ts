@@ -9,6 +9,7 @@ import {
   type Settings,
   addToAlbum,
   deleteForever,
+  downloadUrl,
   fetchPage,
   getAlbums,
   getSettings,
@@ -344,7 +345,13 @@ export async function hide(names: string[], value = true) {
   )
 }
 
-export const download = (photos: Photo[]) => entitiesDownload(photos)
+export const download = async (photos: Photo[]) => {
+  if (!import.meta.env.VITE_NATIVE) return entitiesDownload(photos)
+  const { saveFiles } = await import('./native/save')
+  await saveFiles(
+    photos.map((photo) => ({ url: downloadUrl(photo.name, photo.album), name: photo.file_name })),
+  )
+}
 
 export const upload = reactive({
   active: false,

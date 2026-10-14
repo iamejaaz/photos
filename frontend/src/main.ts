@@ -1,27 +1,18 @@
 import './index.css'
 
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import { spritePlugin } from 'frappe-ui/experimental'
+import { translate } from '@/boot/translation'
 
-import { configureFrappeUI } from '@/boot/config'
-import { getSessionUser, userResource } from '@/boot/session'
-import { translationPlugin } from '@/boot/translation'
-import App from './App.vue'
-import router from './router'
+async function start() {
+  if (import.meta.env.VITE_NATIVE) {
+    window.__ = translate
+    const { startNative } = await import('./native/boot')
+    if (!(await startNative())) return
+  } else if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+    navigator.serviceWorker
+      .register('/api/method/photos.api.pwa.service_worker', { scope: '/photos/' })
+      .catch(() => {})
+  }
+  await import('./app')
+}
 
-configureFrappeUI()
-if (getSessionUser()) userResource.fetch()
-
-const app = createApp(App)
-app.use(createPinia())
-app.use(router)
-app.use(spritePlugin)
-app.use(translationPlugin)
-
-router.isReady().then(() => app.mount('#app'))
-
-if (import.meta.env.PROD && 'serviceWorker' in navigator)
-  navigator.serviceWorker
-    .register('/api/method/photos.api.pwa.service_worker', { scope: '/photos/' })
-    .catch(() => {})
+start()

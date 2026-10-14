@@ -53,7 +53,11 @@
               </button>
             </Tooltip>
             <Tooltip v-if="photo.download !== 0" :text="__('Download')">
-              <a class="flex lightbox-button" :href="downloadUrl(photo.name, photo.album)">
+              <a
+                class="flex lightbox-button"
+                :href="downloadUrl(photo.name, photo.album)"
+                @click="nativeDownload($event, photo)"
+              >
                 <LucideDownload class="size-5" />
               </a>
             </Tooltip>
@@ -361,6 +365,7 @@ import LucideX from '~icons/lucide/x'
 import { useSessionStore } from '@/boot/session'
 import {
   ALBUM_PHOTOS,
+  type Photo,
   type PhotoPerson,
   contentUrl,
   downloadUrl,
@@ -379,6 +384,7 @@ import {
   activeFeed,
   albums,
   archive,
+  download,
   editMetadata,
   openShare,
   editing as metadataEdits,
@@ -434,6 +440,12 @@ watch(
   () => (livePlaying.value = Boolean(liveSource.value)),
   { immediate: true },
 )
+
+function nativeDownload(event: MouseEvent, item: Photo) {
+  if (!import.meta.env.VITE_NATIVE) return
+  event.preventDefault()
+  download([item])
+}
 
 const movingFace = ref<PhotoPerson | null>(null)
 const moveOpen = ref(false)

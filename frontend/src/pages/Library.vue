@@ -19,6 +19,14 @@
       <span class="flex-1">{{ __('Share your library') }}</span>
     </button>
     <button
+      v-if="native"
+      class="flex items-center gap-3 rounded px-3 py-3 text-left text-base text-ink-gray-8 hover:bg-surface-gray-2"
+      @click="openSettings('backup')"
+    >
+      <LucideCloudUpload class="size-4 text-ink-gray-6" />
+      <span class="flex-1">{{ __('Back up this phone') }}</span>
+    </button>
+    <button
       class="flex items-center gap-3 rounded px-3 py-3 text-left text-base text-ink-gray-8 hover:bg-surface-gray-2"
       @click="openSettings('import')"
     >
@@ -46,6 +54,7 @@ import LucideStar from '~icons/lucide/star'
 import LucideEyeOff from '~icons/lucide/eye-off'
 import LucideHistory from '~icons/lucide/history'
 import LucideTrash2 from '~icons/lucide/trash-2'
+import LucideCloudUpload from '~icons/lucide/cloud-upload'
 import LucideHardDriveDownload from '~icons/lucide/hard-drive-download'
 import LucideSettings from '~icons/lucide/settings'
 import LucideUsers from '~icons/lucide/users'
@@ -54,6 +63,8 @@ import LucideUsersRound from '~icons/lucide/users-round'
 import { appPageMeta } from '@/utils/documentTitle'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { libraryShare, openSettings } from '../store'
+
+const native = Boolean(import.meta.env.VITE_NATIVE)
 
 const items = [
   { label: __('Albums'), icon: LucideBookImage, route: 'photos-albums' },

@@ -10,7 +10,7 @@ declare module 'vue-router' {
 }
 
 const router = createRouter({
-  history: createWebHistory('/photos'),
+  history: createWebHistory(import.meta.env.VITE_NATIVE ? '/' : '/photos'),
   routes,
 })
 
@@ -26,7 +26,7 @@ router.onError((error, to, from) => {
     from.matched.length &&
     /dynamically imported module|Importing a module script failed/.test(String(error?.message))
   ) {
-    window.location.assign(`/photos${to.fullPath}`)
+    window.location.assign(import.meta.env.VITE_NATIVE ? to.fullPath : `/photos${to.fullPath}`)
   }
 })
 

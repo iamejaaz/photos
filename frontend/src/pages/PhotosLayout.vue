@@ -128,10 +128,11 @@ if (loggedIn.value) {
       duration: 30000,
       action: {
         label: __('Download'),
-        onClick: () =>
-          window.location.assign(
-            `/api/method/suite.drive.api.files.get_file_content?entity_name=${data.file}&trigger_download=1`,
-          ),
+        onClick: () => {
+          const url = `/api/method/suite.drive.api.files.get_file_content?entity_name=${data.file}&trigger_download=1`
+          if (!import.meta.env.VITE_NATIVE) return window.location.assign(url)
+          import('../native/save').then(({ saveFiles }) => saveFiles([{ url, name: `${data.title}.zip` }]))
+        },
       },
     })
   })
