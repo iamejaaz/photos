@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Photos</string>
+    <string name="title_activity_main">Photos</string>
+    <string name="package_name">io.frappe.photos</string>
+    <string name="custom_url_scheme">io.frappe.photos</string>
+    <string name="share_sign_in_first">Open Photos and sign in first, then share again.</string>
+    <plurals name="share_queued">
+        <item quantity="one">Adding 1 item to Photos</item>
+        <item quantity="other">Adding %d items to Photos</item>
+    </plurals>
+    <string name="backup_channel">Backup</string>
+    <string name="backup_running">Backing up to Photos</string>
+    <string name="backup_progress">%1$d of %2$d</string>
+</resources>

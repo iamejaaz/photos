@@ -3,10 +3,13 @@
   "version": "0.0.1",
   "private": true,
   "workspaces": [
-    "frontend"
+    "frontend",
+    "mobile"
   ],
   "scripts": {
     "build": "yarn workspace @photos/frontend build",
-    "dev": "yarn workspace @photos/frontend dev"
+    "dev": "yarn workspace @photos/frontend dev",
+    "build:native": "yarn workspace @photos/frontend build:native",
+    "native:sync": "yarn build:native && yarn workspace @photos/mobile sync"
   }
 }

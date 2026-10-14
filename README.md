@@ -23,6 +23,18 @@ Load demo photos, people and shared albums:
 bench --site your.site photos-demo-data
 ```
 
+### Android app
+
+The app in `mobile/` bundles the same frontend with Capacitor. It signs in with OAuth, backs up the phone's gallery in the background, and accepts photos shared from other apps.
+
+```bash
+yarn install
+yarn native:sync
+cd mobile/android && ./gradlew assembleDebug
+```
+
+The APK is at `mobile/android/app/build/outputs/apk/debug/app-debug.apk`. To use a plain `http://` bench while developing, add `mobile/capacitor.config.local.json` with `{"android": {"allowMixedContent": true}}` and sync again.
+
 ### License
 
 agpl-3.0

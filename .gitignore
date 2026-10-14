@@ -55,3 +55,12 @@ jspm_packages/
 .aider*
 /photos/public/frontend/
 /photos/models/
+/frontend/dist-native/
+/mobile/capacitor.config.local.json
+/mobile/android/local.properties
+/mobile/android/.gradle/
+/mobile/android/app/build/
+/mobile/android/build/
+/mobile/android/app/src/main/assets/
+/mobile/android/capacitor-cordova-android-plugins/
+/mobile/.test-credentials
