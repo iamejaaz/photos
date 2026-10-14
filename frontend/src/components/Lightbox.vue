@@ -169,6 +169,18 @@
           <span class="text-lg font-medium">{{ __('Info') }}</span>
         </div>
         <div v-if="details" class="flex flex-col gap-5 px-5 pb-8 text-base">
+          <Textarea
+            v-if="photo.write"
+            v-model="caption"
+            :placeholder="__('Add a caption')"
+            :rows="2"
+            variant="ghost"
+            class="-mx-2"
+            @blur="saveCaption"
+          />
+          <p v-else-if="meta?.description" class="whitespace-pre-line text-ink-gray-8">
+            {{ meta.description }}
+          </p>
           <section>
             <div class="mb-2 text-sm font-medium text-ink-gray-5">
               {{ __('Details') }}
@@ -313,7 +325,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Dropdown, LoadingIndicator, Tooltip, toast, useKeyboardShortcut } from 'frappe-ui'
+import { Button, Dropdown, LoadingIndicator, Textarea, Tooltip, toast, useKeyboardShortcut } from 'frappe-ui'
 import dayjs from 'dayjs'
 import LucideAperture from '~icons/lucide/aperture'
 import LucideArchive from '~icons/lucide/archive'
@@ -347,6 +359,7 @@ import {
   contentUrl,
   downloadUrl,
   getDetails,
+  editCaption,
   getPhotoPeople,
   liveUrl,
   markNotAFace,
@@ -469,6 +482,13 @@ async function like() {
 const details = ref<any>(null)
 
 const meta = computed(() => details.value?.metadata)
+const caption = ref('')
+watch(meta, (value) => (caption.value = value?.description ?? ''), { immediate: true })
+
+async function saveCaption() {
+  if (!photo.value || !meta.value || caption.value.trim() === (meta.value.description ?? '')) return
+  meta.value.description = (await editCaption(photo.value.name, caption.value)) ?? ''
+}
 const inDrive = computed(() => Boolean(details.value?.folder))
 const photoAlbums = computed(() =>
   [...albums.value, ...sharedAlbums.value].filter((album) => details.value?.albums?.includes(album.name)),

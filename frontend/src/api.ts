@@ -230,6 +230,8 @@ export const editLocation = (files: string[], place: PlaceMatch | null) =>
     longitude: place?.longitude ?? null,
     place: place?.label ?? null,
   })
+export const editCaption = (file: string, caption: string) =>
+  call(`${EDIT}.edit_caption`, { file, caption }) as Promise<string | null>
 export const searchPlaces = (query: string) =>
   call(`${EDIT}.search_places`, { query }) as Promise<PlaceMatch[]>
 

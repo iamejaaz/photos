@@ -49,6 +49,14 @@ def edit_location(
 
 
 @frappe.whitelist()
+def edit_caption(file: str, caption: str | None = None):
+    _writable([file])
+    caption = (caption or "").strip()[:2000] or None
+    frappe.db.set_value(METADATA, file, "description", caption, update_modified=False)
+    return caption
+
+
+@frappe.whitelist()
 def search_places(query: str):
     return places.search(query)
 

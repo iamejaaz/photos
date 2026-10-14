@@ -241,6 +241,8 @@ def _add(item, favourites, user):
         name = add_file(path, user, taken)
 
     updates = {"source": source}
+    if caption := (details.get("description") or "").strip():
+        updates["description"] = caption[:2000]
     current = frappe.db.get_value(
         "Photo Metadata", name, ["taken_on", "date_from_file", "latitude", "longitude"], as_dict=True
     )

@@ -153,6 +153,7 @@ def _apply_search(query, search):
                 | Metadata.place.like(like)
                 | Metadata.labels.like(like)
                 | Metadata.things.like(like)
+                | Metadata.description.like(like)
             )
     return query
 
@@ -466,6 +467,7 @@ def get_details(name: str, album: str | None = None):
             "longitude",
             "place",
             "labels",
+            "description",
         ],
         as_dict=True,
     )

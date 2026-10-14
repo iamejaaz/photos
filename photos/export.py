@@ -34,7 +34,7 @@ def _build(user, files, title, by_album):
         """
         select file.name, file.file_name, file.file_url,
             coalesce(meta.taken_on, file.file_modified, file.creation) as taken,
-            meta.latitude, meta.longitude
+            meta.latitude, meta.longitude, meta.description
         from `tabFile` file left join `tabPhoto Metadata` meta on meta.file = file.name
         where file.name in %(files)s and file.status = 'Active' and file.is_folder = 0
         """,
@@ -74,6 +74,8 @@ def with_metadata(data, row):
     exif["0th"][piexif.ImageIFD.DateTime] = stamp
     exif["Exif"][piexif.ExifIFD.DateTimeOriginal] = stamp
     exif["Exif"][piexif.ExifIFD.DateTimeDigitized] = stamp
+    if row.description:
+        exif["0th"][piexif.ImageIFD.ImageDescription] = row.description.encode("utf-8")
     if row.latitude or row.longitude:
         exif["GPS"] = {
             piexif.GPSIFD.GPSLatitudeRef: b"N" if row.latitude >= 0 else b"S",
