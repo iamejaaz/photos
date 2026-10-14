@@ -1,0 +1,12 @@
+{
+  "name": "photos",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "build": "yarn workspace @photos/frontend build",
+    "dev": "yarn workspace @photos/frontend dev"
+  }
+}

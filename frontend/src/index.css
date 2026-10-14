@@ -1,0 +1,34 @@
+/* frappe-ui/style.css already provides @tailwind base/components/utilities + Inter.
+   Suite design tokens (bg-surface-*, text-ink-*, border-outline-*) are frappe-ui
+   CSS-layer classes in the beta line — use them in markup (see SuiteLayout.vue),
+   NOT via @apply (they are not registered Tailwind color utilities). */
+@import 'frappe-ui/style.css';
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+/* setupTheme adds this for one frame so a theme switch doesn't animate. */
+html.theme-switching,
+html.theme-switching * {
+  transition: none !important;
+}
+
+/* Lets the UA theme scrollbars, form controls and canvas backgrounds. */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+body {
+  margin: 0;
+}

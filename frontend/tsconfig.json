@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "useDefineForClassFields": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../../suite/frontend/src/*"],
+      "vue": ["../node_modules/vue"],
+      "vue-router": ["../node_modules/vue-router"],
+      "pinia": ["../node_modules/pinia"],
+      "frappe-ui": ["../node_modules/frappe-ui"]
+    },
+    "types": ["unplugin-icons/types/vue", "vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "../../suite/frontend/src/**/*.d.ts"]
+}

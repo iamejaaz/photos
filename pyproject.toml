@@ -8,7 +8,7 @@ requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
-    # "frappe~=16.0.0" # Installed and managed by bench.
+    "opencv-python-headless>=4.10",
 ]
 
 [build-system]
@@ -61,5 +61,5 @@ typing-modules = ["frappe.types.DF"]
 
 [tool.ruff.format]
 quote-style = "double"
-indent-style = "tab"
+indent-style = "space"
 docstring-code-format = true

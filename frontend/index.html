@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html
+  lang="en"
+  data-theme-mode="{{ desk_theme.lower() if desk_theme else 'light' }}"
+  data-theme="{{ desk_theme.lower() if desk_theme else 'light' }}"
+>
+  <head>
+    <script>
+      if (document.documentElement.dataset.theme === 'automatic') {
+        document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      }
+    </script>
+    <meta charset="UTF-8" />
+    <title>Photos</title>
+    <link rel="icon" type="image/svg+xml" href="/src/assets/photos.svg" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta
+      name="theme-color"
+      content="{{ '#171717' if desk_theme and desk_theme.lower() == 'dark' else '#ffffff' }}"
+    />
+  </head>
+  <body>
+    <div id="app" class="h-screen"></div>
+    <div id="modals"></div>
+    <div id="popovers"></div>
+
+    <script>
+      window.csrf_token = '{{ csrf_token }}'
+    </script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,32 +1,27 @@
 ### Photos
 
-Google Photos style library for Frappe, built on Frappe Drive
+Google Photos style library for Frappe. It runs on top of [Frappe Suite](https://github.com/frappe/suite): photos and videos live in Drive, albums are shared with Drive permissions, and the UI is built with frappe-ui.
+
+- Timeline, favourites, archive, trash, folders and duplicates for everything you upload to Drive
+- Albums with sharing, comments and likes
+- People, places and things, found on your own server with OpenCV
+- Collages, slideshow movies and a photo editor
 
 ### Installation
 
-You can install this app using the [bench](https://github.com/frappe/bench) CLI:
+Photos needs Suite on the same bench.
 
 ```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app $URL_OF_THIS_REPO --branch develop
-bench install-app photos
+bench get-app https://github.com/frappe/suite
+bench get-app https://github.com/iamejaaz/photos
+bench --site your.site install-app photos
 ```
 
-### Contributing
-
-This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
+Load demo photos, people and shared albums:
 
 ```bash
-cd apps/photos
-pre-commit install
+bench --site your.site photos-demo-data
 ```
-
-Pre-commit is configured to use the following tools for checking and formatting your code:
-
-- ruff
-- eslint
-- prettier
-- pyupgrade
 
 ### License
 

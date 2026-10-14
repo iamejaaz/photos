@@ -1,0 +1,232 @@
+<template>
+  <PhotosHeader
+    mode="album"
+    :album="album ?? undefined"
+    hide-upload
+    @remove-from-album="removeItems"
+    @set-cover="useAsCover"
+  >
+    <template #title>
+      <template v-if="loggedIn">
+        <router-link
+          :to="{ name: album?.access?.owner ? 'photos-albums' : 'photos-sharing' }"
+          class="hidden text-lg font-semibold text-ink-gray-5 hover:text-ink-gray-8 sm:inline"
+        >
+          {{ album?.access?.owner ? __('Albums') : __('Sharing') }}
+        </router-link>
+        <LucideChevronRight class="hidden size-4 shrink-0 text-ink-gray-4 sm:block" />
+      </template>
+      <h1 class="truncate text-lg font-semibold text-ink-gray-9">{{ album?.title }}</h1>
+      <span v-if="album && !album.access?.owner" class="hidden truncate text-sm text-ink-gray-5 sm:inline">
+        {{ __('by {0}', [album.owner_name]) }}
+      </span>
+    </template>
+    <template #actions>
+      <Button
+        v-if="album?.access?.write"
+        variant="subtle"
+        :aria-label="__('Add photos')"
+        @click="adding = true"
+      >
+        <template #prefix><LucideImagePlus class="size-4" /></template>
+        <span class="hidden sm:inline">{{ __('Add photos') }}</span>
+      </Button>
+      <Button v-if="album?.access?.share" variant="solid" :aria-label="__('Share')" @click="sharing = true">
+        <template #prefix><LucideShare2 class="size-4" /></template>
+        <span class="hidden sm:inline">{{ __('Share') }}</span>
+      </Button>
+      <Button
+        v-if="album"
+        variant="ghost"
+        :aria-label="__('Activity')"
+        :class="{ 'bg-surface-gray-3': showActivity }"
+        @click="showActivity = !showActivity"
+      >
+        <template #icon><LucideMessageCircle class="size-4" /></template>
+      </Button>
+      <Button v-if="handle.feed.rows.length" variant="ghost" :aria-label="__('Slideshow')" @click="slideshow">
+        <template #icon><LucidePlay class="size-4" /></template>
+      </Button>
+      <Dropdown v-if="menu.length" :options="menu">
+        <Button variant="ghost" :aria-label="__('Album options')">
+          <template #icon><LucideEllipsis class="size-4" /></template>
+        </Button>
+      </Dropdown>
+    </template>
+  </PhotosHeader>
+
+  <ErrorMessage v-if="error" class="p-10 text-center" :message="error" />
+  <div v-else class="flex min-h-full">
+    <PhotoGrid
+      class="min-w-0 flex-1"
+      :handle="handle"
+      :empty-icon="LucideImagePlus"
+      :empty-title="__('This album is empty')"
+      :empty-text="album?.access?.write ? __('Use Add photos to pick from your library.') : ''"
+    />
+    <ActivityPanel
+      v-if="showActivity && album"
+      class="sticky top-0 h-[calc(100vh-3rem)]"
+      :album="album.name"
+      :can-moderate="Boolean(album.access?.owner)"
+      @close="showActivity = false"
+      @open-photo="openPhoto"
+      @changed="handle.reload()"
+    />
+  </div>
+
+  <ShareAlbumDialog v-if="album" v-model="sharing" :album="album" @changed="refresh" />
+  <AddPhotosDialog v-if="album" v-model="adding" :album="album" @added="handle.reload()" />
+  <Dialog
+    v-model:open="renaming"
+    :title="__('Rename album')"
+    size="sm"
+    :actions="[{ label: __('Save'), variant: 'solid', onClick: saveTitle }]"
+  >
+    <TextInput v-model="title" autofocus @keydown.enter="saveTitle" />
+  </Dialog>
+  <Dialog
+    v-model:open="deleting"
+    :title="__('Delete album?')"
+    :message="__('People you shared it with lose access. The photos stay in your library and in Drive.')"
+    icon="lucide-trash-2"
+    theme="red"
+    size="sm"
+    :actions="[{ label: __('Delete'), variant: 'solid', theme: 'red', onClick: remove }]"
+  />
+</template>
+
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Button, Dialog, Dropdown, ErrorMessage, TextInput, toast, usePageMeta } from 'frappe-ui'
+import LucideChevronRight from '~icons/lucide/chevron-right'
+import LucideEllipsis from '~icons/lucide/ellipsis'
+import LucideImagePlus from '~icons/lucide/image-plus'
+import LucideMessageCircle from '~icons/lucide/message-circle'
+import LucidePlay from '~icons/lucide/play'
+import LucideShare2 from '~icons/lucide/share-2'
+
+import { useSessionStore } from '@/boot/session'
+import { appPageMeta } from '@/utils/documentTitle'
+import {
+  ALBUM_PHOTOS,
+  type Album,
+  type Photo,
+  deleteAlbum,
+  getAlbum,
+  getAlbumFiles,
+  leaveAlbum,
+  removeFromAlbum,
+  renameAlbum,
+  setCover,
+} from '../api'
+import ActivityPanel from '../components/ActivityPanel.vue'
+import AddPhotosDialog from '../components/AddPhotosDialog.vue'
+import PhotoGrid from '../components/PhotoGrid.vue'
+import PhotosHeader from '../components/PhotosHeader.vue'
+import ShareAlbumDialog from '../components/ShareAlbumDialog.vue'
+import { clearSelection, createFeed, download, loadAlbums, onUploaded, openLightbox } from '../store'
+
+const props = defineProps<{ album: string }>()
+const router = useRouter()
+const loggedIn = computed(() => useSessionStore().isLoggedIn)
+
+const handle = createFeed(ALBUM_PHOTOS, { album: props.album })
+const album = ref<Album | null>(null)
+const error = ref('')
+const sharing = ref(false)
+const adding = ref(false)
+const renaming = ref(false)
+const deleting = ref(false)
+const title = ref('')
+const showActivity = ref(false)
+
+function openPhoto(file: string) {
+  if (handle.feed.rows.some((row) => row.name === file)) openLightbox(handle, file)
+}
+
+async function refresh() {
+  try {
+    album.value = await getAlbum(props.album)
+  } catch {
+    error.value = loggedIn.value
+      ? __("This album doesn't exist or isn't shared with you.")
+      : __('Sign in to see this album.')
+  }
+}
+refresh()
+onBeforeUnmount(
+  onUploaded(() => {
+    handle.reload()
+    refresh()
+  }),
+)
+
+const menu = computed(() => {
+  const access = album.value?.access
+  if (!access) return []
+  const items = []
+  if (album.value?.count)
+    items.push({ label: __('Download album'), icon: 'lucide-download', onClick: downloadAll })
+  if (access.write)
+    items.push({
+      label: __('Rename'),
+      icon: 'lucide-pencil',
+      onClick: () => {
+        title.value = album.value?.title ?? ''
+        renaming.value = true
+      },
+    })
+  if (access.owner)
+    items.push({ label: __('Delete album'), icon: 'lucide-trash-2', onClick: () => (deleting.value = true) })
+  else if (loggedIn.value) items.push({ label: __('Leave album'), icon: 'lucide-log-out', onClick: leave })
+  return items
+})
+
+async function downloadAll() {
+  const files = await getAlbumFiles(props.album)
+  download(files.map((name) => ({ name }) as Photo))
+}
+
+function slideshow() {
+  openLightbox(handle, handle.feed.rows[0].name, true)
+}
+
+async function saveTitle() {
+  if (!title.value.trim()) return
+  await renameAlbum(props.album, title.value)
+  renaming.value = false
+  await refresh()
+  loadAlbums()
+}
+
+async function remove() {
+  await deleteAlbum(props.album)
+  await loadAlbums()
+  router.push({ name: 'photos-albums' })
+}
+
+async function leave() {
+  await leaveAlbum(props.album)
+  await loadAlbums()
+  toast.success(__('You left {0}', [album.value?.title ?? '']))
+  router.push({ name: 'photos-sharing' })
+}
+
+async function removeItems(files: string[]) {
+  await removeFromAlbum(props.album, files)
+  handle.remove(files)
+  clearSelection()
+  toast.success(__('Removed from album'))
+  refresh()
+}
+
+async function useAsCover(file: string) {
+  await setCover(props.album, file)
+  toast.success(__('Album cover updated'))
+  loadAlbums()
+}
+
+usePageMeta(() => appPageMeta(album.value?.title, 'Photos'))
+</script>

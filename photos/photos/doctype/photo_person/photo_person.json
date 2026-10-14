@@ -1,0 +1,70 @@
+{
+ "actions": [],
+ "creation": "2026-10-14 19:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "autoname": "hash",
+ "field_order": [
+  "person_name",
+  "cover_face",
+  "face_count",
+  "hidden",
+  "centroid"
+ ],
+ "fields": [
+  {
+   "fieldname": "person_name",
+   "fieldtype": "Data",
+   "label": "Name",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cover_face",
+   "fieldtype": "Link",
+   "options": "Photo Face",
+   "label": "Cover Face"
+  },
+  {
+   "fieldname": "face_count",
+   "fieldtype": "Int",
+   "label": "Face Count",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "hidden",
+   "fieldtype": "Check",
+   "label": "Hidden"
+  },
+  {
+   "fieldname": "centroid",
+   "fieldtype": "Long Text",
+   "label": "Centroid",
+   "hidden": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-14 19:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Photos",
+ "name": "Photo Person",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "email": 1,
+   "print": 1,
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "person_name"
+}

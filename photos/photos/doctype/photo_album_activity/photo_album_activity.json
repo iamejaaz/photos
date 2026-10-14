@@ -1,0 +1,68 @@
+{
+ "actions": [],
+ "creation": "2026-10-14 17:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "autoname": "hash",
+ "field_order": [
+  "album",
+  "file",
+  "type",
+  "content"
+ ],
+ "fields": [
+  {
+   "fieldname": "album",
+   "fieldtype": "Link",
+   "options": "Photo Album",
+   "label": "Album",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "file",
+   "fieldtype": "Link",
+   "options": "File",
+   "label": "File",
+   "search_index": 1
+  },
+  {
+   "fieldname": "type",
+   "fieldtype": "Select",
+   "options": "Comment\nLike",
+   "label": "Type",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "Small Text",
+   "label": "Content"
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-14 17:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Photos",
+ "name": "Photo Album Activity",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "email": 1,
+   "print": 1,
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

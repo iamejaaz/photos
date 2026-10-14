@@ -5,9 +5,37 @@ app_description = "Google Photos style library for Frappe, built on Frappe Drive
 app_email = "ejaaz@frappe.io"
 app_license = "agpl-3.0"
 
+required_apps = ["suite"]
+
+add_to_apps_screen = [
+    {
+        "name": "photos",
+        "logo": "/assets/photos/frontend/logo.svg",
+        "title": "Photos",
+        "route": "/photos",
+    },
+]
+
+website_route_rules = [
+    {"from_route": "/photos/<path:app_path>", "to_route": "photos"},
+]
+
+doc_events = {
+    "File": {
+        "after_insert": "photos.metadata.enqueue_extract",
+    },
+    "Photo Album": {
+        "on_update": "suite.drive.overrides.file.sync_content_file",
+        "on_trash": "suite.drive.overrides.file.sync_content_file",
+    },
+}
+
+has_permission = {
+    "Photo Album": "suite.drive.overrides.file.content_has_permission",
+}
+
 # Send non-GET requests for this app's endpoints as native `application/json`
 # bodies instead of form-encoded, per-key JSON-stringified values.
-use_json_request_body = True
 
 # Apps
 # ------------------
@@ -304,4 +332,3 @@ require_type_annotated_api_methods = True
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-

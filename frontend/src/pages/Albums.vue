@@ -1,0 +1,130 @@
+<template>
+  <PhotosHeader :title="shared ? __('Sharing') : __('Albums')" hide-upload>
+    <template v-if="!shared" #actions>
+      <Button variant="subtle" @click="creating = true">
+        <template #prefix><LucidePlus class="size-4" /></template>
+        {{ __('New album') }}
+      </Button>
+    </template>
+  </PhotosHeader>
+  <section v-if="shared && libraries.length" class="px-3 pt-4 sm:px-5">
+    <h2 class="mb-3 text-base font-semibold text-ink-gray-8">{{ __('Libraries shared with you') }}</h2>
+    <div class="flex flex-wrap gap-3">
+      <router-link
+        v-for="library in libraries"
+        :key="library.name"
+        :to="{ name: 'photos-folder', params: { folder: library.name } }"
+        class="flex items-center gap-3 rounded-lg border p-2 pr-4 hover:bg-surface-gray-1"
+      >
+        <img
+          v-if="library.cover"
+          :src="thumbnailUrl(library.cover)"
+          class="size-10 rounded object-cover"
+          alt=""
+        />
+        <div>
+          <div class="text-base font-medium text-ink-gray-8">{{ library.owner_name }}</div>
+          <div class="text-sm text-ink-gray-5">{{ itemCount(library.count) }}</div>
+        </div>
+      </router-link>
+    </div>
+    <h2 class="mb-1 mt-6 text-base font-semibold text-ink-gray-8">{{ __('Albums') }}</h2>
+  </section>
+  <div class="grid grid-cols-2 gap-x-4 gap-y-6 p-3 sm:grid-cols-3 sm:p-5 lg:grid-cols-4 xl:grid-cols-5">
+    <router-link
+      v-for="album in list"
+      :key="album.name"
+      :to="{ name: 'photos-album', params: { album: album.name } }"
+      class="group flex flex-col gap-2"
+    >
+      <div class="relative aspect-square overflow-hidden rounded-xl bg-surface-gray-2">
+        <img
+          v-if="album.cover"
+          :src="thumbnailUrl(album.cover, album.name)"
+          class="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+          alt=""
+        />
+        <div v-else class="flex size-full items-center justify-center">
+          <LucideImages class="size-8 text-ink-gray-4" />
+        </div>
+        <div
+          v-if="album.shared"
+          class="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/50 text-white"
+        >
+          <component :is="album.general === 'public' ? LucideGlobe : LucideUsers" class="size-3.5" />
+        </div>
+      </div>
+      <div>
+        <div class="truncate text-base font-medium text-ink-gray-8">{{ album.title }}</div>
+        <div class="truncate text-sm text-ink-gray-5">
+          {{ shared ? `${album.owner_name} · ${itemCount(album.count)}` : itemCount(album.count) }}
+        </div>
+      </div>
+    </router-link>
+  </div>
+  <div v-if="albumsLoaded && !list.length" class="flex flex-col items-center gap-3 py-24 text-center">
+    <div class="flex size-14 items-center justify-center rounded-full bg-surface-gray-2">
+      <component :is="shared ? LucideUsers : LucideImages" class="size-6 text-ink-gray-6" />
+    </div>
+    <div class="text-lg font-medium text-ink-gray-8">
+      {{ shared ? __('Nothing shared with you yet') : __('No albums yet') }}
+    </div>
+    <div class="max-w-sm text-base text-ink-gray-5">
+      {{
+        shared
+          ? __('Albums people share with you show up here.')
+          : __(
+              'Group photos into albums and share them. A photo can be in many albums and stays where it is in Drive.',
+            )
+      }}
+    </div>
+  </div>
+  <Dialog
+    v-model:open="creating"
+    :title="__('New album')"
+    size="sm"
+    :actions="[{ label: __('Create'), variant: 'solid', onClick: create }]"
+  >
+    <TextInput v-model="title" :placeholder="__('Album title')" autofocus @keydown.enter="create" />
+  </Dialog>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Button, Dialog, TextInput, usePageMeta } from 'frappe-ui'
+import LucideGlobe from '~icons/lucide/globe'
+import LucideImages from '~icons/lucide/images'
+import LucidePlus from '~icons/lucide/plus'
+import LucideUsers from '~icons/lucide/users'
+
+import { appPageMeta } from '@/utils/documentTitle'
+import { type Folder, createAlbum, getFolders, getLibraryFolder, thumbnailUrl } from '../api'
+import PhotosHeader from '../components/PhotosHeader.vue'
+import { albums, albumsLoaded, loadAlbums, markSharingSeen, sharedAlbums } from '../store'
+import { itemCount } from '../utils'
+
+const props = defineProps<{ shared?: boolean }>()
+const router = useRouter()
+const creating = ref(false)
+const title = ref('')
+const list = computed(() => (props.shared ? sharedAlbums.value : albums.value))
+const libraries = ref<Folder[]>([])
+if (props.shared) {
+  Promise.all([getFolders(), getLibraryFolder()]).then(([folders, mine]) => {
+    libraries.value = folders.filter((folder) => folder.title === 'Photos' && folder.name !== mine.name)
+  })
+}
+loadAlbums().then(() => props.shared && markSharingSeen())
+
+async function create() {
+  if (!title.value.trim()) return
+  const name = await createAlbum(title.value.trim())
+  creating.value = false
+  title.value = ''
+  await loadAlbums()
+  router.push({ name: 'photos-album', params: { album: name } })
+}
+
+usePageMeta(() => appPageMeta(props.shared ? __('Sharing') : __('Albums'), 'Photos'))
+</script>
