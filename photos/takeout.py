@@ -84,6 +84,8 @@ class Export:
 
 def read_export(name):
     doc = frappe.get_doc("Photo Import", name)
+    if doc.status != "Reading":
+        return
     frappe.set_user(doc.owner)
     try:
         export = Export(json.loads(doc.files))
@@ -114,6 +116,8 @@ def read_export(name):
 
 def run_import(name):
     doc = frappe.get_doc("Photo Import", name)
+    if doc.status != "Importing" or doc.total:
+        return
     user = doc.owner
     frappe.set_user(user)
     options = json.loads(doc.options or "{}")
