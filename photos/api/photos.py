@@ -493,11 +493,24 @@ def duplicates(threshold: int = 8):
             i = parent[i]
         return i
 
+    threshold = int(threshold)
     values = [int(row.phash, 16) for row in hashed]
-    for i in range(len(hashed)):
-        for j in range(i + 1, len(hashed)):
-            if (values[i] ^ values[j]).bit_count() <= int(threshold) and _same_kind(hashed[i], hashed[j]):
-                parent[find(i)] = find(j)
+    slices = threshold + 1
+    width = -(-HASH_SIZE * HASH_SIZE // slices)
+    buckets = {}
+    for index, value in enumerate(values):
+        for part in range(slices):
+            buckets.setdefault((part, (value >> (part * width)) & ((1 << width) - 1)), []).append(index)
+    checked = set()
+    for members in buckets.values():
+        for a in range(len(members)):
+            for b in range(a + 1, len(members)):
+                i, j = members[a], members[b]
+                if (i, j) in checked:
+                    continue
+                checked.add((i, j))
+                if (values[i] ^ values[j]).bit_count() <= threshold and _same_kind(hashed[i], hashed[j]):
+                    parent[find(i)] = find(j)
 
     groups = {}
     for index, row in enumerate(hashed):
