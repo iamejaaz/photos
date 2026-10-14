@@ -121,6 +121,19 @@ if (loggedIn.value) {
     const job = await loadImport(data.name)
     if (job?.status === 'Done') toast.success(__('Google Photos import finished'))
   })
+  initSocket().on('photos-export-ready', (data: { file: string; title: string }) => {
+    toast.success(__('{0} is ready', [data.title]), {
+      duration: 30,
+      action: {
+        label: __('Download'),
+        onClick: () =>
+          window.location.assign(
+            `/api/method/suite.drive.api.files.get_file_content?entity_name=${data.file}&trigger_download=1`,
+          ),
+      },
+    })
+  })
+  initSocket().on('photos-export-failed', () => toast.error(__('The export failed. Please try again.')))
   initSocket().on('photos-setup-status', (data: { status: string }) => {
     loadSettings()
     if (data.status === 'Ready') toast.success(__('People, places and things are ready'))

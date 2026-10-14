@@ -154,6 +154,15 @@ export function makeCollage(files: string[]) {
 }
 
 export const libraryShare = reactive({ open: false })
+
+export async function startExport(run: () => Promise<unknown>) {
+  try {
+    await run()
+    toast.info(__('Preparing your export. You will get a message when it is ready.'))
+  } catch (error) {
+    toast.error((error as { messages?: string[] }).messages?.[0] ?? __('Could not start the export'))
+  }
+}
 export const memoriesVersion = ref(0)
 
 export const editing = reactive<{ kind: 'date' | 'location' | null; files: string[]; version: number }>({

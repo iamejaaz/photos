@@ -115,6 +115,7 @@ import {
   type Photo,
   deleteAlbum,
   getAlbum,
+  exportAlbum,
   getAlbumFiles,
   leaveAlbum,
   removeFromAlbum,
@@ -126,7 +127,15 @@ import AddPhotosDialog from '../components/AddPhotosDialog.vue'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import ShareAlbumDialog from '../components/ShareAlbumDialog.vue'
-import { clearSelection, createFeed, download, loadAlbums, onUploaded, openLightbox } from '../store'
+import {
+  clearSelection,
+  createFeed,
+  download,
+  loadAlbums,
+  onUploaded,
+  openLightbox,
+  startExport,
+} from '../store'
 
 const props = defineProps<{ album: string }>()
 const router = useRouter()
@@ -168,7 +177,14 @@ const menu = computed(() => {
   if (!access) return []
   const items = []
   if (album.value?.count)
-    items.push({ label: __('Download album'), icon: 'lucide-download', onClick: downloadAll })
+    items.push(
+      { label: __('Download album'), icon: 'lucide-download', onClick: downloadAll },
+      {
+        label: __('Export with dates and places'),
+        icon: 'lucide-file-archive',
+        onClick: () => startExport(() => exportAlbum(props.album)),
+      },
+    )
   if (access.write)
     items.push({
       label: __('Rename'),

@@ -218,6 +218,12 @@ export const editLocation = (files: string[], place: PlaceMatch | null) =>
 export const searchPlaces = (query: string) =>
   call(`${EDIT}.search_places`, { query }) as Promise<PlaceMatch[]>
 
+const EXPORT = 'photos.api.export'
+export const exportFiles = (files: string[], album?: string) =>
+  call(`${EXPORT}.export_files`, { files, album })
+export const exportAlbum = (album: string) => call(`${EXPORT}.export_album`, { album })
+export const exportLibrary = () => call(`${EXPORT}.export_library`)
+
 export interface ImportJob {
   name: string
   status: 'Reading' | 'Ready' | 'Importing' | 'Done' | 'Failed'

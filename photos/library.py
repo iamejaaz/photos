@@ -10,6 +10,12 @@ from photos.metadata import extract
 
 
 def add_file(path, owner, taken, parent=None):
+    name = store_file(path, owner, parent, taken.timestamp())
+    extract(name)
+    return name
+
+
+def store_file(path, owner, parent=None, modified=None):
     frappe.set_user(owner)
     if not parent:
         from photos.api.photos import get_upload_folder
@@ -27,10 +33,9 @@ def add_file(path, owner, taken, parent=None):
         lambda file: "/" + str(manager.get_disk_path(file, False)),
         mime_type,
         temp.stat().st_size,
-        taken.timestamp(),
+        modified,
         owner=owner,
     )
     manager.upload_file(temp, drive_file, True)
     update_file_size(parent, drive_file.file_size)
-    extract(drive_file.name)
     return drive_file.name

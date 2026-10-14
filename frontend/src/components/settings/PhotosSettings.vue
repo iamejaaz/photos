@@ -12,6 +12,10 @@
           /></template>
           {{ __('Import') }}
         </SettingsNavItem>
+        <SettingsNavItem value="export">
+          <template #prefix><span class="lucide-file-archive size-4 shrink-0 text-ink-gray-6" /></template>
+          {{ __('Export') }}
+        </SettingsNavItem>
       </SettingsNavGroup>
       <SettingsNavGroup v-if="settings.data?.can_manage" :label="__('Administration')">
         <SettingsNavItem value="features">
@@ -23,6 +27,7 @@
     <SettingsContent>
       <SettingsPanel value="memories"><MemoriesPanel /></SettingsPanel>
       <SettingsPanel value="import"><ImportPanel /></SettingsPanel>
+      <SettingsPanel value="export"><ExportPanel /></SettingsPanel>
       <SettingsPanel v-if="settings.data?.can_manage" value="features"><FeaturesPanel /></SettingsPanel>
     </SettingsContent>
   </SettingsDialog>
@@ -40,6 +45,7 @@ import {
 
 import { settings } from '../../store'
 import FeaturesPanel from './FeaturesPanel.vue'
+import ExportPanel from './ExportPanel.vue'
 import ImportPanel from './ImportPanel.vue'
 import MemoriesPanel from './MemoriesPanel.vue'
 </script>

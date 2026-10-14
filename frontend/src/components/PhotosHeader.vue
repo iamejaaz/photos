@@ -77,6 +77,7 @@ import LucideCalendarClock from '~icons/lucide/calendar-clock'
 import LucideClapperboard from '~icons/lucide/clapperboard'
 import LucideDownload from '~icons/lucide/download'
 import LucideEllipsis from '~icons/lucide/ellipsis'
+import LucideFileArchive from '~icons/lucide/file-archive'
 import LucideImageDown from '~icons/lucide/image-down'
 import LucideImageMinus from '~icons/lucide/image-minus'
 import LucideImagePlus from '~icons/lucide/image-plus'
@@ -92,7 +93,7 @@ import LucideUserX from '~icons/lucide/user-x'
 import LucideX from '~icons/lucide/x'
 
 import { useSessionStore } from '@/boot/session'
-import { type Album, type Photo, isVideo, saveToLibrary } from '../api'
+import { type Album, type Photo, exportFiles, isVideo, saveToLibrary } from '../api'
 import {
   activeFeed,
   archive,
@@ -100,6 +101,7 @@ import {
   download,
   editMetadata,
   makeCollage,
+  startExport,
   makeMovie,
   pickAlbumFor,
   removeForever,
@@ -151,6 +153,12 @@ const actions = computed<Action[]>(() => {
     run: (names) => pickAlbumFor(names),
   }
   const save: Action = { label: __('Download'), icon: LucideDownload, run: () => download(selected()) }
+  const exportSelected: Action = {
+    label: __('Export with dates and places'),
+    icon: LucideFileArchive,
+    more: true,
+    run: (names) => startExport(() => exportFiles(names, props.album?.name)),
+  }
   const toTrash: Action = { label: __('Move to trash'), icon: LucideTrash2, run: () => trash(writable()) }
   const movie: Action = {
     label: __('Create movie'),
@@ -191,7 +199,7 @@ const actions = computed<Action[]>(() => {
       toTrash,
     ]
   if (props.mode === 'album') {
-    const list: Action[] = loggedIn.value ? [addToAlbum, save, movie] : [save]
+    const list: Action[] = loggedIn.value ? [addToAlbum, save, movie, exportSelected] : [save]
     if (loggedIn.value && !props.album?.access?.owner)
       list.push({
         label: __('Save to your photos'),
@@ -246,6 +254,7 @@ const actions = computed<Action[]>(() => {
       more: true,
       run: () => editMetadata('location', writable()),
     },
+    exportSelected,
     { label: __('Archive'), icon: LucideArchive, run: (names) => archive(names) },
     toTrash,
   ]
