@@ -123,7 +123,7 @@ if (loggedIn.value) {
   })
   initSocket().on('photos-export-ready', (data: { file: string; title: string }) => {
     toast.success(__('{0} is ready', [data.title]), {
-      duration: 30,
+      duration: 30000,
       action: {
         label: __('Download'),
         onClick: () =>
