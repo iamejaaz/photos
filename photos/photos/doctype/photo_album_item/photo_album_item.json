@@ -6,7 +6,8 @@
  "autoname": "hash",
  "field_order": [
   "album",
-  "file"
+  "file",
+  "added_by_name"
  ],
  "fields": [
   {
@@ -26,10 +27,15 @@
    "reqd": 1,
    "in_list_view": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "added_by_name",
+   "fieldtype": "Data",
+   "label": "Added By Name"
   }
  ],
  "links": [],
- "modified": "2026-10-14 15:00:00.000000",
+ "modified": "2026-10-14 23:00:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photo Album Item",

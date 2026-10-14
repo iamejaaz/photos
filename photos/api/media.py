@@ -2,13 +2,14 @@ from io import BytesIO
 
 import frappe
 from suite.drive.api import files as drive
+from suite.drive.api.permissions import user_has_permission
 from suite.drive.utils import STATUS_ACTIVE
 from suite.drive.utils.files import FileManager, storage_key
 from werkzeug.utils import send_file
 from werkzeug.wrappers import Response
 from werkzeug.wsgi import wrap_file
 
-from photos.api.albums import can_read
+from photos.api.albums import album_access, can_read
 
 
 def _file(entity_name, album):
@@ -47,6 +48,8 @@ def content(entity_name: str, album: str | None = None, download: int = 0):
     file = _file(entity_name, album)
     manager = FileManager()
     if int(download or 0):
+        if not user_has_permission(entity_name, "read") and not album_access(album)["download"]:
+            frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
         return drive._serve_resumable(manager, storage_key(file.file_url), file.file_name, file.mime_type)
     return send_file(
         manager.get_file(file),

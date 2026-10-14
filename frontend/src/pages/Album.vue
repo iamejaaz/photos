@@ -31,6 +31,16 @@
         <template #prefix><LucideImagePlus class="size-4" /></template>
         <span class="hidden sm:inline">{{ __('Add photos') }}</span>
       </Button>
+      <Button
+        v-if="album?.access?.upload && !album.access.write"
+        variant="subtle"
+        :loading="contributing"
+        :aria-label="__('Add photos')"
+        @click="contribute"
+      >
+        <template #prefix><LucideImagePlus class="size-4" /></template>
+        <span class="hidden sm:inline">{{ __('Add photos') }}</span>
+      </Button>
       <Button v-if="album?.access?.share" variant="solid" :aria-label="__('Share')" @click="sharing = true">
         <template #prefix><LucideShare2 class="size-4" /></template>
         <span class="hidden sm:inline">{{ __('Share') }}</span>
@@ -55,7 +65,23 @@
     </template>
   </PhotosHeader>
 
-  <ErrorMessage v-if="error" class="p-10 text-center" :message="error" />
+  <form
+    v-if="gate === 'locked'"
+    class="mx-auto flex max-w-xs flex-col items-center gap-3 px-6 py-24 text-center"
+    @submit.prevent="unlock"
+  >
+    <LucideLock class="size-6 text-ink-gray-6" />
+    <div class="text-lg font-medium text-ink-gray-8">{{ __('This album is protected') }}</div>
+    <div class="text-base text-ink-gray-5">{{ __('Enter the password you were given.') }}</div>
+    <Password v-model="password" class="w-full" autofocus />
+    <ErrorMessage :message="passwordError" />
+    <Button variant="solid" class="w-full" type="submit" :loading="unlocking">{{ __('Open album') }}</Button>
+  </form>
+  <div v-else-if="gate === 'expired'" class="flex flex-col items-center gap-2 px-6 py-24 text-center">
+    <div class="text-lg font-medium text-ink-gray-8">{{ __('This link has expired') }}</div>
+    <div class="text-base text-ink-gray-5">{{ __('Ask the person who shared it for a new one.') }}</div>
+  </div>
+  <ErrorMessage v-else-if="error" class="p-10 text-center" :message="error" />
   <div v-else class="flex min-h-full">
     <PhotoGrid
       class="min-w-0 flex-1"
@@ -76,6 +102,23 @@
   </div>
 
   <ShareAlbumDialog v-if="album" v-model="sharing" :album="album" @changed="refresh" />
+  <AlbumLinkDialog
+    v-if="album?.access?.owner"
+    v-model="linkSettings"
+    :album="props.album"
+    @share="((linkSettings = false), (sharing = true))"
+  />
+  <Dialog
+    v-model:open="askingName"
+    :title="__('Add your photos')"
+    size="sm"
+    :actions="[{ label: __('Continue'), variant: 'solid', onClick: pickContributions }]"
+  >
+    <div class="flex flex-col gap-2">
+      <div class="text-base text-ink-gray-6">{{ __('Your name is shown next to the photos you add.') }}</div>
+      <TextInput v-model="guestName" :placeholder="__('Your name')" @keydown.enter="pickContributions" />
+    </div>
+  </Dialog>
   <AddPhotosDialog v-if="album" v-model="adding" :album="album" @added="handle.reload()" />
   <Dialog
     v-model:open="renaming"
@@ -99,7 +142,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Dialog, Dropdown, ErrorMessage, TextInput, toast, usePageMeta } from 'frappe-ui'
+import { Button, Dialog, Dropdown, ErrorMessage, Password, TextInput, toast, usePageMeta } from 'frappe-ui'
+import LucideLock from '~icons/lucide/lock'
 import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideEllipsis from '~icons/lucide/ellipsis'
 import LucideImagePlus from '~icons/lucide/image-plus'
@@ -109,10 +153,13 @@ import LucideShare2 from '~icons/lucide/share-2'
 
 import { useSessionStore } from '@/boot/session'
 import { appPageMeta } from '@/utils/documentTitle'
+import { readString, writeString } from '@/utils/localStorage'
 import {
   ALBUM_PHOTOS,
   type Album,
   type Photo,
+  albumGate,
+  collectUpload,
   deleteAlbum,
   getAlbum,
   exportAlbum,
@@ -121,9 +168,11 @@ import {
   removeFromAlbum,
   renameAlbum,
   setCover,
+  unlockAlbum,
 } from '../api'
 import ActivityPanel from '../components/ActivityPanel.vue'
 import AddPhotosDialog from '../components/AddPhotosDialog.vue'
+import AlbumLinkDialog from '../components/AlbumLinkDialog.vue'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import ShareAlbumDialog from '../components/ShareAlbumDialog.vue'
@@ -158,7 +207,13 @@ function openPhoto(file: string) {
 async function refresh() {
   try {
     album.value = await getAlbum(props.album)
+    gate.value = null
   } catch {
+    const state = await albumGate(props.album).catch(() => null)
+    if (state?.locked || state?.expired) {
+      gate.value = state.locked ? 'locked' : 'expired'
+      return
+    }
     error.value = loggedIn.value
       ? __("This album doesn't exist or isn't shared with you.")
       : __('Sign in to see this album.')
@@ -176,7 +231,7 @@ const menu = computed(() => {
   const access = album.value?.access
   if (!access) return []
   const items = []
-  if (album.value?.count)
+  if (album.value?.count && access.download)
     items.push(
       { label: __('Download album'), icon: 'lucide-download', onClick: downloadAll },
       {
@@ -195,6 +250,12 @@ const menu = computed(() => {
       },
     })
   if (access.owner)
+    items.push({
+      label: __('Link settings'),
+      icon: 'lucide-link',
+      onClick: () => (linkSettings.value = true),
+    })
+  if (access.owner)
     items.push({ label: __('Delete album'), icon: 'lucide-trash-2', onClick: () => (deleting.value = true) })
   else if (loggedIn.value) items.push({ label: __('Leave album'), icon: 'lucide-log-out', onClick: leave })
   return items
@@ -203,6 +264,66 @@ const menu = computed(() => {
 async function downloadAll() {
   const files = await getAlbumFiles(props.album)
   download(files.map((name) => ({ name }) as Photo))
+}
+
+const gate = ref<'locked' | 'expired' | null>(null)
+const password = ref('')
+const passwordError = ref('')
+const unlocking = ref(false)
+const linkSettings = ref(false)
+const askingName = ref(false)
+const guestName = ref(readString('photos-guest-name'))
+const contributing = ref(false)
+
+async function unlock() {
+  unlocking.value = true
+  passwordError.value = ''
+  try {
+    await unlockAlbum(props.album, password.value)
+    await refresh()
+    handle.reload()
+  } catch (error) {
+    passwordError.value =
+      (error as { messages?: string[] }).messages?.[0] ?? __('That password is not right.')
+  } finally {
+    unlocking.value = false
+  }
+}
+
+function contribute() {
+  if (!loggedIn.value && !guestName.value.trim()) askingName.value = true
+  else pickContributions()
+}
+
+function pickContributions() {
+  if (!loggedIn.value && !guestName.value.trim()) return
+  askingName.value = false
+  writeString('photos-guest-name', guestName.value.trim())
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.multiple = true
+  input.accept = 'image/*,video/*'
+  input.onchange = () => input.files && uploadContributions([...input.files])
+  input.click()
+}
+
+async function uploadContributions(files: File[]) {
+  contributing.value = true
+  let added = 0
+  for (const file of files) {
+    try {
+      await collectUpload(props.album, file, loggedIn.value ? undefined : guestName.value.trim())
+      added++
+    } catch (error) {
+      toast.error(`${file.name}: ${(error as Error).message}`)
+    }
+  }
+  contributing.value = false
+  if (added) {
+    toast.success(added === 1 ? __('1 item added') : __('{0} items added', [added]))
+    handle.reload()
+    refresh()
+  }
 }
 
 function slideshow() {

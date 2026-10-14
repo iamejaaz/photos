@@ -22,6 +22,8 @@ export interface Photo {
   album?: string
   added?: string
   trashed_on?: string
+  download?: number
+  added_by_name?: string | null
 }
 
 export interface Page {
@@ -42,7 +44,7 @@ export interface Album {
   shared_on?: string
   modified?: string
   latest?: string | null
-  access?: { read: number; write: number; share: number; owner: number }
+  access?: { read: number; write: number; share: number; owner: number; download: number; upload: number }
 }
 
 export interface Memory {
@@ -245,6 +247,34 @@ export const createImport = (files: string[]) =>
   call(`${TAKEOUT}.create_import`, { files }) as Promise<ImportJob>
 export const getImport = (name?: string) =>
   call(`${TAKEOUT}.get_import`, { name }) as Promise<ImportJob | null>
+export interface LinkSettings {
+  allow_uploads: number
+  allow_download: number
+  link_expires_on: string | null
+  has_password: boolean
+  public: boolean
+}
+export const albumGate = (album: string) =>
+  call(`${ALBUMS}.album_gate`, { album }) as Promise<{ expired: boolean; locked: boolean }>
+export const unlockAlbum = (album: string, password: string) =>
+  call(`${ALBUMS}.unlock_album`, { album, password })
+export const getLinkSettings = (album: string) =>
+  call(`${ALBUMS}.get_link_settings`, { album }) as Promise<LinkSettings>
+export const saveLinkSettings = (album: string, values: Record<string, unknown>) =>
+  call(`${ALBUMS}.save_link_settings`, { album, ...values }) as Promise<LinkSettings>
+export async function collectUpload(album: string, file: File, name?: string) {
+  const form = new FormData()
+  form.append('album', album)
+  if (name) form.append('name', name)
+  form.append('file', file, file.name)
+  const response = await fetch('/api/method/photos.api.collect.upload', {
+    method: 'POST',
+    body: form,
+    headers: { 'X-Frappe-CSRF-Token': window.csrf_token ?? '' },
+  })
+  if (!response.ok) throw new Error(await errorMessage(response))
+}
+
 export const startImport = (name: string, options: ImportOptions) =>
   call(`${TAKEOUT}.start_import`, { name, options }) as Promise<ImportJob>
 export const cancelImport = (name: string) => call(`${TAKEOUT}.cancel_import`, { name })

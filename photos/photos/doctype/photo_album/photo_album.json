@@ -7,7 +7,11 @@
  "field_order": [
   "title",
   "description",
-  "cover"
+  "cover",
+  "allow_uploads",
+  "allow_download",
+  "link_expires_on",
+  "link_password"
  ],
  "fields": [
   {
@@ -27,10 +31,32 @@
    "fieldtype": "Link",
    "options": "File",
    "label": "Cover"
+  },
+  {
+   "default": "0",
+   "fieldname": "allow_uploads",
+   "fieldtype": "Check",
+   "label": "Allow Uploads From Link"
+  },
+  {
+   "default": "1",
+   "fieldname": "allow_download",
+   "fieldtype": "Check",
+   "label": "Allow Downloads From Link"
+  },
+  {
+   "fieldname": "link_expires_on",
+   "fieldtype": "Datetime",
+   "label": "Link Expires On"
+  },
+  {
+   "fieldname": "link_password",
+   "fieldtype": "Password",
+   "label": "Link Password"
   }
  ],
  "links": [],
- "modified": "2026-10-14 15:00:00.000000",
+ "modified": "2026-10-14 23:00:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photo Album",

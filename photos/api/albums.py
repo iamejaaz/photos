@@ -1,9 +1,14 @@
+import hashlib
+import hmac
 import json
 
 import frappe
+from frappe.rate_limiter import rate_limit
+from frappe.utils import get_datetime, now_datetime
+from frappe.utils.password import delete_all_passwords_for, get_decrypted_password
 from pypika import Order
 from suite.drive.api.list import DriveFavourite
-from suite.drive.api.permissions import get_user_access_for_user, user_has_permission
+from suite.drive.api.permissions import get_user_access_for_user, is_drive_admin, user_has_permission
 from suite.drive.overrides.file import File as DriveFile
 from suite.drive.utils import FILE_FIELDS, GENERAL_USER, get_principals
 
@@ -13,7 +18,8 @@ ALBUM = "Photo Album"
 AlbumItem = frappe.qb.DocType("Photo Album Item")
 DrivePermission = frappe.qb.DocType("Drive Permission")
 PUBLIC = ""
-NO_ACCESS = {"read": 0, "write": 0, "share": 0, "owner": 0}
+NO_ACCESS = {"read": 0, "write": 0, "share": 0, "owner": 0, "download": 0, "upload": 0}
+FULL_ACCESS = {"read": 1, "write": 1, "share": 1, "owner": 0, "download": 1, "upload": 1}
 
 
 def album_file(album):
@@ -22,14 +28,115 @@ def album_file(album):
 
 def album_access(album, user=None):
     user = user or frappe.session.user
-    owner = frappe.db.get_value(ALBUM, album, "owner")
-    if not owner:
+    doc = frappe.db.get_value(
+        ALBUM, album, ["owner", "allow_uploads", "allow_download", "link_expires_on"], as_dict=True
+    )
+    if not doc:
         return NO_ACCESS
-    if user == owner:
-        return {"read": 1, "write": 1, "share": 1, "owner": 1}
+    if user == doc.owner:
+        return FULL_ACCESS | {"owner": 1}
+    if is_drive_admin(user):
+        return FULL_ACCESS
     file = album_file(album)
     access = get_user_access_for_user(file, user) if file else {}
-    return {key: int(bool(access.get(key))) for key in ("read", "write", "share")} | {"owner": 0}
+    result = {key: int(bool(access.get(key))) for key in ("read", "write", "share")}
+    result |= {"owner": 0, "download": 1, "upload": result["write"]}
+    if result["read"] and not _shared_directly(album, user):
+        if link_closed(album, doc):
+            return NO_ACCESS
+        result["download"] = int(doc.allow_download)
+        result["upload"] = int(result["write"] or doc.allow_uploads)
+    return result
+
+
+def _shared_directly(album, user):
+    if user == "Guest":
+        return False
+    return bool(_shares([p for p in get_principals(user) if p != PUBLIC], [album]))
+
+
+def link_closed(album, doc):
+    if doc.link_expires_on and now_datetime() > get_datetime(doc.link_expires_on):
+        return True
+    password = get_decrypted_password(ALBUM, album, "link_password", raise_exception=False)
+    return (
+        bool(password)
+        and getattr(frappe.local, "request", None) is not None
+        and not _unlocked(album, password)
+    )
+
+
+def _token(album, password):
+    key = frappe.local.conf.get("encryption_key") or frappe.local.site
+    return hmac.new(key.encode(), f"{album}:{password}".encode(), hashlib.sha256).hexdigest()[:40]
+
+
+def _unlocked(album, password):
+    cookie = frappe.request.cookies.get(f"photos_album_{album}") or ""
+    return hmac.compare_digest(cookie, _token(album, password))
+
+
+def _has_public_link(album):
+    return any(row.user == PUBLIC for row in _shares(None, [album]))
+
+
+@frappe.whitelist(allow_guest=True)
+def album_gate(album: str):
+    doc = frappe.db.get_value(ALBUM, album, ["title", "link_expires_on"], as_dict=True)
+    if not doc or not _has_public_link(album):
+        frappe.throw("This album doesn't exist or isn't shared with you.", frappe.PermissionError)
+    expired = bool(doc.link_expires_on and now_datetime() > get_datetime(doc.link_expires_on))
+    password = get_decrypted_password(ALBUM, album, "link_password", raise_exception=False)
+    return {
+        "expired": expired,
+        "locked": not expired and bool(password) and not _unlocked(album, password),
+    }
+
+
+@frappe.whitelist(allow_guest=True)
+@rate_limit(limit=10, seconds=10 * 60)
+def unlock_album(album: str, password: str):
+    saved = get_decrypted_password(ALBUM, album, "link_password", raise_exception=False)
+    if not saved or not _has_public_link(album) or not hmac.compare_digest(saved, password or ""):
+        frappe.throw("That password is not right.", frappe.AuthenticationError)
+    frappe.local.cookie_manager.set_cookie(
+        f"photos_album_{album}", _token(album, saved), max_age=30 * 24 * 60 * 60, httponly=True
+    )
+
+
+@frappe.whitelist()
+def get_link_settings(album: str):
+    _require(album, "owner")
+    doc = frappe.db.get_value(
+        ALBUM, album, ["allow_uploads", "allow_download", "link_expires_on"], as_dict=True
+    )
+    doc.has_password = bool(get_decrypted_password(ALBUM, album, "link_password", raise_exception=False))
+    doc.public = _has_public_link(album)
+    return doc
+
+
+@frappe.whitelist()
+def save_link_settings(
+    album: str,
+    allow_uploads: bool = False,
+    allow_download: bool = True,
+    link_expires_on: str | None = None,
+    password: str | None = None,
+    remove_password: bool = False,
+):
+    _require(album, "owner")
+    doc = frappe.get_doc(ALBUM, album)
+    doc.allow_uploads = int(bool(allow_uploads))
+    doc.allow_download = int(bool(allow_download))
+    doc.link_expires_on = link_expires_on or None
+    if remove_password:
+        doc.link_password = None
+    elif password:
+        doc.link_password = password
+    doc.save(ignore_permissions=True)
+    if remove_password:
+        delete_all_passwords_for(ALBUM, album)
+    return get_link_settings(album)
 
 
 def can_read(file, album=None):
@@ -145,7 +252,10 @@ def album_files(album: str):
 
 @frappe.whitelist(allow_guest=True)
 def album_photos(album: str, start: int = 0, limit: int | None = None):
-    _require(album, "read")
+    access = album_access(album)
+    if not access["read"]:
+        frappe.throw("You don't have access to this album.", frappe.PermissionError)
+    can_download = access["download"]
     start, limit = int(start or 0), int(limit or PAGE_SIZE)
     user = frappe.session.user
     query = (
@@ -153,7 +263,7 @@ def album_photos(album: str, start: int = 0, limit: int | None = None):
         .select(*FILE_FIELDS)
         .join(AlbumItem)
         .on((AlbumItem.file == File.name) & (AlbumItem.album == album))
-        .select(AlbumItem.owner.as_("added_by"))
+        .select(AlbumItem.owner.as_("added_by"), AlbumItem.added_by_name)
         .left_join(DriveFavourite)
         .on((DriveFavourite.entity == File.name) & (DriveFavourite.user == user))
         .select(DriveFavourite.name.as_("is_favourite"))
@@ -174,6 +284,7 @@ def album_photos(album: str, start: int = 0, limit: int | None = None):
         row["album"] = album
         row["read"] = 1
         row["write"] = int(user != "Guest" and row["owner"] == user)
+        row["download"] = can_download
     return {"rows": rows[:limit], "has_next": len(rows) > limit, "next_start": start + min(len(rows), limit)}
 
 

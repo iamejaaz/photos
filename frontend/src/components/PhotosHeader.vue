@@ -199,7 +199,12 @@ const actions = computed<Action[]>(() => {
       toTrash,
     ]
   if (props.mode === 'album') {
-    const list: Action[] = loggedIn.value ? [addToAlbum, save, movie, exportSelected] : [save]
+    const canDownload = props.album?.access?.download !== 0
+    const list: Action[] = loggedIn.value
+      ? [addToAlbum, ...(canDownload ? [save] : []), movie, ...(canDownload ? [exportSelected] : [])]
+      : canDownload
+        ? [save]
+        : []
     if (loggedIn.value && !props.album?.access?.owner)
       list.push({
         label: __('Save to your photos'),

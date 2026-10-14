@@ -12,12 +12,14 @@ def export_files(files: list[str] | str, album: str | None = None):
     for name in files:
         if not can_read(name, album):
             frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
+    if album and not album_access(album)["download"]:
+        frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
     _enqueue(files, _title("Photos"))
 
 
 @frappe.whitelist()
 def export_album(album: str):
-    if not album_access(album)["read"]:
+    if not album_access(album)["download"]:
         frappe.throw("You don't have access to this album.", frappe.PermissionError)
     title = frappe.db.get_value("Photo Album", album, "title")
     files = frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file")

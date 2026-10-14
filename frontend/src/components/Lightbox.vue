@@ -47,7 +47,7 @@
                 <LucideSlidersHorizontal class="size-5" />
               </button>
             </Tooltip>
-            <Tooltip :text="__('Download')">
+            <Tooltip v-if="photo.download !== 0" :text="__('Download')">
               <a class="flex lightbox-button" :href="downloadUrl(photo.name, photo.album)">
                 <LucideDownload class="size-5" />
               </a>
@@ -166,6 +166,12 @@
               </InfoRow>
               <InfoRow :icon="LucideImage" :title="details.file_name" :subtitle="sizeLine" />
               <InfoRow v-if="meta?.camera" :icon="LucideAperture" :title="meta.camera" />
+              <InfoRow
+                v-if="photo.added_by_name"
+                :icon="LucideUserRound"
+                :title="__('Added by {0}', [photo.added_by_name])"
+                :subtitle="__('Through the album link')"
+              />
               <InfoRow
                 v-if="meta?.latitude"
                 :icon="LucideMapPin"
@@ -293,6 +299,7 @@ import LucideHeart from '~icons/lucide/heart'
 import LucideInfo from '~icons/lucide/info'
 import LucideMapPin from '~icons/lucide/map-pin'
 import LucidePencil from '~icons/lucide/pencil'
+import LucideUserRound from '~icons/lucide/user-round'
 import LucidePlay from '~icons/lucide/play'
 import LucideSlidersHorizontal from '~icons/lucide/sliders-horizontal'
 import LucideStar from '~icons/lucide/star'
