@@ -3,7 +3,7 @@ import base64
 import frappe
 from suite.drive.utils.files import FileManager, storage_key
 
-from photos import assets
+from photos import assets, auto_albums
 from photos.settings import enabled
 
 DETECT_SIDE = 1280
@@ -170,6 +170,7 @@ def _assign(face, owner):
         doc.db_set("owner", owner, update_modified=False)
         person = doc.name
     face.db_set("person", person, update_modified=False)
+    auto_albums.add_face(person, face.file)
     _maybe_update_cover(person, face)
 
 

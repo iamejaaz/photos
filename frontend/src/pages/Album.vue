@@ -20,6 +20,9 @@
       <span v-if="album && !album.access?.owner" class="hidden truncate text-sm text-ink-gray-5 sm:inline">
         {{ __('by {0}', [album.owner_name]) }}
       </span>
+      <span v-if="album?.auto_people_names?.length" class="hidden truncate text-sm text-ink-gray-5 sm:inline">
+        {{ __('Adds {0} automatically', [album.auto_people_names.join(', ')]) }}
+      </span>
     </template>
     <template #actions>
       <Button
@@ -102,6 +105,12 @@
   </div>
 
   <ShareAlbumDialog v-if="album" v-model="sharing" :album="album" @changed="refresh" />
+  <AutoPeopleDialog
+    v-if="album?.access?.owner"
+    v-model="autoPeople"
+    :album="album"
+    @saved="(handle.reload(), refresh())"
+  />
   <AlbumLinkDialog
     v-if="album?.access?.owner"
     v-model="linkSettings"
@@ -173,6 +182,7 @@ import {
 import ActivityPanel from '../components/ActivityPanel.vue'
 import AddPhotosDialog from '../components/AddPhotosDialog.vue'
 import AlbumLinkDialog from '../components/AlbumLinkDialog.vue'
+import AutoPeopleDialog from '../components/AutoPeopleDialog.vue'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import ShareAlbumDialog from '../components/ShareAlbumDialog.vue'
@@ -251,6 +261,12 @@ const menu = computed(() => {
     })
   if (access.owner)
     items.push({
+      label: __('Auto-add people'),
+      icon: 'lucide-users-round',
+      onClick: () => (autoPeople.value = true),
+    })
+  if (access.owner)
+    items.push({
       label: __('Link settings'),
       icon: 'lucide-link',
       onClick: () => (linkSettings.value = true),
@@ -271,6 +287,7 @@ const password = ref('')
 const passwordError = ref('')
 const unlocking = ref(false)
 const linkSettings = ref(false)
+const autoPeople = ref(false)
 const askingName = ref(false)
 const guestName = ref(readString('photos-guest-name'))
 const contributing = ref(false)

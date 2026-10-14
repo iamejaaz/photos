@@ -12,7 +12,8 @@
   "allow_download",
   "link_expires_on",
   "link_password",
-  "is_link"
+  "is_link",
+  "auto_people"
  ],
  "fields": [
   {
@@ -61,10 +62,15 @@
    "fieldtype": "Check",
    "label": "Share Link Only",
    "search_index": 1
+  },
+  {
+   "fieldname": "auto_people",
+   "fieldtype": "Small Text",
+   "label": "Auto Add People"
   }
  ],
  "links": [],
- "modified": "2026-10-15 02:30:00.000000",
+ "modified": "2026-10-15 03:00:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photo Album",

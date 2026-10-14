@@ -3,6 +3,7 @@ import hmac
 import json
 
 import frappe
+from frappe import _
 from frappe.rate_limiter import rate_limit
 from frappe.utils import get_datetime, now_datetime
 from frappe.utils.password import delete_all_passwords_for, get_decrypted_password
@@ -203,7 +204,7 @@ def _summaries(names):
     rows = frappe.get_all(
         ALBUM,
         filters={"name": ["in", names or [""]]},
-        fields=["name", "title", "cover", "owner", "modified", "is_link"],
+        fields=["name", "title", "cover", "owner", "modified", "is_link", "auto_people"],
         order_by="modified desc",
     )
     shares = _shares(None, names)
@@ -233,6 +234,11 @@ def _summaries(names):
         row.owner_name = frappe.db.get_value("User", row.owner, "full_name")
         row.general = "public" if general.get(row.name) == PUBLIC else "site" if row.name in general else None
         row.shared = bool(row.general) or row.name in shared_with_people
+        row.auto_people = json.loads(row.auto_people or "[]")
+        row.auto_people_names = [
+            frappe.db.get_value("Photo Person", person, "person_name") or _("Unnamed")
+            for person in row.auto_people
+        ]
     return rows
 
 
@@ -241,6 +247,19 @@ def albums():
     return _summaries(
         frappe.get_all(ALBUM, filters={"owner": frappe.session.user, "is_link": 0}, pluck="name")
     )
+
+
+@frappe.whitelist()
+def set_auto_people(album: str, people: list[str] | str):
+    from photos import auto_albums
+
+    _require(album, "owner")
+    people = _as_list(people) or []
+    owner = frappe.db.get_value(ALBUM, album, "owner")
+    own = set(frappe.get_all("Photo Person", filters={"owner": owner}, pluck="name"))
+    people = [person for person in people if person in own]
+    frappe.db.set_value(ALBUM, album, "auto_people", json.dumps(people) if people else None)
+    return auto_albums.backfill(album, people)
 
 
 @frappe.whitelist()

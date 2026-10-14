@@ -46,6 +46,8 @@ export interface Album {
   shared_on?: string
   modified?: string
   latest?: string | null
+  auto_people?: string[]
+  auto_people_names?: string[]
   access?: { read: number; write: number; share: number; owner: number; download: number; upload: number }
 }
 
@@ -131,6 +133,8 @@ export const getUploadFolder = () => call(`${PHOTOS}.get_upload_folder`) as Prom
 export const ALBUM_PHOTOS = `${ALBUMS}.album_photos`
 export const createShareLink = (files: string[]) =>
   call(`${ALBUMS}.create_share_link`, { files }) as Promise<string>
+export const setAutoPeople = (album: string, people: string[]) =>
+  call(`${ALBUMS}.set_auto_people`, { album, people }) as Promise<number>
 export const getShareLinks = () => call(`${ALBUMS}.share_links`) as Promise<Album[]>
 export const getAlbums = () => call(`${ALBUMS}.albums`) as Promise<Album[]>
 export const getSharedAlbums = () => call(`${ALBUMS}.shared_albums`) as Promise<Album[]>

@@ -5,6 +5,7 @@ import frappe
 from suite.drive.api.permissions import user_has_permission
 from werkzeug.wrappers import Response
 
+from photos import auto_albums
 from photos import faces as engine
 from photos.api.photos import Face, File, media_query, page
 
@@ -97,6 +98,7 @@ def merge_people(target: str, sources: list[str] | str):
     for source in sources:
         _own(source)
         frappe.db.set_value("Photo Face", {"person": source}, "person", target, update_modified=False)
+        auto_albums.replace_person(source, target)
         frappe.delete_doc("Photo Person", source, ignore_permissions=True, force=True)
     engine.recompute(target)
 
@@ -136,6 +138,7 @@ def move_face(face: str, person: str | None = None, person_name: str | None = No
         ).insert(ignore_permissions=True)
         person = doc.name
     frappe.db.set_value("Photo Face", face, {"person": person, "not_a_face": 0}, update_modified=False)
+    auto_albums.add_face(person, frappe.db.get_value("Photo Face", face, "file"))
     for name in {previous, person} - {None}:
         engine.recompute(name)
     return person
