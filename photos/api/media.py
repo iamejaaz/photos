@@ -71,8 +71,11 @@ def content(entity_name: str, album: str | None = None, download: int = 0, displ
     if int(display or 0):
         if formats.needs_display_image(file):
             return _send(formats.display_image(file), "image/jpeg")
-        if (file.mime_type or "").startswith("video/") and (clip := formats.display_video(file.name)):
-            return _send(clip, "video/mp4")
+        if (file.mime_type or "").startswith("video/"):
+            if clip := formats.display_video(file.name):
+                return _send(clip, "video/mp4")
+            if formats.needs_display_video(formats.source_path(file)):
+                formats.enqueue_display_video(file.name)
     return send_file(
         manager.get_file(file),
         mimetype=file.mime_type,
