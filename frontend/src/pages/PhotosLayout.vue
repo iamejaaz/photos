@@ -147,6 +147,24 @@ if (loggedIn.value) {
   })
   loadAlbums()
   loadSettings()
+  receiveShared()
+}
+
+async function receiveShared() {
+  if (!new URLSearchParams(window.location.search).has('shared') || !('caches' in window)) return
+  const cache = await caches.open('photos-share')
+  const requests = await cache.keys()
+  const files = await Promise.all(
+    requests.map(async (request) => {
+      const response = await cache.match(request)
+      const blob = await response!.blob()
+      const name = decodeURIComponent(response!.headers.get('X-File-Name') || 'shared')
+      return new File([blob], name, { type: blob.type })
+    }),
+  )
+  await Promise.all(requests.map((request) => cache.delete(request)))
+  window.history.replaceState(null, '', window.location.pathname)
+  if (files.length) uploadPhotos(files)
 }
 
 const route = useRoute()

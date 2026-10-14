@@ -374,6 +374,24 @@ def get_upload_folder():
 
 
 @frappe.whitelist()
+def existing_uploads(items: list[dict] | str):
+    items = _as_list(items)
+    names = [item["name"] for item in items][:5000]
+    rows = frappe.get_all(
+        "File",
+        filters={
+            "owner": frappe.session.user,
+            "status": STATUS_ACTIVE,
+            "is_folder": 0,
+            "file_name": ["in", names or [""]],
+        },
+        fields=["file_name", "file_size"],
+    )
+    found = {(row.file_name, int(row.file_size or 0)) for row in rows}
+    return [item["key"] for item in items if (item["name"], int(item["size"])) in found]
+
+
+@frappe.whitelist()
 def library_folder():
     name = get_upload_folder()
     folder = frappe.db.get_value("File", name, ["name", "file_name", "owner"], as_dict=True)

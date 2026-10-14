@@ -19,6 +19,7 @@ import {
   createImport,
   getImport,
   startImport,
+  existingUploads,
   getUploadFolder,
   setArchived,
   setHidden,
@@ -354,10 +355,16 @@ export const onUploaded = (fn: () => void) => {
 }
 
 export async function uploadPhotos(files: File[], album?: string): Promise<string[]> {
-  const media = files.filter((file) => /^(image|video)\//.test(file.type))
+  let media = files.filter((file) => /^(image|video)\//.test(file.type))
   if (!media.length) {
     toast.warning(__('Only photos and videos can be added here'))
     return []
+  }
+  const existing = new Set(await existingUploads(media).catch(() => []))
+  if (existing.size) {
+    media = media.filter((_, index) => !existing.has(String(index)))
+    toast.info(countLabel('1 item is already in Photos', '{0} items are already in Photos', existing.size))
+    if (!media.length) return []
   }
   Object.assign(upload, {
     active: true,

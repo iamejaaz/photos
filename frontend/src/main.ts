@@ -20,3 +20,8 @@ app.use(spritePlugin)
 app.use(translationPlugin)
 
 router.isReady().then(() => app.mount('#app'))
+
+if (import.meta.env.PROD && 'serviceWorker' in navigator)
+  navigator.serviceWorker
+    .register('/api/method/photos.api.pwa.service_worker', { scope: '/photos/' })
+    .catch(() => {})

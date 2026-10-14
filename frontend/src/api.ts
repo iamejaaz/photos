@@ -117,6 +117,10 @@ export const setArchived = (files: string[], archived: boolean) =>
 export const getLibraryFolder = () => call(`${PHOTOS}.library_folder`) as Promise<Record<string, unknown>>
 export const saveToLibrary = (files: string[], album?: string) =>
   call(`${PHOTOS}.save_to_library`, { files, album }) as Promise<string[]>
+export const existingUploads = (files: File[]) =>
+  call(`${PHOTOS}.existing_uploads`, {
+    items: files.map((file, index) => ({ key: String(index), name: file.name, size: file.size })),
+  }) as Promise<string[]>
 export const getUploadFolder = () => call(`${PHOTOS}.get_upload_folder`) as Promise<string>
 
 export const ALBUM_PHOTOS = `${ALBUMS}.album_photos`
