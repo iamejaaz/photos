@@ -19,7 +19,8 @@
   "country",
   "labels",
   "things",
-  "things_scanned"
+  "things_scanned",
+  "source"
  ],
  "fields": [
   {
@@ -108,10 +109,17 @@
    "fieldname": "things_scanned",
    "fieldtype": "Check",
    "label": "Things Scanned"
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Data",
+   "label": "Source",
+   "read_only": 1,
+   "search_index": 1
   }
  ],
  "links": [],
- "modified": "2026-10-14 22:00:00.000000",
+ "modified": "2026-10-14 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photo Metadata",

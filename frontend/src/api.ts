@@ -187,6 +187,8 @@ export const getSettings = () => call(`${SETTINGS}.get_settings`) as Promise<Set
 export const saveSettings = (values: Record<Feature, boolean>) =>
   call(`${SETTINGS}.save_settings`, values) as Promise<Settings>
 
+export const startImport = (files: string[]) => call('photos.api.takeout.start_import', { files })
+
 export const createMovie = (files: string[], title: string, seconds: number, album?: string) =>
   call('photos.movies.create_movie', { files, title, seconds, album })
 

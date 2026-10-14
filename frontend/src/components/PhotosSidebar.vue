@@ -66,7 +66,7 @@ import photosLogo from '../assets/photos.svg'
 import { useCurrentUser, useSessionStore } from '@/boot/session'
 import { useAppSwitcher } from '../useAppSwitcher'
 import { switchTheme, themeMode } from '@/utils/setupTheme'
-import { albums, libraryShare, settings, sharedAlbums, sharingSeen } from '../store'
+import { albums, libraryShare, openSettings, sharedAlbums, sharingSeen } from '../store'
 
 const route = useRoute()
 const collapsed = ref<boolean | null>(null)
@@ -115,9 +115,12 @@ const menuItems = computed(() => [
         icon: 'lucide-users',
         onClick: () => (libraryShare.open = true),
       },
-      ...(settings.data?.can_manage
-        ? [{ label: __('Settings'), icon: 'lucide-settings', onClick: () => (settings.open = true) }]
-        : []),
+      {
+        label: __('Import from Google Photos'),
+        icon: 'lucide-hard-drive-download',
+        onClick: () => openSettings('import'),
+      },
+      { label: __('Settings'), icon: 'lucide-settings', onClick: () => openSettings() },
       {
         label: __('Theme'),
         icon: LucideSunMoon,

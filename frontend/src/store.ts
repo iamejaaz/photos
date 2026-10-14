@@ -13,6 +13,7 @@ import {
   getAlbums,
   getSettings,
   getSharedAlbums,
+  startImport,
   getUploadFolder,
   setArchived,
   setFavourite,
@@ -149,7 +150,70 @@ export function makeCollage(files: string[]) {
 
 export const libraryShare = reactive({ open: false })
 
-export const settings = reactive<{ open: boolean; data: Settings | null }>({ open: false, data: null })
+export const settings = reactive<{ open: boolean; tab: string; data: Settings | null }>({
+  open: false,
+  tab: 'import',
+  data: null,
+})
+export function openSettings(tab = 'import') {
+  settings.tab = tab
+  settings.open = true
+}
+
+type TakeoutResult = { imported: number; skipped: number; albums: number }
+export const takeout = reactive({
+  phase: 'idle' as 'idle' | 'uploading' | 'importing' | 'done' | 'failed',
+  parts: 0,
+  uploaded: 0,
+  bytes: 0,
+  totalBytes: 0,
+  done: 0,
+  total: 0,
+  result: null as TakeoutResult | null,
+  error: '',
+})
+export async function startTakeout(files: File[]) {
+  const zips = files.filter((file) => file.name.toLowerCase().endsWith('.zip'))
+  if (!zips.length) {
+    toast.warning(__('Pick the .zip files from Google Takeout'))
+    return
+  }
+  Object.assign(takeout, {
+    phase: 'uploading',
+    parts: zips.length,
+    uploaded: 0,
+    bytes: 0,
+    totalBytes: zips.reduce((sum, file) => sum + file.size, 0),
+    done: 0,
+    total: 0,
+    result: null,
+    error: '',
+  })
+  try {
+    const folder = await getUploadFolder()
+    const names: string[] = []
+    for (const file of zips) {
+      const before = takeout.bytes
+      const name = await uploadFile(file, folder, (loaded) => (takeout.bytes = before + loaded))
+      if (name) names.push(name)
+      takeout.uploaded++
+    }
+    await startImport(names)
+    takeout.phase = 'importing'
+  } catch (error) {
+    takeout.phase = 'failed'
+    takeout.error = (error as { messages?: string[] }).messages?.[0] ?? (error as Error).message
+  }
+}
+export function onTakeoutEvent(event: string, data: Record<string, unknown>) {
+  if (event === 'progress') Object.assign(takeout, { phase: 'importing', done: data.done, total: data.total })
+  if (event === 'failed') Object.assign(takeout, { phase: 'failed', error: data.error })
+  if (event === 'done') {
+    Object.assign(takeout, { phase: 'done', result: data })
+    notifyUploaded()
+    loadAlbums()
+  }
+}
 export async function loadSettings() {
   settings.data = await getSettings()
 }

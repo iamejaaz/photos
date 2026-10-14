@@ -64,7 +64,7 @@
     <LibraryShareDialog />
     <KeyboardShortcutsDialog v-model:open="showShortcuts" />
     <CollageDialog />
-    <SettingsDialog />
+    <PhotosSettings />
   </FrappeUIProvider>
 </template>
 
@@ -95,7 +95,7 @@ import AlbumPicker from '../components/AlbumPicker.vue'
 import CollageDialog from '../components/CollageDialog.vue'
 import LibraryShareDialog from '../components/LibraryShareDialog.vue'
 import MovieDialog from '../components/MovieDialog.vue'
-import SettingsDialog from '../components/SettingsDialog.vue'
+import PhotosSettings from '../components/settings/PhotosSettings.vue'
 import Lightbox from '../components/Lightbox.vue'
 import PhotosSidebar from '../components/PhotosSidebar.vue'
 import {
@@ -104,6 +104,7 @@ import {
   lightbox,
   loadAlbums,
   loadSettings,
+  onTakeoutEvent,
   notifyUploaded,
   selection,
   uploadPhotos,
@@ -112,6 +113,11 @@ import {
 setupTheme()
 const loggedIn = computed(() => useSessionStore().isLoggedIn)
 if (loggedIn.value) {
+  for (const event of ['progress', 'done', 'failed'])
+    initSocket().on(`photos-import-${event}`, (data: Record<string, unknown>) => {
+      onTakeoutEvent(event, data)
+      if (event === 'done') toast.success(__('Google Photos import finished'))
+    })
   initSocket().on('photos-setup-status', (data: { status: string }) => {
     loadSettings()
     if (data.status === 'Ready') toast.success(__('People, places and things are ready'))

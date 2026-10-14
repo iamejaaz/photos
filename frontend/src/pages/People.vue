@@ -15,7 +15,7 @@
           : __('Ask an administrator to turn on People in Photos settings.')
       }}
     </div>
-    <Button v-if="settings.data?.can_manage" variant="solid" @click="settings.open = true">
+    <Button v-if="settings.data?.can_manage" variant="solid" @click="openSettings('features')">
       {{ __('Open settings') }}
     </Button>
   </div>
@@ -56,7 +56,7 @@ import { appPageMeta } from '@/utils/documentTitle'
 import { type Person, getPeople } from '../api'
 import FaceAvatar from '../components/FaceAvatar.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { settings } from '../store'
+import { openSettings, settings } from '../store'
 import { itemCount } from '../utils'
 
 const data = ref<{ enabled: boolean; people: Person[] }>()
