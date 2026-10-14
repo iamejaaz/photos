@@ -88,6 +88,7 @@ import LucideLayoutGrid from '~icons/lucide/layout-grid'
 import LucideMapPin from '~icons/lucide/map-pin'
 import LucideRotateCcw from '~icons/lucide/rotate-ccw'
 import LucideSearch from '~icons/lucide/search'
+import LucideShare2 from '~icons/lucide/share-2'
 import LucideStar from '~icons/lucide/star'
 import LucideTrash2 from '~icons/lucide/trash-2'
 import LucideUpload from '~icons/lucide/upload'
@@ -104,6 +105,7 @@ import {
   editMetadata,
   hide,
   makeCollage,
+  openShare,
   startExport,
   makeMovie,
   pickAlbumFor,
@@ -156,6 +158,12 @@ const actions = computed<Action[]>(() => {
     run: (names) => pickAlbumFor(names),
   }
   const save: Action = { label: __('Download'), icon: LucideDownload, run: () => download(selected()) }
+  const share: Action = {
+    label: __('Share'),
+    icon: LucideShare2,
+    keepSelection: true,
+    run: (names) => openShare(names.filter((name) => rowFor(name)?.write !== 0)),
+  }
   const exportSelected: Action = {
     label: __('Export with dates and places'),
     icon: LucideFileArchive,
@@ -239,6 +247,7 @@ const actions = computed<Action[]>(() => {
     return list
   }
   return [
+    share,
     { label: __('Favourite'), icon: LucideStar, run: () => toggleFavourite(selected()) },
     addToAlbum,
     save,

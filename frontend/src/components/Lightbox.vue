@@ -47,6 +47,11 @@
                 <LucideSlidersHorizontal class="size-5" />
               </button>
             </Tooltip>
+            <Tooltip v-if="inDrive" :text="__('Share')">
+              <button class="flex lightbox-button" @click="openShare([photo.name])">
+                <LucideShare2 class="size-5" />
+              </button>
+            </Tooltip>
             <Tooltip v-if="photo.download !== 0" :text="__('Download')">
               <a class="flex lightbox-button" :href="downloadUrl(photo.name, photo.album)">
                 <LucideDownload class="size-5" />
@@ -336,6 +341,7 @@ import LucideChevronLeft from '~icons/lucide/chevron-left'
 import LucideCirclePlay from '~icons/lucide/circle-play'
 import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideDownload from '~icons/lucide/download'
+import LucideShare2 from '~icons/lucide/share-2'
 import LucideEllipsisVertical from '~icons/lucide/ellipsis-vertical'
 import LucideFolder from '~icons/lucide/folder'
 import LucideFolderOpen from '~icons/lucide/folder-open'
@@ -374,6 +380,7 @@ import {
   albums,
   archive,
   editMetadata,
+  openShare,
   editing as metadataEdits,
   lightbox,
   notifyUploaded,

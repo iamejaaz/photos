@@ -203,7 +203,7 @@ def _summaries(names):
     rows = frappe.get_all(
         ALBUM,
         filters={"name": ["in", names or [""]]},
-        fields=["name", "title", "cover", "owner", "modified"],
+        fields=["name", "title", "cover", "owner", "modified", "is_link"],
         order_by="modified desc",
     )
     shares = _shares(None, names)
@@ -238,7 +238,32 @@ def _summaries(names):
 
 @frappe.whitelist()
 def albums():
-    return _summaries(frappe.get_all(ALBUM, filters={"owner": frappe.session.user}, pluck="name"))
+    return _summaries(
+        frappe.get_all(ALBUM, filters={"owner": frappe.session.user, "is_link": 0}, pluck="name")
+    )
+
+
+@frappe.whitelist()
+def share_links():
+    return _summaries(
+        frappe.get_all(ALBUM, filters={"owner": frappe.session.user, "is_link": 1}, pluck="name")
+    )
+
+
+@frappe.whitelist()
+def create_share_link(files: list[str] | str):
+    files = _as_list(files)
+    if not files:
+        frappe.throw("Pick at least one photo.")
+    for file in files:
+        if not user_has_permission(file, "read"):
+            frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
+    first = frappe.db.get_value("File", files[0], "file_name")
+    title = first if len(files) == 1 else f"{len(files)} photos"
+    album = frappe.get_doc({"doctype": ALBUM, "title": title, "is_link": 1}).insert(ignore_permissions=True)
+    add_to_album(album.name, files)
+    frappe.get_doc("File", album_file(album.name)).share("", read=1)
+    return album.name
 
 
 @frappe.whitelist()
@@ -247,7 +272,7 @@ def shared_albums():
     shared_on = {}
     for row in _shares([p for p in get_principals(user) if p != PUBLIC]):
         shared_on.setdefault(row.album, row.creation)
-    rows = [row for row in _summaries(list(shared_on)) if row.owner != user]
+    rows = [row for row in _summaries(list(shared_on)) if row.owner != user and not row.is_link]
     for row in rows:
         row.access = album_access(row.name, user)
         row.shared_on = shared_on.get(row.name)

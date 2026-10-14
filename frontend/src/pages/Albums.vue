@@ -13,6 +13,30 @@
       </Button>
     </template>
   </PhotosHeader>
+  <section v-if="shared && links.length" class="px-3 pt-4 sm:px-5">
+    <h2 class="mb-2 text-base font-semibold text-ink-gray-8">{{ __('Links you shared') }}</h2>
+    <div class="flex flex-col divide-y divide-outline-gray-1">
+      <div v-for="link in links" :key="link.name" class="flex items-center gap-3 py-2">
+        <router-link
+          :to="{ name: 'photos-album', params: { album: link.name } }"
+          class="flex min-w-0 flex-1 items-center gap-3"
+        >
+          <img
+            v-if="link.cover"
+            :src="thumbnailUrl(link.cover, link.name)"
+            class="size-10 shrink-0 rounded object-cover"
+            alt=""
+          />
+          <div class="min-w-0">
+            <div class="truncate text-base text-ink-gray-8">{{ link.title }}</div>
+            <div class="text-sm text-ink-gray-5">{{ itemCount(link.count) }}</div>
+          </div>
+        </router-link>
+        <Button variant="ghost" @click="copyLink(link.name)">{{ __('Copy link') }}</Button>
+        <Button variant="ghost" theme="red" @click="stopLink(link.name)">{{ __('Stop sharing') }}</Button>
+      </div>
+    </div>
+  </section>
   <section v-if="shared && libraries.length" class="px-3 pt-4 sm:px-5">
     <h2 class="mb-3 text-base font-semibold text-ink-gray-8">{{ __('Libraries shared with you') }}</h2>
     <div class="flex flex-wrap gap-3">
@@ -98,7 +122,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Dialog, Dropdown, TextInput, usePageMeta } from 'frappe-ui'
+import { Button, Dialog, Dropdown, TextInput, toast, usePageMeta } from 'frappe-ui'
 import LucideArrowUpDown from '~icons/lucide/arrow-up-down'
 import LucideGlobe from '~icons/lucide/globe'
 import LucideImages from '~icons/lucide/images'
@@ -107,7 +131,16 @@ import LucideUsers from '~icons/lucide/users'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import { readString, writeString } from '@/utils/localStorage'
-import { type Album, type Folder, createAlbum, getFolders, getLibraryFolder, thumbnailUrl } from '../api'
+import {
+  type Album,
+  type Folder,
+  createAlbum,
+  deleteAlbum,
+  getFolders,
+  getLibraryFolder,
+  getShareLinks,
+  thumbnailUrl,
+} from '../api'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { albums, albumsLoaded, loadAlbums, markSharingSeen, sharedAlbums } from '../store'
 import { itemCount } from '../utils'
@@ -146,6 +179,19 @@ const list = computed(() =>
   [...(props.shared ? sharedAlbums.value : albums.value)].sort(sorts[sort.value].compare),
 )
 const libraries = ref<Folder[]>([])
+const links = ref<Album[]>([])
+if (props.shared) getShareLinks().then((rows) => (links.value = rows))
+
+async function copyLink(album: string) {
+  await navigator.clipboard.writeText(`${window.location.origin}/photos/albums/${album}`)
+  toast.success(__('Link copied'))
+}
+
+async function stopLink(album: string) {
+  await deleteAlbum(album)
+  links.value = links.value.filter((link) => link.name !== album)
+  toast.success(__('Link stopped'))
+}
 if (props.shared) {
   Promise.all([getFolders(), getLibraryFolder()]).then(([folders, mine]) => {
     libraries.value = folders.filter((folder) => folder.title === 'Photos' && folder.name !== mine.name)

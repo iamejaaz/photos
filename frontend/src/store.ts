@@ -157,6 +157,12 @@ export function makeCollage(files: string[]) {
 
 export const libraryShare = reactive({ open: false })
 
+export const sharePhotos = reactive<{ open: boolean; files: string[] }>({ open: false, files: [] })
+export function openShare(files: string[]) {
+  sharePhotos.files = files
+  sharePhotos.open = true
+}
+
 export async function startExport(run: () => Promise<unknown>) {
   try {
     await run()

@@ -129,6 +129,9 @@ export const existingUploads = (files: File[]) =>
 export const getUploadFolder = () => call(`${PHOTOS}.get_upload_folder`) as Promise<string>
 
 export const ALBUM_PHOTOS = `${ALBUMS}.album_photos`
+export const createShareLink = (files: string[]) =>
+  call(`${ALBUMS}.create_share_link`, { files }) as Promise<string>
+export const getShareLinks = () => call(`${ALBUMS}.share_links`) as Promise<Album[]>
 export const getAlbums = () => call(`${ALBUMS}.albums`) as Promise<Album[]>
 export const getSharedAlbums = () => call(`${ALBUMS}.shared_albums`) as Promise<Album[]>
 export const getAlbum = (album: string) => call(`${ALBUMS}.get_album`, { album }) as Promise<Album>
