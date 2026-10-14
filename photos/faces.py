@@ -4,6 +4,7 @@ import frappe
 from suite.drive.utils.files import FileManager, storage_key
 
 from photos import assets
+from photos.settings import enabled
 
 DETECT_SIDE = 1280
 MIN_FACE = 48
@@ -15,7 +16,9 @@ _engine = None
 
 
 def available():
-    return assets.opencv_installed() and assets.ready("face_detector", "face_recognizer")
+    return (
+        enabled("people") and assets.opencv_installed() and assets.ready("face_detector", "face_recognizer")
+    )
 
 
 def _models():

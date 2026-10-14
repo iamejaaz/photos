@@ -57,9 +57,11 @@ def opencv_installed():
     return True
 
 
-def setup():
+def setup(keys=None):
     asset_dir().mkdir(parents=True, exist_ok=True)
     for key, (name, url, checksum) in ASSETS.items():
+        if keys is not None and key not in keys:
+            continue
         target = asset_dir() / name
         if target.exists() and (checksum is None or _sha256(target.read_bytes()) == checksum):
             print(f"{name} is ready")

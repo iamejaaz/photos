@@ -1,0 +1,63 @@
+{
+ "actions": [],
+ "creation": "2026-10-14 20:30:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "issingle": 1,
+ "field_order": [
+  "people",
+  "places",
+  "things",
+  "setup_status",
+  "setup_error"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "people",
+   "fieldtype": "Check",
+   "label": "People"
+  },
+  {
+   "default": "0",
+   "fieldname": "places",
+   "fieldtype": "Check",
+   "label": "Places"
+  },
+  {
+   "default": "0",
+   "fieldname": "things",
+   "fieldtype": "Check",
+   "label": "Things"
+  },
+  {
+   "fieldname": "setup_status",
+   "fieldtype": "Select",
+   "label": "Setup Status",
+   "options": "\nDownloading\nScanning\nReady\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "setup_error",
+   "fieldtype": "Small Text",
+   "label": "Setup Error",
+   "read_only": 1
+  }
+ ],
+ "modified": "2026-10-14 20:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Photos",
+ "name": "Photos Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

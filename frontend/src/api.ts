@@ -176,6 +176,17 @@ export const mergePeople = (target: string, sources: string[]) =>
 export const removePhotosFromPerson = (person: string, files: string[]) =>
   call(`${PEOPLE}.remove_photos`, { person, files })
 
+export type Feature = 'people' | 'places' | 'things'
+export interface Settings extends Record<Feature, boolean> {
+  status: string | null
+  error: string | null
+  can_manage: boolean
+}
+const SETTINGS = 'photos.api.settings'
+export const getSettings = () => call(`${SETTINGS}.get_settings`) as Promise<Settings>
+export const saveSettings = (values: Record<Feature, boolean>) =>
+  call(`${SETTINGS}.save_settings`, values) as Promise<Settings>
+
 export const createMovie = (files: string[], title: string, seconds: number, album?: string) =>
   call('photos.movies.create_movie', { files, title, seconds, album })
 

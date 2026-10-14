@@ -6,10 +6,12 @@ import { readString, writeString } from '@/utils/localStorage'
 import {
   type Album,
   type Photo,
+  type Settings,
   addToAlbum,
   deleteForever,
   fetchPage,
   getAlbums,
+  getSettings,
   getSharedAlbums,
   getUploadFolder,
   setArchived,
@@ -146,6 +148,11 @@ export function makeCollage(files: string[]) {
 }
 
 export const libraryShare = reactive({ open: false })
+
+export const settings = reactive<{ open: boolean; data: Settings | null }>({ open: false, data: null })
+export async function loadSettings() {
+  settings.data = await getSettings()
+}
 
 export const movie = reactive<{ open: boolean; files: string[]; album?: string }>({ open: false, files: [] })
 export function makeMovie(files: string[], album?: string) {

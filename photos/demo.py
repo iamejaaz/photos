@@ -228,7 +228,7 @@ def _people(sources, work, owner, today):
     from photos import faces
 
     if not faces.available():
-        print("Skipping people: run `bench photos-setup` first.")
+        print("Skipping people: turn on People in Photos settings first.")
         return
     print("Downloading 6 generated faces (people who do not exist)")
     portraits = []

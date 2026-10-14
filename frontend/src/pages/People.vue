@@ -1,16 +1,23 @@
 <template>
   <PhotosHeader :title="__('People')" hide-upload>
     <template #actions>
-      <Button variant="ghost" @click="showHidden = !showHidden">
+      <Button v-if="data?.enabled" variant="ghost" @click="showHidden = !showHidden">
         {{ showHidden ? __('Hide hidden people') : __('Show hidden people') }}
       </Button>
     </template>
   </PhotosHeader>
   <div v-if="data && !data.enabled" class="flex flex-col items-center gap-3 py-24 text-center">
-    <div class="text-lg font-medium text-ink-gray-8">{{ __('Face grouping is off') }}</div>
+    <div class="text-lg font-medium text-ink-gray-8">{{ __('People is off') }}</div>
     <div class="max-w-sm text-base text-ink-gray-5">
-      {{ __('An administrator can turn it on with bench photos-setup --scan.') }}
+      {{
+        settings.data?.can_manage
+          ? __('Turn it on to group photos and videos by the faces in them.')
+          : __('Ask an administrator to turn on People in Photos settings.')
+      }}
     </div>
+    <Button v-if="settings.data?.can_manage" variant="solid" @click="settings.open = true">
+      {{ __('Open settings') }}
+    </Button>
   </div>
   <div v-else class="grid grid-cols-3 gap-x-4 gap-y-6 p-3 sm:grid-cols-5 sm:p-5 lg:grid-cols-7">
     <router-link
@@ -49,11 +56,16 @@ import { appPageMeta } from '@/utils/documentTitle'
 import { type Person, getPeople } from '../api'
 import FaceAvatar from '../components/FaceAvatar.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
+import { settings } from '../store'
 import { itemCount } from '../utils'
 
 const data = ref<{ enabled: boolean; people: Person[] }>()
 const showHidden = ref(false)
-watch(showHidden, async (value) => (data.value = await getPeople(value)), { immediate: true })
+watch(
+  [showHidden, () => settings.data?.people, () => settings.data?.status],
+  async () => (data.value = await getPeople(showHidden.value)),
+  { immediate: true },
+)
 
 usePageMeta(() => appPageMeta(__('People'), 'Photos'))
 </script>

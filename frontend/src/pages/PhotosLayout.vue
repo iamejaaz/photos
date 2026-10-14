@@ -64,6 +64,7 @@
     <LibraryShareDialog />
     <KeyboardShortcutsDialog v-model:open="showShortcuts" />
     <CollageDialog />
+    <SettingsDialog />
   </FrappeUIProvider>
 </template>
 
@@ -94,6 +95,7 @@ import AlbumPicker from '../components/AlbumPicker.vue'
 import CollageDialog from '../components/CollageDialog.vue'
 import LibraryShareDialog from '../components/LibraryShareDialog.vue'
 import MovieDialog from '../components/MovieDialog.vue'
+import SettingsDialog from '../components/SettingsDialog.vue'
 import Lightbox from '../components/Lightbox.vue'
 import PhotosSidebar from '../components/PhotosSidebar.vue'
 import {
@@ -101,6 +103,7 @@ import {
   clearSelection,
   lightbox,
   loadAlbums,
+  loadSettings,
   notifyUploaded,
   selection,
   uploadPhotos,
@@ -109,6 +112,11 @@ import {
 setupTheme()
 const loggedIn = computed(() => useSessionStore().isLoggedIn)
 if (loggedIn.value) {
+  initSocket().on('photos-setup-status', (data: { status: string }) => {
+    loadSettings()
+    if (data.status === 'Ready') toast.success(__('People, places and things are ready'))
+    if (data.status === 'Failed') toast.error(__('Photos setup failed. Open Settings to see why.'))
+  })
   initSocket().on('photos-movie-ready', (data: { title: string }) => {
     notifyUploaded()
     toast.success(__('“{0}” is ready in Photos', [data.title]), {
@@ -116,6 +124,7 @@ if (loggedIn.value) {
     })
   })
   loadAlbums()
+  loadSettings()
 }
 
 const route = useRoute()

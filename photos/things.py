@@ -1,4 +1,5 @@
 from photos import assets
+from photos.settings import enabled
 
 MIN_CONFIDENCE = 0.2
 CATEGORY_CONFIDENCE = 0.15
@@ -31,7 +32,7 @@ _engine = None
 
 
 def available():
-    return assets.opencv_installed() and assets.ready("classifier", "classifier_labels")
+    return enabled("things") and assets.opencv_installed() and assets.ready("classifier", "classifier_labels")
 
 
 def _model():

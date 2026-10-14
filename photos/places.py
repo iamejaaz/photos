@@ -4,6 +4,7 @@ import math
 import frappe
 
 from photos import assets
+from photos.settings import enabled
 
 MAX_DISTANCE_KM = 60
 NEARBY_KM = 20
@@ -12,7 +13,7 @@ _index = None
 
 
 def available():
-    return assets.ready("cities")
+    return enabled("places") and assets.ready("cities")
 
 
 def _load():
