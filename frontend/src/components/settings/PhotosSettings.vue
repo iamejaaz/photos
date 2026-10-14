@@ -2,6 +2,10 @@
   <SettingsDialog v-model:open="settings.open" v-model:tab="settings.tab">
     <SettingsSidebar>
       <SettingsNavGroup :label="__('Photos')">
+        <SettingsNavItem value="memories">
+          <template #prefix><span class="lucide-history size-4 shrink-0 text-ink-gray-6" /></template>
+          {{ __('Memories') }}
+        </SettingsNavItem>
         <SettingsNavItem value="import">
           <template #prefix
             ><span class="lucide-hard-drive-download size-4 shrink-0 text-ink-gray-6"
@@ -17,6 +21,7 @@
       </SettingsNavGroup>
     </SettingsSidebar>
     <SettingsContent>
+      <SettingsPanel value="memories"><MemoriesPanel /></SettingsPanel>
       <SettingsPanel value="import"><ImportPanel /></SettingsPanel>
       <SettingsPanel v-if="settings.data?.can_manage" value="features"><FeaturesPanel /></SettingsPanel>
     </SettingsContent>
@@ -36,4 +41,5 @@ import {
 import { settings } from '../../store'
 import FeaturesPanel from './FeaturesPanel.vue'
 import ImportPanel from './ImportPanel.vue'
+import MemoriesPanel from './MemoriesPanel.vue'
 </script>

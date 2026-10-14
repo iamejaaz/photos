@@ -265,8 +265,17 @@ def months():
 
 @frappe.whitelist()
 def memories():
+    from photos.api.preferences import get_preferences
+
+    preferences = get_preferences()
+    if not preferences["memories"]:
+        return []
     today = frappe.utils.getdate()
     query = media_query().where(Year(taken) < today.year)
+    if hidden := preferences["memory_hidden_people"]:
+        query = query.where(
+            File.name.notin(frappe.qb.from_(Face).select(Face.file).where(Face.person.isin(hidden)))
+        )
     query = query.where(fn.Abs(DayOfYear(taken) - today.timetuple().tm_yday) <= 3)
     rows = page(query, 0, 60)["rows"]
     years = {}

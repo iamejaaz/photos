@@ -187,6 +187,14 @@ export const getSettings = () => call(`${SETTINGS}.get_settings`) as Promise<Set
 export const saveSettings = (values: Record<Feature, boolean>) =>
   call(`${SETTINGS}.save_settings`, values) as Promise<Settings>
 
+export interface Preferences {
+  memories: boolean
+  memory_hidden_people: string[]
+}
+export const getPreferences = () => call('photos.api.preferences.get_preferences') as Promise<Preferences>
+export const savePreferences = (values: Preferences) =>
+  call('photos.api.preferences.save_preferences', values) as Promise<Preferences>
+
 export interface PlaceMatch {
   label: string
   country: string

@@ -154,6 +154,7 @@ export function makeCollage(files: string[]) {
 }
 
 export const libraryShare = reactive({ open: false })
+export const memoriesVersion = ref(0)
 
 export const editing = reactive<{ kind: 'date' | 'location' | null; files: string[]; version: number }>({
   kind: null,

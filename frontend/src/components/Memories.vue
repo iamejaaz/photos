@@ -25,14 +25,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { type Memory, getMemories, thumbnailUrl } from '../api'
-import { createStaticFeed, openLightbox } from '../store'
+import { createStaticFeed, memoriesVersion, openLightbox } from '../store'
 import { itemCount } from '../utils'
 
 const memories = ref<Memory[]>([])
-getMemories().then((data) => (memories.value = data))
+watch(
+  () => memoriesVersion.value,
+  () => getMemories().then((data) => (memories.value = data)),
+  { immediate: true },
+)
 
 function play(memory: Memory) {
   const feed = createStaticFeed([...memory.photos].reverse())
