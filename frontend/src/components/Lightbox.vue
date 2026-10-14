@@ -225,7 +225,13 @@
                 <router-link v-else :to="{ name: 'photos-person', params: { person: entry.person } }">
                   <FaceAvatar :face="entry.face" class="size-12" />
                 </router-link>
+                <Dropdown v-if="photo.write" :options="faceMenu(entry)" class="w-full">
+                  <button class="w-full truncate text-xs text-ink-gray-7 hover:underline">
+                    {{ entry.person_name || __('Add a name') }}
+                  </button>
+                </Dropdown>
                 <router-link
+                  v-else
                   :to="{ name: 'photos-person', params: { person: entry.person } }"
                   class="w-full truncate text-xs text-ink-gray-7 hover:underline"
                 >
@@ -275,12 +281,18 @@
       @saved="notifyUploaded"
     />
   </Teleport>
+  <MoveFaceDialog
+    v-model="moveOpen"
+    :face="movingFace?.face ?? null"
+    :current="movingFace?.person"
+    @moved="metadataEdits.version++"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Dropdown, LoadingIndicator, Tooltip, useKeyboardShortcut } from 'frappe-ui'
+import { Button, Dropdown, LoadingIndicator, Tooltip, toast, useKeyboardShortcut } from 'frappe-ui'
 import dayjs from 'dayjs'
 import LucideAperture from '~icons/lucide/aperture'
 import LucideArchive from '~icons/lucide/archive'
@@ -314,6 +326,8 @@ import {
   downloadUrl,
   getDetails,
   getPhotoPeople,
+  markNotAFace,
+  unassignFace,
   isVideo,
   streamUrl,
   thumbnailUrl,
@@ -333,6 +347,7 @@ import {
   trash,
 } from '../store'
 import InfoRow from './InfoRow.vue'
+import MoveFaceDialog from './MoveFaceDialog.vue'
 import FaceAvatar from './FaceAvatar.vue'
 import PhotoEditor from './PhotoEditor.vue'
 
@@ -369,6 +384,33 @@ const moreActions = computed(() => {
   }
   return items
 })
+const movingFace = ref<PhotoPerson | null>(null)
+const moveOpen = ref(false)
+
+function faceMenu(entry: PhotoPerson) {
+  const name = entry.person_name || __('this person')
+  return [
+    {
+      label: __('Open {0}', [name]),
+      icon: 'lucide-user-round',
+      onClick: () => router.push({ name: 'photos-person', params: { person: entry.person } }),
+    },
+    {
+      label: __('Move to another person'),
+      icon: 'lucide-arrow-right-left',
+      onClick: () => ((movingFace.value = entry), (moveOpen.value = true)),
+    },
+    { label: __('Not {0}', [name]), icon: 'lucide-user-x', onClick: () => fixFace(unassignFace(entry.face)) },
+    { label: __('Not a face'), icon: 'lucide-scan-face', onClick: () => fixFace(markNotAFace(entry.face)) },
+  ]
+}
+
+async function fixFace(request: Promise<unknown>) {
+  await request
+  metadataEdits.version++
+  toast.success(__('Thanks, People is updated'))
+}
+
 const videoEl = ref<HTMLVideoElement>()
 
 function seek(timestamp: number | null) {

@@ -120,6 +120,47 @@ def remove_face(face: str):
 
 
 @frappe.whitelist()
+def move_face(face: str, person: str | None = None, person_name: str | None = None):
+    previous = _own_face(face)
+    if person:
+        _own(person)
+    else:
+        doc = frappe.get_doc(
+            {
+                "doctype": "Photo Person",
+                "person_name": (person_name or "").strip()[:140] or None,
+                "centroid": frappe.db.get_value("Photo Face", face, "embedding"),
+                "face_count": 1,
+                "cover_face": face,
+            }
+        ).insert(ignore_permissions=True)
+        person = doc.name
+    frappe.db.set_value("Photo Face", face, {"person": person, "not_a_face": 0}, update_modified=False)
+    for name in {previous, person} - {None}:
+        engine.recompute(name)
+    return person
+
+
+@frappe.whitelist()
+def not_a_face(face: str):
+    previous = _own_face(face)
+    frappe.db.set_value("Photo Face", face, {"person": None, "not_a_face": 1}, update_modified=False)
+    if previous:
+        engine.recompute(previous)
+
+
+def _own_face(face):
+    row = frappe.db.get_value("Photo Face", face, ["person", "file"], as_dict=True)
+    if not row:
+        frappe.throw("Face not found.", frappe.DoesNotExistError)
+    if row.person:
+        _own(row.person)
+    elif not user_has_permission(row.file, "write"):
+        frappe.throw("You can't change this face.", frappe.PermissionError)
+    return row.person
+
+
+@frappe.whitelist()
 def face_thumbnail(face: str):
     row = frappe.db.get_value(
         "Photo Face", face, ["name", "file", "x", "y", "width", "height", "timestamp"], as_dict=True

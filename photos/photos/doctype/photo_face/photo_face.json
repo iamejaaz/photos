@@ -13,7 +13,8 @@
   "height",
   "timestamp",
   "score",
-  "embedding"
+  "embedding",
+  "not_a_face"
  ],
  "fields": [
   {
@@ -74,10 +75,16 @@
    "fieldtype": "Long Text",
    "label": "Embedding",
    "hidden": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "not_a_face",
+   "fieldtype": "Check",
+   "label": "Not A Face"
   }
  ],
  "links": [],
- "modified": "2026-10-14 20:00:00.000000",
+ "modified": "2026-10-15 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photo Face",

@@ -173,6 +173,10 @@ export const getPeople = (includeHidden = false) =>
 export const getPerson = (person: string) => call(`${PEOPLE}.person`, { person }) as Promise<Person>
 export const getPhotoPeople = (file: string, album?: string) =>
   call(`${PEOPLE}.photo_people`, { file, album }) as Promise<PhotoPerson[]>
+export const moveFace = (face: string, person: string | null, personName?: string) =>
+  call(`${PEOPLE}.move_face`, { face, person, person_name: personName })
+export const markNotAFace = (face: string) => call(`${PEOPLE}.not_a_face`, { face })
+export const unassignFace = (face: string) => call(`${PEOPLE}.remove_face`, { face })
 export const renamePerson = (person: string, personName: string) =>
   call(`${PEOPLE}.rename_person`, { person, person_name: personName })
 export const setPersonHidden = (person: string, hidden: boolean) =>
