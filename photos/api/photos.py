@@ -10,14 +10,14 @@ from pypika import functions as fn
 from suite.drive.api.files import create_folder
 from suite.drive.api.list import get_query_data
 from suite.drive.api.permissions import get_user_access, user_has_permission
-from suite.drive.utils import STATUS_ACTIVE, STATUS_TRASHED, get_principals, get_user_folder
-from suite.drive.utils.overrides import file_permission_criterion
+from suite.drive.utils import GENERAL_USER, STATUS_ACTIVE, STATUS_TRASHED, get_principals, get_user_folder
 
 from photos.metadata import HASH_SIZE, enqueue_missing, file_hash
 
 File = frappe.qb.DocType("File")
 Metadata = frappe.qb.DocType("Photo Metadata")
 Archive = frappe.qb.DocType("Photo Archive")
+DrivePermission = frappe.qb.DocType("Drive Permission")
 Hidden = frappe.qb.DocType("Photo Hidden")
 Face = frappe.qb.DocType("Photo Face")
 Year = CustomFunction("YEAR", ["date"])
@@ -85,15 +85,24 @@ def media_base(status=STATUS_ACTIVE, check_permission=True, archived=False, hidd
 
 
 def _permission_criterion():
-    criterion = file_permission_criterion(table=File)
-    if criterion is None:
-        return None
+    user = frappe.session.user
+    principals = _personal_principals()
+    criterion = (File.owner == user) | File.name.isin(
+        frappe.qb.from_(DrivePermission)
+        .select(DrivePermission.entity)
+        .where(
+            DrivePermission.user.isin(principals) & (DrivePermission.read == 1) & (DrivePermission.deny == 0)
+        )
+    )
     folders = _shared_folders()
     return criterion | File.folder.isin(folders) if folders else criterion
 
 
+def _personal_principals():
+    return [p for p in get_principals() if p not in ("", GENERAL_USER)] or [frappe.session.user]
+
+
 def _shared_folders():
-    principals = get_principals()
     return frappe.db.sql_list(
         """
         with recursive shared as (
@@ -106,7 +115,7 @@ def _shared_folders():
         )
         select name from shared limit 5000
         """,
-        {"principals": principals},
+        {"principals": _personal_principals()},
     )
 
 
