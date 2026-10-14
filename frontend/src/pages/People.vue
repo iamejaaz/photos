@@ -19,7 +19,7 @@
       {{ __('Open settings') }}
     </Button>
   </div>
-  <div v-else class="grid grid-cols-3 gap-x-4 gap-y-6 p-3 sm:grid-cols-5 sm:p-5 lg:grid-cols-7">
+  <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-x-3 gap-y-5 p-3 sm:p-5">
     <router-link
       v-for="person in data?.people ?? []"
       :key="person.name"
@@ -29,7 +29,7 @@
     >
       <FaceAvatar
         :face="person.cover_face"
-        class="aspect-square w-full max-w-36 transition-transform duration-300 group-hover:scale-105"
+        class="size-20 transition-transform duration-300 group-hover:scale-105 sm:size-24"
       />
       <div
         class="w-full truncate text-base font-medium"
