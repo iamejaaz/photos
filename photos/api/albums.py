@@ -82,11 +82,25 @@ def _summaries(names):
     shares = _shares(None, names)
     general = {row.album: row.user for row in shares if row.user in (PUBLIC, GENERAL_USER)}
     shared_with_people = {row.album for row in shares if row.user not in (PUBLIC, GENERAL_USER)}
+    latest = dict(
+        frappe.db.sql(
+            """
+            select item.album, max(coalesce(meta.taken_on, file.file_modified, file.creation))
+            from `tabPhoto Album Item` item
+            join `tabFile` file on file.name = item.file
+            left join `tabPhoto Metadata` meta on meta.file = item.file
+            where item.album in %(names)s
+            group by item.album
+            """,
+            {"names": names or [""]},
+        )
+    )
     for row in rows:
         items = frappe.get_all(
             "Photo Album Item", filters={"album": row.name}, pluck="file", order_by="creation desc"
         )
         row.count = len(items)
+        row.latest = latest.get(row.name)
         if not row.cover or row.cover not in items:
             row.cover = items[0] if items else None
         row.owner_name = frappe.db.get_value("User", row.owner, "full_name")

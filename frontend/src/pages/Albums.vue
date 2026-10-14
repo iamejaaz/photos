@@ -1,7 +1,13 @@
 <template>
   <PhotosHeader :title="shared ? __('Sharing') : __('Albums')" hide-upload>
-    <template v-if="!shared" #actions>
-      <Button variant="subtle" @click="creating = true">
+    <template #actions>
+      <Dropdown v-if="list.length > 1" :options="sortOptions">
+        <Button variant="ghost">
+          <template #prefix><LucideArrowUpDown class="size-4" /></template>
+          <span class="hidden sm:inline">{{ sortLabel }}</span>
+        </Button>
+      </Dropdown>
+      <Button v-if="!shared" variant="subtle" @click="creating = true">
         <template #prefix><LucidePlus class="size-4" /></template>
         {{ __('New album') }}
       </Button>
@@ -92,14 +98,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Dialog, TextInput, usePageMeta } from 'frappe-ui'
+import { Button, Dialog, Dropdown, TextInput, usePageMeta } from 'frappe-ui'
+import LucideArrowUpDown from '~icons/lucide/arrow-up-down'
 import LucideGlobe from '~icons/lucide/globe'
 import LucideImages from '~icons/lucide/images'
 import LucidePlus from '~icons/lucide/plus'
 import LucideUsers from '~icons/lucide/users'
 
 import { appPageMeta } from '@/utils/documentTitle'
-import { type Folder, createAlbum, getFolders, getLibraryFolder, thumbnailUrl } from '../api'
+import { readString, writeString } from '@/utils/localStorage'
+import { type Album, type Folder, createAlbum, getFolders, getLibraryFolder, thumbnailUrl } from '../api'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { albums, albumsLoaded, loadAlbums, markSharingSeen, sharedAlbums } from '../store'
 import { itemCount } from '../utils'
@@ -108,7 +116,35 @@ const props = defineProps<{ shared?: boolean }>()
 const router = useRouter()
 const creating = ref(false)
 const title = ref('')
-const list = computed(() => (props.shared ? sharedAlbums.value : albums.value))
+const sorts = {
+  recent: {
+    label: __('Recent activity'),
+    compare: (a: Album, b: Album) => (b.modified ?? '').localeCompare(a.modified ?? ''),
+  },
+  name: { label: __('Name'), compare: (a: Album, b: Album) => a.title.localeCompare(b.title) },
+  newest: {
+    label: __('Newest photo'),
+    compare: (a: Album, b: Album) => (b.latest ?? '').localeCompare(a.latest ?? ''),
+  },
+}
+type Sort = keyof typeof sorts
+const sort = ref<Sort>(
+  (readString('photos-album-sort') as Sort) in sorts ? (readString('photos-album-sort') as Sort) : 'recent',
+)
+const sortLabel = computed(() => sorts[sort.value].label)
+const sortOptions = computed(() =>
+  (Object.keys(sorts) as Sort[]).map((key) => ({
+    label: sorts[key].label,
+    icon: sort.value === key ? 'lucide-check' : undefined,
+    onClick: () => {
+      sort.value = key
+      writeString('photos-album-sort', key)
+    },
+  })),
+)
+const list = computed(() =>
+  [...(props.shared ? sharedAlbums.value : albums.value)].sort(sorts[sort.value].compare),
+)
 const libraries = ref<Folder[]>([])
 if (props.shared) {
   Promise.all([getFolders(), getLibraryFolder()]).then(([folders, mine]) => {

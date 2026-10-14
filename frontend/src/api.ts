@@ -40,6 +40,8 @@ export interface Album {
   general: 'public' | 'site' | null
   shared: boolean
   shared_on?: string
+  modified?: string
+  latest?: string | null
   access?: { read: number; write: number; share: number; owner: number }
 }
 
