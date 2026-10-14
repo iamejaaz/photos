@@ -15,6 +15,10 @@ HASH_SIZE = 16
 
 
 def enqueue_extract(doc, method=None):
+    from photos.formats import is_raw, raw_mime
+
+    if not doc.is_folder and not doc.mime_type and is_raw(doc.file_name):
+        doc.db_set({"mime_type": raw_mime(doc.file_name), "file_type": "Image"}, update_modified=False)
     if frappe.flags.photos_inline_extract:
         return
     if doc.is_folder or not (doc.mime_type or "").startswith(("image/", "video/")):
@@ -47,7 +51,10 @@ def extract(file_name):
     if frappe.db.exists("Photo Metadata", file_name):
         return
     file = frappe.db.get_value(
-        "File", file_name, ["name", "file_url", "mime_type", "file_modified", "creation"], as_dict=True
+        "File",
+        file_name,
+        ["name", "file_name", "file_url", "folder", "owner", "mime_type", "file_modified", "creation"],
+        as_dict=True,
     )
     if not file or not file.file_url:
         return
@@ -57,7 +64,7 @@ def extract(file_name):
     if path.exists():
         try:
             if file.mime_type.startswith("image/"):
-                data = _image_metadata(str(path))
+                data = _image_metadata(str(path), file.file_name)
             elif file.mime_type.startswith("video/"):
                 data = _video_metadata(str(path))
         except Exception:
@@ -68,18 +75,87 @@ def extract(file_name):
     frappe.get_doc({"doctype": "Photo Metadata", "file": file_name, **data}).insert(
         ignore_permissions=True, ignore_if_duplicate=True
     )
+    _prepare_formats(file, path)
     from photos.scan import enrich
 
     enrich(file_name)
 
 
-def _image_metadata(path):
+def _prepare_formats(file, path):
+    from photos import formats
+
+    if not path.exists():
+        return
+    try:
+        if file.mime_type.startswith("video/") and formats.needs_display_video(path):
+            formats.enqueue_display_video(file.name)
+        if file.mime_type.startswith("image/") and formats.extract_motion_clip(file):
+            frappe.db.set_value("Photo Metadata", file.name, "motion_photo", 1, update_modified=False)
+        pair_live_photo(file)
+    except Exception:
+        frappe.log_error(f"Photos could not prepare {file.name}")
+
+
+LIVE_IMAGES = {"heic", "heif", "jpg", "jpeg"}
+LIVE_VIDEOS = {"mov", "mp4"}
+LIVE_MAX_SECONDS = 5
+
+
+def pair_live_photo(file):
+    from pathlib import PurePosixPath
+
+    from photos.formats import extension
+
+    ext = extension(file.file_name)
+    if ext not in LIVE_IMAGES | LIVE_VIDEOS:
+        return
+    stem = PurePosixPath(file.file_name).stem
+    partners = frappe.get_all(
+        "File",
+        filters={
+            "folder": file.folder,
+            "owner": file.owner,
+            "status": "Active",
+            "name": ["!=", file.name],
+            "file_name": ["like", f"{stem}.%"],
+        },
+        fields=["name", "file_name"],
+    )
+    for partner in partners:
+        other = extension(partner.file_name)
+        if PurePosixPath(partner.file_name).stem.lower() != stem.lower():
+            continue
+        image, video = (file.name, partner.name) if ext in LIVE_IMAGES else (partner.name, file.name)
+        if (ext in LIVE_IMAGES) == (other in LIVE_IMAGES) or other not in LIVE_IMAGES | LIVE_VIDEOS:
+            continue
+        duration = frappe.db.get_value("Photo Metadata", video, "duration")
+        if not duration or duration > LIVE_MAX_SECONDS or not frappe.db.exists("Photo Metadata", image):
+            continue
+        frappe.db.set_value("Photo Metadata", image, "live_video", video, update_modified=False)
+        frappe.db.set_value("Photo Metadata", video, "live_of", image, update_modified=False)
+        return
+
+
+def _image_metadata(path, file_name=None):
     from PIL import Image
 
-    with Image.open(path) as image:
+    from photos.formats import is_raw, open_image
+
+    if is_raw(file_name or path):
+        image = open_image(path, file_name)
         width, height = image.size
-        exif = image.getexif()
         phash = image_hash(image)
+        try:
+            with Image.open(path) as tiff:
+                exif = tiff.getexif()
+        except Exception:
+            exif = Image.Exif()
+        exif.pop(ORIENTATION, None)
+    else:
+        with Image.open(path) as image:
+            width, height = image.size
+            exif = image.getexif()
+            phash = image_hash(image)
 
     if exif.get(ORIENTATION) in ROTATED_ORIENTATIONS:
         width, height = height, width

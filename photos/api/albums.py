@@ -142,11 +142,13 @@ def save_link_settings(
 def can_read(file, album=None):
     if user_has_permission(file, "read"):
         return True
+    if not album:
+        return False
+    member = frappe.db.get_value("Photo Metadata", file, "live_of") or file
     return bool(
-        album
-        and album_access(album)["read"]
-        and frappe.db.exists("Photo Album Item", {"album": album, "file": file})
-        and not hidden_by_owner(file)
+        album_access(album)["read"]
+        and frappe.db.exists("Photo Album Item", {"album": album, "file": member})
+        and not hidden_by_owner(member)
     )
 
 

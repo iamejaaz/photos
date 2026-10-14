@@ -6,6 +6,7 @@ from suite.drive.api.files import get_upload_path
 from suite.drive.utils import create_drive_file, get_file_type, get_new_file_name, update_file_size
 from suite.drive.utils.files import FileManager
 
+from photos.formats import is_raw, raw_mime
 from photos.metadata import extract
 
 
@@ -26,6 +27,8 @@ def store_file(path, owner, parent=None, modified=None):
     temp = get_upload_path(f"photos_{frappe.generate_hash(8)}_{file_name}")
     shutil.copyfile(path, temp)
     mime_type = mimemapper.get_mime_type(str(temp), native_first=False)
+    if not mime_type and is_raw(path.name):
+        mime_type = raw_mime(path.name)
     manager = FileManager()
     frappe.flags.photos_inline_extract = True
     try:

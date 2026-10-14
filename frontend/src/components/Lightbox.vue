@@ -104,6 +104,27 @@
               :class="loaded ? 'opacity-100' : 'opacity-0'"
               @load="loaded = true"
             />
+            <video
+              v-if="liveSource && livePlaying"
+              :key="liveSource"
+              :src="liveSource"
+              class="absolute max-h-full max-w-full object-contain"
+              :style="sizeStyle"
+              autoplay
+              muted
+              playsinline
+              @ended="livePlaying = false"
+              @error="livePlaying = false"
+            />
+            <button
+              v-if="liveSource"
+              class="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white"
+              :aria-pressed="livePlaying"
+              @click="livePlaying = !livePlaying"
+            >
+              <LucideCirclePlay class="size-3.5" />
+              {{ __('Live') }}
+            </button>
           </div>
         </div>
 
@@ -300,6 +321,7 @@ import LucideArchiveRestore from '~icons/lucide/archive-restore'
 import LucideArrowLeft from '~icons/lucide/arrow-left'
 import LucideCalendar from '~icons/lucide/calendar'
 import LucideChevronLeft from '~icons/lucide/chevron-left'
+import LucideCirclePlay from '~icons/lucide/circle-play'
 import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideDownload from '~icons/lucide/download'
 import LucideEllipsisVertical from '~icons/lucide/ellipsis-vertical'
@@ -326,6 +348,7 @@ import {
   downloadUrl,
   getDetails,
   getPhotoPeople,
+  liveUrl,
   markNotAFace,
   unassignFace,
   isVideo,
@@ -384,6 +407,14 @@ const moreActions = computed(() => {
   }
   return items
 })
+const livePlaying = ref(false)
+const liveSource = computed(() => (photo.value ? liveUrl(photo.value) : null))
+watch(
+  () => photo.value?.name,
+  () => (livePlaying.value = Boolean(liveSource.value)),
+  { immediate: true },
+)
+
 const movingFace = ref<PhotoPerson | null>(null)
 const moveOpen = ref(false)
 

@@ -21,7 +21,10 @@
   "labels",
   "things",
   "things_scanned",
-  "source"
+  "source",
+  "live_video",
+  "live_of",
+  "motion_photo"
  ],
  "fields": [
   {
@@ -124,10 +127,29 @@
    "label": "Source",
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "live_video",
+   "fieldtype": "Link",
+   "options": "File",
+   "label": "Live Video"
+  },
+  {
+   "fieldname": "live_of",
+   "fieldtype": "Link",
+   "options": "File",
+   "label": "Live Photo Of",
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "motion_photo",
+   "fieldtype": "Check",
+   "label": "Motion Photo"
   }
  ],
  "links": [],
- "modified": "2026-10-14 22:40:00.000000",
+ "modified": "2026-10-15 01:00:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photo Metadata",

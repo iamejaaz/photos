@@ -9,6 +9,7 @@ from werkzeug.utils import send_file
 from werkzeug.wrappers import Response
 from werkzeug.wsgi import wrap_file
 
+from photos import formats
 from photos.api.albums import album_access, can_read
 
 
@@ -36,7 +37,11 @@ def thumbnail(entity_name: str, album: str | None = None):
         data = BytesIO(stream.read())
         stream.close()
     except Exception:
-        return ""
+        data = None
+    if not data or not data.getbuffer().nbytes:
+        data = _own_thumbnail(file)
+        if data is None:
+            return ""
     response = Response(wrap_file(frappe.request.environ, data), direct_passthrough=True)
     response.headers.set("Content-Type", "image/webp")
     response.headers.set("Cache-Control", "private, max-age=3600")
@@ -44,9 +49,14 @@ def thumbnail(entity_name: str, album: str | None = None):
 
 
 @frappe.whitelist(allow_guest=True)
-def content(entity_name: str, album: str | None = None, download: int = 0):
+def content(entity_name: str, album: str | None = None, download: int = 0, display: int = 0, motion: int = 0):
     file = _file(entity_name, album)
     manager = FileManager()
+    if int(motion or 0):
+        clip = formats.derived_path(file.name, ".motion.mp4")
+        if not clip.exists():
+            frappe.throw("Not found", frappe.DoesNotExistError)
+        return _send(clip, "video/mp4")
     if int(download or 0):
         if not user_has_permission(entity_name, "read") and not album_access(album)["download"]:
             frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
@@ -58,6 +68,11 @@ def content(entity_name: str, album: str | None = None, download: int = 0):
         and not album_access(album)["download"]
     ):
         return _preview(manager, file)
+    if int(display or 0):
+        if formats.needs_display_image(file):
+            return _send(formats.display_image(file), "image/jpeg")
+        if (file.mime_type or "").startswith("video/") and (clip := formats.display_video(file.name)):
+            return _send(clip, "video/mp4")
     return send_file(
         manager.get_file(file),
         mimetype=file.mime_type,
@@ -69,11 +84,28 @@ def content(entity_name: str, album: str | None = None, download: int = 0):
     )
 
 
-def _preview(manager, file, size=1600):
-    from PIL import Image, ImageOps
+def _send(path, mimetype):
+    return send_file(
+        str(path), mimetype=mimetype, conditional=True, max_age=3600, environ=frappe.request.environ
+    )
 
-    with Image.open(manager.site_folder / storage_key(file.file_url)) as image:
-        image = ImageOps.exif_transpose(image)
+
+def _own_thumbnail(file):
+    target = formats.derived_path(file.name, ".thumb.webp")
+    if not target.exists():
+        if not formats.needs_display_image(file):
+            return None
+        try:
+            image = formats.open_image(formats.source_path(file), file.file_name)
+        except Exception:
+            return None
+        image.thumbnail((512, 512))
+        image.convert("RGB").save(target, "WEBP", quality=80)
+    return BytesIO(target.read_bytes())
+
+
+def _preview(manager, file, size=1600):
+    with formats.open_image(manager.site_folder / storage_key(file.file_url), file.file_name) as image:
         image.thumbnail((size, size))
         output = BytesIO()
         image.convert("RGB").save(output, "JPEG", quality=85)

@@ -58,6 +58,8 @@ def media_query(order=None, **kwargs):
             Metadata.latitude,
             Metadata.longitude,
             Metadata.place,
+            Metadata.live_video,
+            Metadata.motion_photo,
         )
         .orderby(order or taken, order=Order.desc)
     )
@@ -72,6 +74,7 @@ def media_base(status=STATUS_ACTIVE, check_permission=True, archived=False, hidd
         .where(File.is_folder == 0)
         .where(File.attached_to_doctype.isnull())
         .where(Criterion.any([File.mime_type.like("image/%"), File.mime_type.like("video/%")]))
+        .where(Metadata.live_of.isnull())
     )
     archived_files = frappe.qb.from_(Archive).select(Archive.file).where(Archive.user == frappe.session.user)
     if archived is not None:
