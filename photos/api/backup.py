@@ -69,7 +69,7 @@ def device_token():
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def upload_folder():
     from photos.api.photos import get_upload_folder
 
