@@ -523,23 +523,30 @@ def duplicates(threshold: int = 8):
             i = parent[i]
         return i
 
+    import numpy as np
+
     threshold = int(threshold)
     values = [int(row.phash, 16) for row in hashed]
+    words = np.array(
+        [[(value >> (64 * part)) & 0xFFFFFFFFFFFFFFFF for part in range(4)] for value in values],
+        dtype=np.uint64,
+    ).reshape(-1, 4)
     slices = threshold + 1
     width = -(-HASH_SIZE * HASH_SIZE // slices)
     buckets = {}
     for index, value in enumerate(values):
         for part in range(slices):
             buckets.setdefault((part, (value >> (part * width)) & ((1 << width) - 1)), []).append(index)
-    checked = set()
     for members in buckets.values():
-        for a in range(len(members)):
-            for b in range(a + 1, len(members)):
-                i, j = members[a], members[b]
-                if (i, j) in checked:
-                    continue
-                checked.add((i, j))
-                if (values[i] ^ values[j]).bit_count() <= threshold and _same_kind(hashed[i], hashed[j]):
+        if len(members) < 2:
+            continue
+        members = np.array(members)
+        block = words[members]
+        for position in range(len(members) - 1):
+            distance = np.bitwise_count(block[position + 1 :] ^ block[position]).sum(axis=1)
+            for other in members[position + 1 :][distance <= threshold]:
+                i, j = int(members[position]), int(other)
+                if find(i) != find(j) and _same_kind(hashed[i], hashed[j]):
                     parent[find(i)] = find(j)
 
     groups = {}
