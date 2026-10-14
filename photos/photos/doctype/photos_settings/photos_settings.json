@@ -9,7 +9,8 @@
   "places",
   "things",
   "setup_status",
-  "setup_error"
+  "setup_error",
+  "oauth_client"
  ],
  "fields": [
   {
@@ -42,9 +43,16 @@
    "fieldtype": "Small Text",
    "label": "Setup Error",
    "read_only": 1
+  },
+  {
+   "fieldname": "oauth_client",
+   "fieldtype": "Link",
+   "options": "OAuth Client",
+   "label": "Mobile App OAuth Client",
+   "read_only": 1
   }
  ],
- "modified": "2026-10-14 20:30:00.000000",
+ "modified": "2026-10-15 04:00:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photos Settings",
