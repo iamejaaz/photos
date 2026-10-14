@@ -8,13 +8,14 @@ from suite.drive.utils import STATUS_ACTIVE
 
 from photos.api.albums import ALBUM, _broadcast, album_access
 
-MAX_SIZE = 200 * 1024 * 1024
+MAX_SIZE = 100 * 1024 * 1024
+GUEST_DAILY_LIMIT = 500
 IMAGE = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif"}
 VIDEO = {".mp4", ".mov", ".m4v"}
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-@rate_limit(limit=300, seconds=60 * 60)
+@rate_limit(limit=60, seconds=60 * 60)
 def upload(album: str, name: str | None = None):
     if not album_access(album)["upload"]:
         frappe.throw("You can't add photos to this album.", frappe.PermissionError)
@@ -32,12 +33,16 @@ def upload(album: str, name: str | None = None):
     added_by = (name or "").strip()[:80] if guest else None
     if guest and not added_by:
         frappe.throw("Tell us your name first.")
+    if guest and _guest_uploads_today(album) >= GUEST_DAILY_LIMIT:
+        frappe.throw("This album has had too many uploads today. Try again tomorrow.")
     owner = frappe.db.get_value(ALBUM, album, "owner")
-    user = frappe.session.user
-    try:
-        stored = _store(content, Path(upload.filename).name, album, owner if guest else user)
-    finally:
-        frappe.set_user(user)
+    if guest:
+        try:
+            stored = _store(content, Path(upload.filename).name, album, owner)
+        finally:
+            frappe.set_user("Guest")
+    else:
+        stored = _store(content, Path(upload.filename).name, album, frappe.session.user)
     frappe.get_doc(
         {"doctype": "Photo Album Item", "album": album, "file": stored, "added_by_name": added_by}
     ).insert(ignore_permissions=True)
@@ -50,7 +55,8 @@ def _store(content, file_name, album, owner):
     from photos.library import store_file
     from photos.metadata import extract
 
-    frappe.set_user(owner)
+    if frappe.session.user != owner:
+        frappe.set_user(owner)
     folder = _upload_folder(album)
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / file_name
@@ -58,6 +64,13 @@ def _store(content, file_name, album, owner):
         name = store_file(path, owner, folder)
     extract(name)
     return name
+
+
+def _guest_uploads_today(album):
+    return frappe.db.count(
+        "Photo Album Item",
+        {"album": album, "added_by_name": ["is", "set"], "creation": [">=", frappe.utils.today()]},
+    )
 
 
 def _upload_folder(album):

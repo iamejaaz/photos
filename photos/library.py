@@ -16,7 +16,8 @@ def add_file(path, owner, taken, parent=None):
 
 
 def store_file(path, owner, parent=None, modified=None):
-    frappe.set_user(owner)
+    if frappe.session.user != owner:
+        frappe.set_user(owner)
     if not parent:
         from photos.api.photos import get_upload_folder
 

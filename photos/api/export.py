@@ -19,7 +19,8 @@ def export_files(files: list[str] | str, album: str | None = None):
 
 @frappe.whitelist()
 def export_album(album: str):
-    if not album_access(album)["download"]:
+    access = album_access(album)
+    if not access["read"] or not access["download"]:
         frappe.throw("You don't have access to this album.", frappe.PermissionError)
     title = frappe.db.get_value("Photo Album", album, "title")
     files = frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file")

@@ -12,7 +12,7 @@ from suite.drive.api.permissions import get_user_access_for_user, is_drive_admin
 from suite.drive.overrides.file import File as DriveFile
 from suite.drive.utils import FILE_FIELDS, GENERAL_USER, get_principals
 
-from photos.api.photos import PAGE_SIZE, File, media_query
+from photos.api.photos import PAGE_SIZE, File, Hidden, media_query
 
 ALBUM = "Photo Album"
 AlbumItem = frappe.qb.DocType("Photo Album Item")
@@ -40,7 +40,7 @@ def album_access(album, user=None):
     file = album_file(album)
     access = get_user_access_for_user(file, user) if file else {}
     result = {key: int(bool(access.get(key))) for key in ("read", "write", "share")}
-    result |= {"owner": 0, "download": 1, "upload": result["write"]}
+    result |= {"owner": 0, "download": result["read"], "upload": result["write"]}
     if result["read"] and not _shared_directly(album, user):
         if link_closed(album, doc):
             return NO_ACCESS
@@ -146,7 +146,25 @@ def can_read(file, album=None):
         album
         and album_access(album)["read"]
         and frappe.db.exists("Photo Album Item", {"album": album, "file": file})
+        and not hidden_by_owner(file)
     )
+
+
+def hidden_by_owner(file):
+    owner = frappe.db.get_value("File", file, "owner")
+    return bool(frappe.db.exists("Photo Hidden", {"user": owner, "file": file}))
+
+
+def link_only(album, user=None):
+    user = user or frappe.session.user
+    if user == "Guest":
+        return True
+    if user == frappe.db.get_value(ALBUM, album, "owner") or is_drive_admin(user):
+        return False
+    return not _shared_directly(album, user)
+
+
+PRIVATE_FIELDS = ("owner", "folder", "added_by", "latitude", "longitude", "place")
 
 
 def _require(album, ptype):
@@ -241,6 +259,8 @@ def get_album(album: str):
         frappe.throw("You don't have access to this album.", frappe.PermissionError)
     summary = _summaries([album])[0]
     summary.access = access
+    if link_only(album):
+        summary.owner = None
     return summary
 
 
@@ -256,6 +276,7 @@ def album_photos(album: str, start: int = 0, limit: int | None = None):
     if not access["read"]:
         frappe.throw("You don't have access to this album.", frappe.PermissionError)
     can_download = access["download"]
+    private = link_only(album)
     start, limit = int(start or 0), int(limit or PAGE_SIZE)
     user = frappe.session.user
     query = (
@@ -271,6 +292,9 @@ def album_photos(album: str, start: int = 0, limit: int | None = None):
         .limit(limit + 1)
         .offset(start)
     )
+    query = query.where(
+        File.name.notin(frappe.qb.from_(Hidden).select(Hidden.file).where(Hidden.user == File.owner))
+    )
     rows = query.run(as_dict=True)
     likes = frappe.get_all(
         "Photo Album Activity",
@@ -285,6 +309,8 @@ def album_photos(album: str, start: int = 0, limit: int | None = None):
         row["read"] = 1
         row["write"] = int(user != "Guest" and row["owner"] == user)
         row["download"] = can_download
+        if private:
+            row.update(dict.fromkeys(PRIVATE_FIELDS))
     return {"rows": rows[:limit], "has_next": len(rows) > limit, "next_start": start + min(len(rows), limit)}
 
 
@@ -372,6 +398,9 @@ def activity(album: str):
         user = users.get(row.owner) or {}
         row.full_name = user.get("full_name") or row.owner
         row.user_image = user.get("user_image")
+    if link_only(album):
+        for row in rows:
+            row.owner = None
     return rows
 
 

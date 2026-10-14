@@ -384,7 +384,7 @@ def library_folder():
 def save_to_library(files: list[str] | str, album: str | None = None):
     from suite.drive.utils.files import FileManager, storage_key
 
-    from photos.api.albums import can_read
+    from photos.api.albums import album_access, can_read
     from photos.library import add_file
 
     files = _as_list(files)
@@ -393,6 +393,8 @@ def save_to_library(files: list[str] | str, album: str | None = None):
     for name in files:
         if not can_read(name, album):
             frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
+        if not user_has_permission(name, "read") and not (album and album_access(album)["download"]):
+            frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
         file = frappe.db.get_value(
             "File", name, ["file_name", "file_url", "owner", "is_folder"], as_dict=True
         )
@@ -438,8 +440,9 @@ def get_details(name: str, album: str | None = None):
         as_dict=True,
     )
     if frappe.session.user == "Guest" or not get_user_access(name).get("read"):
-        file.folder = None
-        file.albums = []
+        file.update(folder=None, owner=None, albums=[])
+        if file.metadata:
+            file.metadata.update(latitude=None, longitude=None, place=None)
         return file
 
     file.folder_title = frappe.db.get_value("File", file.folder, "file_name")
