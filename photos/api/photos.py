@@ -419,7 +419,18 @@ def get_details(name: str, album: str | None = None):
     file.metadata = frappe.db.get_value(
         "Photo Metadata",
         name,
-        ["taken_on", "width", "height", "duration", "camera", "latitude", "longitude", "place", "labels"],
+        [
+            "taken_on",
+            "date_from_file",
+            "width",
+            "height",
+            "duration",
+            "camera",
+            "latitude",
+            "longitude",
+            "place",
+            "labels",
+        ],
         as_dict=True,
     )
     if frappe.session.user == "Guest" or not get_user_access(name).get("read"):

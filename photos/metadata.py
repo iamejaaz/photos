@@ -41,7 +41,9 @@ def enqueue_missing(names):
 def extract(file_name):
     if frappe.db.exists("Photo Metadata", file_name):
         return
-    file = frappe.db.get_value("File", file_name, ["name", "file_url", "mime_type"], as_dict=True)
+    file = frappe.db.get_value(
+        "File", file_name, ["name", "file_url", "mime_type", "file_modified", "creation"], as_dict=True
+    )
     if not file or not file.file_url:
         return
 
@@ -56,6 +58,8 @@ def extract(file_name):
         except Exception:
             frappe.log_error(f"Photo metadata extraction failed for {file_name}")
 
+    if not data.get("taken_on"):
+        data.update(taken_on=file.file_modified or file.creation, date_from_file=1)
     frappe.get_doc({"doctype": "Photo Metadata", "file": file_name, **data}).insert(
         ignore_permissions=True, ignore_if_duplicate=True
     )

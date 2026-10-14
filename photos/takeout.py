@@ -241,9 +241,11 @@ def _add(item, favourites, user):
         name = add_file(path, user, taken)
 
     updates = {"source": source}
-    current = frappe.db.get_value("Photo Metadata", name, ["taken_on", "latitude", "longitude"], as_dict=True)
-    if current and not current.taken_on:
-        updates["taken_on"] = taken
+    current = frappe.db.get_value(
+        "Photo Metadata", name, ["taken_on", "date_from_file", "latitude", "longitude"], as_dict=True
+    )
+    if current and (not current.taken_on or current.date_from_file):
+        updates.update(taken_on=taken, date_from_file=0)
     geo = details.get("geoData") or details.get("geoDataExif") or {}
     if (
         current

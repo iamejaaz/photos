@@ -7,6 +7,7 @@
  "field_order": [
   "file",
   "taken_on",
+  "date_from_file",
   "width",
   "height",
   "duration",
@@ -38,6 +39,13 @@
    "label": "Taken On",
    "in_list_view": 1,
    "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "date_from_file",
+   "fieldtype": "Check",
+   "label": "Date From File",
+   "read_only": 1
   },
   {
    "fieldname": "width",
@@ -119,7 +127,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-14 21:00:00.000000",
+ "modified": "2026-10-14 22:40:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photo Metadata",

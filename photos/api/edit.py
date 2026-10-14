@@ -20,7 +20,7 @@ def edit_date(files: list[str] | str, taken_on: str | None = None, shift_minutes
             "File", name, "creation"
         )
         value = get_datetime(taken_on) if taken_on else current + timedelta(minutes=int(shift_minutes))
-        frappe.db.set_value(METADATA, name, "taken_on", value, update_modified=False)
+        frappe.db.set_value(METADATA, name, {"taken_on": value, "date_from_file": 0}, update_modified=False)
     return len(names)
 
 

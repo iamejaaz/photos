@@ -407,7 +407,7 @@ const sizeStyle = computed(() =>
 const takenTitle = computed(() => dayjs(photo.value?.taken).format('ddd, D MMM YYYY'))
 const takenSubtitle = computed(() => {
   const time = dayjs(photo.value?.taken).format('h:mm A')
-  return meta.value?.taken_on ? time : `${time} · ${__('from file date')}`
+  return meta.value?.date_from_file ? `${time} · ${__('from file date')}` : time
 })
 const sizeLine = computed(() => {
   const parts = []
