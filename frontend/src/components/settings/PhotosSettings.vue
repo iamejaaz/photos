@@ -1,6 +1,12 @@
 <template>
   <SettingsDialog v-model:open="settings.open" v-model:tab="settings.tab">
     <SettingsSidebar>
+      <div class="flex items-center justify-between px-2 pb-1 sm:hidden">
+        <span class="text-base font-semibold text-ink-gray-8">{{ __('Settings') }}</span>
+        <Button variant="ghost" :aria-label="__('Close')" @click="settings.open = false">
+          <template #icon><LucideX class="size-4" /></template>
+        </Button>
+      </div>
       <SettingsNavGroup :label="__('Photos')">
         <SettingsNavItem value="memories">
           <template #prefix><span class="lucide-history size-4 shrink-0 text-ink-gray-6" /></template>
@@ -24,7 +30,7 @@
         </SettingsNavItem>
       </SettingsNavGroup>
     </SettingsSidebar>
-    <SettingsContent>
+    <SettingsContent class="photos-settings">
       <SettingsPanel value="memories"><MemoriesPanel /></SettingsPanel>
       <SettingsPanel value="import"><ImportPanel /></SettingsPanel>
       <SettingsPanel value="export"><ExportPanel /></SettingsPanel>
@@ -35,6 +41,7 @@
 
 <script setup lang="ts">
 import {
+  Button,
   SettingsContent,
   SettingsDialog,
   SettingsNavGroup,
@@ -43,9 +50,26 @@ import {
   SettingsSidebar,
 } from 'frappe-ui'
 
+import LucideX from '~icons/lucide/x'
+
 import { settings } from '../../store'
 import FeaturesPanel from './FeaturesPanel.vue'
 import ExportPanel from './ExportPanel.vue'
 import ImportPanel from './ImportPanel.vue'
 import MemoriesPanel from './MemoriesPanel.vue'
 </script>
+
+<style>
+@media (max-width: 639px) {
+  .photos-settings [class*='px-[4.4rem]'] {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .photos-settings .pt-10 {
+    padding-top: 1rem;
+  }
+  [role='dialog']:has(.photos-settings) .w-screen {
+    width: 100%;
+  }
+}
+</style>
