@@ -20,6 +20,7 @@ export interface Photo {
   liked?: boolean
   write?: number
   album?: string
+  added?: string
 }
 
 export interface Page {

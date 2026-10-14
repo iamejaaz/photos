@@ -119,6 +119,7 @@ const props = defineProps<{
   emptyTitle: string
   emptyText: string
   emptyIcon: Component
+  groupBy?: 'taken' | 'added'
 }>()
 
 interface Tile {
@@ -159,7 +160,7 @@ const groups = computed(() => {
   const result: Omit<Group, 'rows'>[] = []
   let previousMonth = ''
   for (const photo of props.handle.feed.rows) {
-    const taken = dayjs(photo.taken)
+    const taken = dayjs((props.groupBy === 'added' && photo.added) || photo.taken)
     const key = taken.format('YYYY-MM-DD')
     let group = result[result.length - 1]
     if (!group || group.key !== key) {

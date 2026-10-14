@@ -49,6 +49,7 @@ import LucideArchive from '~icons/lucide/archive'
 import LucideBookImage from '~icons/lucide/book-image'
 import LucideCompass from '~icons/lucide/compass'
 import LucideCopy from '~icons/lucide/copy'
+import LucideHistory from '~icons/lucide/history'
 import LucideTrash2 from '~icons/lucide/trash-2'
 import LucideUsersRound from '~icons/lucide/users-round'
 import LucideUsers from '~icons/lucide/users'
@@ -93,6 +94,7 @@ const libraryItems = computed(() => [
   item(__('Favourites'), LucideStar, 'photos-favourites'),
   item(__('Albums'), LucideBookImage, 'photos-albums'),
   item(__('Folders'), LucideFolder, 'photos-folders'),
+  item(__('Recently added'), LucideHistory, 'photos-recent'),
   item(__('Archive'), LucideArchive, 'photos-archive'),
   item(__('Duplicates'), LucideCopy, 'photos-duplicates'),
   item(__('Trash'), LucideTrash2, 'photos-trash'),

@@ -43,7 +43,7 @@ MONTHS = [
 taken = fn.Coalesce(Metadata.taken_on, File.file_modified, File.creation)
 
 
-def media_query(**kwargs):
+def media_query(order=None, **kwargs):
     return (
         media_base(**kwargs)
         .select(
@@ -58,7 +58,7 @@ def media_query(**kwargs):
             Metadata.longitude,
             Metadata.place,
         )
-        .orderby(taken, order=Order.desc)
+        .orderby(order or taken, order=Order.desc)
     )
 
 
@@ -174,6 +174,12 @@ def timeline(
         query = query.where(Metadata.place == place)
     if thing:
         query = query.where(Metadata.things.like(f"%{thing}%"))
+    return page(query, start, limit)
+
+
+@frappe.whitelist()
+def recently_added(start: int = 0, limit: int | None = None):
+    query = media_query(order=File.creation).select(File.creation.as_("added"))
     return page(query, start, limit)
 
 

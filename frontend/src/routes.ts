@@ -33,6 +33,11 @@ export const routes: RouteRecordRaw[] = [
         props: { kind: 'favourites' },
       },
       {
+        path: 'recent',
+        name: 'photos-recent',
+        component: () => import('./pages/Recent.vue'),
+      },
+      {
         path: 'archive',
         name: 'photos-archive',
         component: () => import('./pages/Collection.vue'),

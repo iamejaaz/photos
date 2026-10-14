@@ -29,6 +29,7 @@ import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideCopy from '~icons/lucide/copy'
 import LucideFolder from '~icons/lucide/folder'
 import LucideStar from '~icons/lucide/star'
+import LucideHistory from '~icons/lucide/history'
 import LucideTrash2 from '~icons/lucide/trash-2'
 import LucideUsers from '~icons/lucide/users'
 import LucideUsersRound from '~icons/lucide/users-round'
@@ -42,6 +43,7 @@ const items = [
   { label: __('Favourites'), icon: LucideStar, route: 'photos-favourites' },
   { label: __('People'), icon: LucideUsersRound, route: 'photos-people' },
   { label: __('Folders'), icon: LucideFolder, route: 'photos-folders' },
+  { label: __('Recently added'), icon: LucideHistory, route: 'photos-recent' },
   { label: __('Archive'), icon: LucideArchive, route: 'photos-archive' },
   { label: __('Duplicates'), icon: LucideCopy, route: 'photos-duplicates' },
   { label: __('Trash'), icon: LucideTrash2, route: 'photos-trash' },
