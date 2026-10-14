@@ -38,6 +38,11 @@ export const routes: RouteRecordRaw[] = [
         component: () => import('./pages/Recent.vue'),
       },
       {
+        path: 'hidden',
+        name: 'photos-hidden',
+        component: () => import('./pages/Hidden.vue'),
+      },
+      {
         path: 'archive',
         name: 'photos-archive',
         component: () => import('./pages/Collection.vue'),

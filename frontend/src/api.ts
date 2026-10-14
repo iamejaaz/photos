@@ -247,6 +247,14 @@ export const createImport = (files: string[]) =>
   call(`${TAKEOUT}.create_import`, { files }) as Promise<ImportJob>
 export const getImport = (name?: string) =>
   call(`${TAKEOUT}.get_import`, { name }) as Promise<ImportJob | null>
+const HIDDEN = 'photos.api.hidden'
+export const HIDDEN_PHOTOS = `${HIDDEN}.hidden_photos`
+export const setHidden = (files: string[], hidden: boolean) => call(`${HIDDEN}.set_hidden`, { files, hidden })
+export const hiddenState = () =>
+  call(`${HIDDEN}.hidden_state`) as Promise<{ unlocked: boolean; count: number }>
+export const unlockHidden = (password: string) => call(`${HIDDEN}.unlock`, { password })
+export const lockHidden = () => call(`${HIDDEN}.lock`)
+
 export interface LinkSettings {
   allow_uploads: number
   allow_download: number

@@ -77,6 +77,8 @@ import LucideCalendarClock from '~icons/lucide/calendar-clock'
 import LucideClapperboard from '~icons/lucide/clapperboard'
 import LucideDownload from '~icons/lucide/download'
 import LucideEllipsis from '~icons/lucide/ellipsis'
+import LucideEye from '~icons/lucide/eye'
+import LucideEyeOff from '~icons/lucide/eye-off'
 import LucideFileArchive from '~icons/lucide/file-archive'
 import LucideImageDown from '~icons/lucide/image-down'
 import LucideImageMinus from '~icons/lucide/image-minus'
@@ -100,6 +102,7 @@ import {
   clearSelection,
   download,
   editMetadata,
+  hide,
   makeCollage,
   startExport,
   makeMovie,
@@ -113,7 +116,7 @@ import {
   uploadPhotos,
 } from '../store'
 
-type Mode = 'library' | 'album' | 'archive' | 'trash' | 'person'
+type Mode = 'library' | 'album' | 'archive' | 'trash' | 'person' | 'hidden'
 interface Action {
   label: string
   icon: Component
@@ -192,6 +195,8 @@ const actions = computed<Action[]>(() => {
         run: (names) => emit('remove-from-person', names),
       },
     ]
+  if (props.mode === 'hidden')
+    return [{ label: __('Unhide'), icon: LucideEye, run: (names) => hide(names, false) }, save, toTrash]
   if (props.mode === 'archive')
     return [
       { label: __('Unarchive'), icon: LucideArchiveRestore, run: (names) => archive(names, false) },
@@ -260,6 +265,12 @@ const actions = computed<Action[]>(() => {
       run: () => editMetadata('location', writable()),
     },
     exportSelected,
+    {
+      label: __('Hide'),
+      icon: LucideEyeOff,
+      more: true,
+      run: () => hide(writable()),
+    },
     { label: __('Archive'), icon: LucideArchive, run: (names) => archive(names) },
     toTrash,
   ]

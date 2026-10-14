@@ -21,6 +21,7 @@ import {
   startImport,
   getUploadFolder,
   setArchived,
+  setHidden,
   setFavourite,
   toggleTrash,
   uploadFile,
@@ -322,6 +323,16 @@ export async function archive(names: string[], value = true) {
   toast.success(
     value
       ? countLabel('Archived', '{0} items archived', names.length)
+      : countLabel('Moved back to photos', '{0} items moved back to photos', names.length),
+  )
+}
+
+export async function hide(names: string[], value = true) {
+  await setHidden(names, value)
+  dropFromFeed(names)
+  toast.success(
+    value
+      ? countLabel('Hidden', '{0} items hidden', names.length)
       : countLabel('Moved back to photos', '{0} items moved back to photos', names.length),
   )
 }

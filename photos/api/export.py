@@ -32,7 +32,7 @@ def export_library():
 
     files = [
         row[0]
-        for row in media_base(check_permission=False, archived=None)
+        for row in media_base(check_permission=False, archived=None, hidden=None)
         .select(File.name)
         .where(File.owner == frappe.session.user)
         .run()

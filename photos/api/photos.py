@@ -18,6 +18,7 @@ from photos.metadata import HASH_SIZE, enqueue_missing, file_hash
 File = frappe.qb.DocType("File")
 Metadata = frappe.qb.DocType("Photo Metadata")
 Archive = frappe.qb.DocType("Photo Archive")
+Hidden = frappe.qb.DocType("Photo Hidden")
 Face = frappe.qb.DocType("Photo Face")
 Year = CustomFunction("YEAR", ["date"])
 Month = CustomFunction("MONTH", ["date"])
@@ -62,7 +63,7 @@ def media_query(order=None, **kwargs):
     )
 
 
-def media_base(status=STATUS_ACTIVE, check_permission=True, archived=False):
+def media_base(status=STATUS_ACTIVE, check_permission=True, archived=False, hidden=False):
     query = (
         frappe.qb.from_(File)
         .left_join(Metadata)
@@ -75,6 +76,9 @@ def media_base(status=STATUS_ACTIVE, check_permission=True, archived=False):
     archived_files = frappe.qb.from_(Archive).select(Archive.file).where(Archive.user == frappe.session.user)
     if archived is not None:
         query = query.where(File.name.isin(archived_files) if archived else File.name.notin(archived_files))
+    hidden_files = frappe.qb.from_(Hidden).select(Hidden.file).where(Hidden.user == frappe.session.user)
+    if hidden is not None:
+        query = query.where(File.name.isin(hidden_files) if hidden else File.name.notin(hidden_files))
     if check_permission and (permission := _permission_criterion()):
         query = query.where(permission)
     return query
@@ -238,7 +242,7 @@ def archived(start: int = 0, limit: int | None = None):
 @frappe.whitelist()
 def trash(start: int = 0, limit: int | None = None):
     query = (
-        media_query(status=STATUS_TRASHED, check_permission=False, archived=None)
+        media_query(status=STATUS_TRASHED, check_permission=False, archived=None, hidden=None)
         .select(File.file_modified.as_("trashed_on"))
         .where(File.owner == frappe.session.user)
     )
