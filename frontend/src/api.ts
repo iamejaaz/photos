@@ -21,6 +21,7 @@ export interface Photo {
   write?: number
   album?: string
   added?: string
+  trashed_on?: string
 }
 
 export interface Page {

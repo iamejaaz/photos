@@ -72,6 +72,12 @@
                   <span v-if="tile.photo.duration">{{ formatDuration(tile.photo.duration) }}</span>
                   <LucidePlay class="size-3.5 fill-current" />
                 </div>
+                <span
+                  v-if="badge?.(tile.photo)"
+                  class="absolute bottom-2 right-2 rounded bg-black/50 px-1.5 py-0.5 text-xs font-medium text-white"
+                >
+                  {{ badge(tile.photo) }}
+                </span>
                 <LucideStar
                   v-if="tile.photo.is_favourite"
                   class="absolute bottom-2 left-2 size-4 fill-white text-white drop-shadow"
@@ -120,6 +126,7 @@ const props = defineProps<{
   emptyText: string
   emptyIcon: Component
   groupBy?: 'taken' | 'added'
+  badge?: (photo: Photo) => string | undefined
 }>()
 
 interface Tile {

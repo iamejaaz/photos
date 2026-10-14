@@ -237,8 +237,10 @@ def archived(start: int = 0, limit: int | None = None):
 
 @frappe.whitelist()
 def trash(start: int = 0, limit: int | None = None):
-    query = media_query(status=STATUS_TRASHED, check_permission=False, archived=None).where(
-        File.owner == frappe.session.user
+    query = (
+        media_query(status=STATUS_TRASHED, check_permission=False, archived=None)
+        .select(File.file_modified.as_("trashed_on"))
+        .where(File.owner == frappe.session.user)
     )
     return page(query, start, limit)
 
