@@ -15,27 +15,32 @@ HASH_SIZE = 16
 
 
 def enqueue_extract(doc, method=None):
+    if frappe.flags.photos_inline_extract:
+        return
     if doc.is_folder or not (doc.mime_type or "").startswith(("image/", "video/")):
         return
-    frappe.enqueue(
-        "photos.metadata.extract",
-        file_name=doc.name,
-        queue="short",
-        enqueue_after_commit=True,
-        deduplicate=True,
-        job_id=f"photo-metadata::{doc.name}",
-    )
+    _enqueue(doc.name, enqueue_after_commit=True)
 
 
 def enqueue_missing(names):
     for name in names:
+        if not _enqueue(name):
+            break
+
+
+def _enqueue(name, **kwargs):
+    try:
         frappe.enqueue(
             "photos.metadata.extract",
             file_name=name,
             queue="short",
             deduplicate=True,
             job_id=f"photo-metadata::{name}",
+            **kwargs,
         )
+    except frappe.QueueOverloaded:
+        return False
+    return True
 
 
 def extract(file_name):

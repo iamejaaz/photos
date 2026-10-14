@@ -26,16 +26,20 @@ def store_file(path, owner, parent=None, modified=None):
     shutil.copyfile(path, temp)
     mime_type = mimemapper.get_mime_type(str(temp), native_first=False)
     manager = FileManager()
-    drive_file = create_drive_file(
-        file_name,
-        parent,
-        get_file_type(mime_type),
-        lambda file: "/" + str(manager.get_disk_path(file, False)),
-        mime_type,
-        temp.stat().st_size,
-        modified,
-        owner=owner,
-    )
+    frappe.flags.photos_inline_extract = True
+    try:
+        drive_file = create_drive_file(
+            file_name,
+            parent,
+            get_file_type(mime_type),
+            lambda file: "/" + str(manager.get_disk_path(file, False)),
+            mime_type,
+            temp.stat().st_size,
+            modified,
+            owner=owner,
+        )
+    finally:
+        frappe.flags.photos_inline_extract = False
     manager.upload_file(temp, drive_file, True)
     update_file_size(parent, drive_file.file_size)
     return drive_file.name
