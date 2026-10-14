@@ -71,7 +71,7 @@ import { switchTheme, themeMode } from '@/utils/setupTheme'
 import { albums, libraryShare, openSettings, sharedAlbums, sharingSeen } from '../store'
 
 const route = useRoute()
-const collapsed = ref<boolean | null>(null)
+const collapsed = ref<boolean | null>(window.innerWidth < 1024 ? true : null)
 const { fullName } = useCurrentUser()
 const appsMenu = useAppSwitcher('photos')
 const hasNewShares = computed(() =>
