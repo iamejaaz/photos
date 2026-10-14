@@ -13,6 +13,11 @@ import {
   getAlbums,
   getSettings,
   getSharedAlbums,
+  type ImportJob,
+  type ImportOptions,
+  cancelImport,
+  createImport,
+  getImport,
   startImport,
   getUploadFolder,
   setArchived,
@@ -160,18 +165,25 @@ export function openSettings(tab = 'import') {
   settings.open = true
 }
 
-type TakeoutResult = { imported: number; skipped: number; albums: number }
 export const takeout = reactive({
-  phase: 'idle' as 'idle' | 'uploading' | 'importing' | 'done' | 'failed',
+  uploading: false,
   parts: 0,
   uploaded: 0,
   bytes: 0,
   totalBytes: 0,
-  done: 0,
-  total: 0,
-  result: null as TakeoutResult | null,
+  job: null as ImportJob | null,
   error: '',
 })
+export async function loadImport(name?: string) {
+  const job = await getImport(name)
+  const finished = takeout.job?.status === 'Importing' && job?.status === 'Done'
+  takeout.job = job
+  if (finished) {
+    notifyUploaded()
+    loadAlbums()
+  }
+  return job
+}
 export async function startTakeout(files: File[]) {
   const zips = files.filter((file) => file.name.toLowerCase().endsWith('.zip'))
   if (!zips.length) {
@@ -179,14 +191,11 @@ export async function startTakeout(files: File[]) {
     return
   }
   Object.assign(takeout, {
-    phase: 'uploading',
+    uploading: true,
     parts: zips.length,
     uploaded: 0,
     bytes: 0,
     totalBytes: zips.reduce((sum, file) => sum + file.size, 0),
-    done: 0,
-    total: 0,
-    result: null,
     error: '',
   })
   try {
@@ -198,21 +207,20 @@ export async function startTakeout(files: File[]) {
       if (name) names.push(name)
       takeout.uploaded++
     }
-    await startImport(names)
-    takeout.phase = 'importing'
+    takeout.job = await createImport(names)
   } catch (error) {
-    takeout.phase = 'failed'
     takeout.error = (error as { messages?: string[] }).messages?.[0] ?? (error as Error).message
+  } finally {
+    takeout.uploading = false
   }
 }
-export function onTakeoutEvent(event: string, data: Record<string, unknown>) {
-  if (event === 'progress') Object.assign(takeout, { phase: 'importing', done: data.done, total: data.total })
-  if (event === 'failed') Object.assign(takeout, { phase: 'failed', error: data.error })
-  if (event === 'done') {
-    Object.assign(takeout, { phase: 'done', result: data })
-    notifyUploaded()
-    loadAlbums()
-  }
+export async function runImport(options: ImportOptions) {
+  if (takeout.job) takeout.job = await startImport(takeout.job.name, options)
+}
+export async function discardImport() {
+  if (takeout.job && ['Ready', 'Failed'].includes(takeout.job.status)) await cancelImport(takeout.job.name)
+  takeout.job = null
+  takeout.error = ''
 }
 export async function loadSettings() {
   settings.data = await getSettings()

@@ -1,0 +1,80 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-10-14 22:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "status",
+  "files",
+  "summary",
+  "options",
+  "done",
+  "total",
+  "result",
+  "error"
+ ],
+ "fields": [
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Reading\nReady\nImporting\nDone\nFailed"
+  },
+  {
+   "fieldname": "files",
+   "fieldtype": "JSON",
+   "label": "Files"
+  },
+  {
+   "fieldname": "summary",
+   "fieldtype": "JSON",
+   "label": "Summary"
+  },
+  {
+   "fieldname": "options",
+   "fieldtype": "JSON",
+   "label": "Options"
+  },
+  {
+   "default": "0",
+   "fieldname": "done",
+   "fieldtype": "Int",
+   "label": "Done"
+  },
+  {
+   "default": "0",
+   "fieldname": "total",
+   "fieldtype": "Int",
+   "label": "Total"
+  },
+  {
+   "fieldname": "result",
+   "fieldtype": "JSON",
+   "label": "Result"
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error"
+  }
+ ],
+ "modified": "2026-10-14 22:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Photos",
+ "name": "Photo Import",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

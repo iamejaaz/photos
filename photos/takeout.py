@@ -9,25 +9,8 @@ from pathlib import Path, PurePosixPath
 import frappe
 from suite.drive.utils.files import FileManager, storage_key
 
-MEDIA = {
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".gif",
-    ".webp",
-    ".heic",
-    ".heif",
-    ".bmp",
-    ".tif",
-    ".tiff",
-    ".mp4",
-    ".mov",
-    ".m4v",
-    ".3gp",
-    ".avi",
-    ".mkv",
-    ".webm",
-}
+VIDEO = {".mp4", ".mov", ".m4v", ".3gp", ".avi", ".mkv", ".webm"}
+MEDIA = VIDEO | {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif", ".bmp", ".tif", ".tiff"}
 SKIP_FOLDERS = {"trash", "bin"}
 ARCHIVE_FOLDERS = {"archive"}
 NUMBERED = re.compile(r"^(.*)\((\d+)\)$")
@@ -49,76 +32,168 @@ class Entry:
         return self.archive.read(self.info)
 
 
-def import_takeout(files, user):
-    frappe.set_user(user)
-    archives = [zipfile.ZipFile(_path(name)) for name in files]
-    try:
-        result = _import(archives, user)
-    except Exception as error:
-        frappe.db.rollback()
-        frappe.log_error("Google Photos import failed")
-        _publish(user, "photos-import-failed", {"error": str(error)})
-        return
-    finally:
-        for archive in archives:
+class Export:
+    def __init__(self, files):
+        self.archives = [zipfile.ZipFile(_path(name)) for name in files]
+        media, self.sidecars, self.album_titles = [], defaultdict(dict), {}
+        for archive in self.archives:
+            for info in archive.infolist():
+                if info.is_dir():
+                    continue
+                entry = Entry(archive, info)
+                suffix = PurePosixPath(entry.name).suffix.lower()
+                if suffix in MEDIA:
+                    media.append(entry)
+                elif suffix == ".json":
+                    if entry.name.startswith(("metadata", "métadonnées")):
+                        title = json.loads(entry.read()).get("title")
+                        if title:
+                            self.album_titles[entry.folder] = title
+                    else:
+                        stem, number = _json_key(entry.name)
+                        self.sidecars[(entry.folder, number)][stem] = entry
+        unique = {}
+        for entry in media:
+            unique.setdefault(entry.key, []).append(entry)
+        self.albums = sorted(set(self.album_titles.values()), key=str.lower)
+        self.items = [self._item(entries) for entries in unique.values()]
+        self.items = [item for item in self.items if not item["trashed"]]
+
+    def _item(self, entries):
+        folders = {entry.folder for entry in entries}
+        details = next(filter(None, (_sidecar(self.sidecars, entry) for entry in entries)), {})
+        taken = _taken(details) or datetime(*entries[0].info.date_time)
+        return {
+            "entries": entries,
+            "details": details,
+            "taken": taken,
+            "source": f"takeout:{entries[0].info.file_size}:{entries[0].info.CRC}",
+            "albums": sorted(
+                {self.albums.index(self.album_titles[f]) for f in folders if f in self.album_titles}
+            ),
+            "year": taken.year,
+            "archived": any(f.lower() in ARCHIVE_FOLDERS for f in folders),
+            "trashed": all(f.lower() in SKIP_FOLDERS for f in folders),
+            "video": PurePosixPath(entries[0].name).suffix.lower() in VIDEO,
+        }
+
+    def close(self):
+        for archive in self.archives:
             archive.close()
+
+
+def read_export(name):
+    doc = frappe.get_doc("Photo Import", name)
+    frappe.set_user(doc.owner)
+    try:
+        export = Export(json.loads(doc.files))
+    except Exception as error:
+        return _fail(doc, error)
+    existing = set(_existing([item["source"] for item in export.items], doc.owner))
+    export.close()
+    doc.summary = json.dumps(
+        {
+            "albums": export.albums,
+            "items": [
+                [
+                    item["albums"],
+                    item["year"],
+                    int(item["archived"]),
+                    int(item["video"]),
+                    int(item["source"] in existing),
+                ]
+                for item in export.items
+            ],
+        }
+    )
+    doc.status = "Ready"
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    _publish(doc)
+
+
+def run_import(name):
+    doc = frappe.get_doc("Photo Import", name)
+    user = doc.owner
+    frappe.set_user(user)
+    options = json.loads(doc.options or "{}")
+    try:
+        export = Export(json.loads(doc.files))
+        try:
+            result = _import(doc, export, options, user)
+        finally:
+            export.close()
+    except Exception as error:
+        return _fail(doc, error)
     from suite.drive.api.files import remove_or_restore
 
-    remove_or_restore(files)
+    remove_or_restore(json.loads(doc.files))
+    doc.reload()
+    doc.update({"status": "Done", "result": json.dumps(result)})
+    doc.save(ignore_permissions=True)
     frappe.db.commit()
-    _publish(user, "photos-import-done", result)
+    _publish(doc)
 
 
-def _import(archives, user):
-    media, sidecars, album_titles = [], defaultdict(dict), {}
-    for archive in archives:
-        for info in archive.infolist():
-            if info.is_dir():
-                continue
-            entry = Entry(archive, info)
-            suffix = PurePosixPath(entry.name).suffix.lower()
-            if suffix in MEDIA:
-                media.append(entry)
-            elif suffix == ".json":
-                if entry.name.startswith("metadata") or entry.name.startswith("métadonnées"):
-                    title = json.loads(entry.read()).get("title")
-                    if title:
-                        album_titles[entry.folder] = title
-                else:
-                    stem, number = _json_key(entry.name)
-                    sidecars[(entry.folder, number)][stem] = entry
+def selected(item, options):
+    if item["archived"] and not options.get("archived", True):
+        return False
+    if options.get("mode", "all") == "all":
+        return True
+    chosen = set(options.get("albums") or [])
+    return bool(chosen.intersection(item["albums"])) or item["year"] in (options.get("years") or [])
 
-    unique = {}
-    for entry in media:
-        unique.setdefault(entry.key, []).append(entry)
 
-    total, done, imported, skipped = len(unique), 0, 0, 0
+def _import(doc, export, options, user):
+    items = [item for item in export.items if selected(item, options)]
+    chosen_albums = None if options.get("mode", "all") == "all" else set(options.get("albums") or [])
+    doc.db_set({"total": len(items), "done": 0})
+    imported, skipped = 0, 0
     albums = defaultdict(list)
-    for entries in unique.values():
-        done += 1
-        folders = {entry.folder for entry in entries}
-        if all(folder.lower() in SKIP_FOLDERS for folder in folders):
-            continue
-        source = f"takeout:{entries[0].info.file_size}:{entries[0].info.CRC}"
-        name = frappe.db.get_value("Photo Metadata", {"source": source, "owner": user}, "file")
+    for done, item in enumerate(items, 1):
+        name = _existing([item["source"]], user).get(item["source"])
         if name:
             skipped += 1
         else:
-            details = next(filter(None, (_sidecar(sidecars, entry) for entry in entries)), {})
-            name = _add(entries[0], details, source, user)
+            name = _add(item, options.get("favourites", True), user)
             imported += 1
-        for folder in folders:
-            if folder in album_titles:
-                albums[album_titles[folder]].append(name)
-            elif folder.lower() in ARCHIVE_FOLDERS:
-                _archive(name, user)
-        if done % 10 == 0:
+        for index in item["albums"]:
+            if chosen_albums is None or index in chosen_albums:
+                albums[export.albums[index]].append(name)
+        if item["archived"]:
+            _archive(name, user)
+        if done % 10 == 0 or done == len(items):
+            doc.db_set("done", done)
             frappe.db.commit()
-            _publish(user, "photos-import-progress", {"done": done, "total": total})
-
+            _publish(doc)
     _save_albums(albums, user)
     frappe.db.commit()
     return {"imported": imported, "skipped": skipped, "albums": len(albums)}
+
+
+def _existing(sources, user):
+    Metadata, File = frappe.qb.DocType("Photo Metadata"), frappe.qb.DocType("File")
+    rows = (
+        frappe.qb.from_(Metadata)
+        .join(File)
+        .on(File.name == Metadata.file)
+        .select(Metadata.source, Metadata.file)
+        .where(Metadata.owner == user)
+        .where(Metadata.source.isin(sources or [""]))
+        .where(File.status == "Active")
+        .run()
+    )
+    return dict(rows)
+
+
+def _fail(doc, error):
+    frappe.db.rollback()
+    frappe.log_error("Google Photos import failed")
+    doc.reload()
+    doc.update({"status": "Failed", "error": str(error)})
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    _publish(doc)
 
 
 def _json_key(name):
@@ -152,10 +227,10 @@ def _sidecar(sidecars, entry):
         return None
 
 
-def _add(entry, details, source, user):
+def _add(item, favourites, user):
     from photos.library import add_file
 
-    taken = _taken(details) or datetime(*entry.info.date_time)
+    entry, details, source, taken = item["entries"][0], item["details"], item["source"], item["taken"]
     with tempfile.TemporaryDirectory() as folder:
         path = Path(folder) / entry.name
         path.write_bytes(entry.read())
@@ -178,7 +253,7 @@ def _add(entry, details, source, user):
             from photos.scan import enrich
 
             enrich(name)
-    if details.get("favorited"):
+    if favourites and details.get("favorited"):
         frappe.get_doc({"doctype": "Drive Favourite", "entity": name, "user": user}).insert(
             ignore_permissions=True, ignore_if_duplicate=True
         )
@@ -216,5 +291,5 @@ def _path(name):
     return FileManager().site_folder / storage_key(file_url)
 
 
-def _publish(user, event, data):
-    frappe.publish_realtime(event, data, user=user, after_commit=event != "photos-import-progress")
+def _publish(doc):
+    frappe.publish_realtime("photos-import-update", {"name": doc.name}, user=doc.owner, after_commit=True)
