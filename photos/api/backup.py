@@ -1,6 +1,7 @@
 import json
 
 import frappe
+from frappe.rate_limiter import rate_limit
 from suite.drive.api.permissions import user_has_permission
 
 SOURCE = "device:{}"
@@ -35,3 +36,41 @@ def mark(file: str, sha1: str):
     if not frappe.db.exists("Photo Metadata", file):
         extract(file)
     frappe.db.set_value("Photo Metadata", file, "source", SOURCE.format(sha1.lower()), update_modified=False)
+
+
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=20, seconds=60 * 60)
+def device_token():
+    from photos.api.native import SETTINGS, _usable_client
+
+    if frappe.session.user == "Guest":
+        raise frappe.PermissionError
+    client = _usable_client(frappe.db.get_single_value(SETTINGS, "oauth_client"))
+    if not client:
+        frappe.throw("The mobile app is not set up on this site.")
+    access_token, refresh_token = frappe.generate_hash(length=40), frappe.generate_hash(length=40)
+    frappe.get_doc(
+        {
+            "doctype": "OAuth Bearer Token",
+            "client": client,
+            "user": frappe.session.user,
+            "scopes": "all openid",
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "expires_in": 3600,
+            "status": "Active",
+        }
+    ).insert(ignore_permissions=True)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "expires_in": 3600,
+        "client_id": client,
+    }
+
+
+@frappe.whitelist()
+def upload_folder():
+    from photos.api.photos import get_upload_folder
+
+    return get_upload_folder()
