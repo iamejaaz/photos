@@ -1,9 +1,13 @@
 <template>
   <Teleport to="body">
-    <div v-if="lightbox.open && photo" class="fixed inset-0 z-50 flex bg-black text-white">
+    <div
+      v-if="lightbox.open && photo"
+      class="fixed inset-0 z-50 flex text-white"
+      :style="{ backgroundColor: `rgba(0, 0, 0, ${gestures.backdropOpacity.value})` }"
+    >
       <div class="relative flex min-w-0 flex-1 flex-col">
         <div
-          v-show="!lightbox.slideshow"
+          v-show="!lightbox.slideshow && chrome"
           class="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent p-3"
         >
           <button class="flex lightbox-button" :aria-label="__('Close')" @click="close">
@@ -86,68 +90,88 @@
           </div>
         </div>
 
-        <div class="flex min-h-0 flex-1 items-center justify-center" @click.self="close">
-          <video
-            v-if="isVideo(photo)"
-            :key="photo.name"
-            :src="streamUrl(photo.name, photo.album)"
-            :poster="thumbnailUrl(photo.name, photo.album)"
-            ref="videoEl"
-            class="max-h-full max-w-full"
-            controls
-            autoplay
-            @ended="lightbox.slideshow && go(1)"
-          />
-          <div v-else :key="photo.name" class="relative flex size-full items-center justify-center">
-            <img
-              v-if="!loaded"
-              :src="thumbnailUrl(photo.name, photo.album)"
-              class="absolute max-h-full max-w-full scale-100 object-contain blur-sm"
-              :style="sizeStyle"
-              alt=""
-            />
-            <img
-              :src="contentUrl(photo.name, photo.album)"
-              :alt="photo.file_name"
-              class="relative max-h-full max-w-full object-contain transition-opacity"
-              :class="loaded ? 'opacity-100' : 'opacity-0'"
-              @load="loaded = true"
-            />
-            <video
-              v-if="liveSource && livePlaying"
-              :key="liveSource"
-              :src="liveSource"
-              class="absolute max-h-full max-w-full object-contain"
-              :style="sizeStyle"
-              autoplay
-              muted
-              playsinline
-              @ended="livePlaying = false"
-              @error="livePlaying = false"
-            />
-            <button
-              v-if="liveSource"
-              class="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white"
-              :aria-pressed="livePlaying"
-              @click="livePlaying = !livePlaying"
-            >
-              <LucideCirclePlay class="size-3.5" />
-              {{ __('Live') }}
-            </button>
+        <div
+          class="relative flex min-h-0 flex-1 touch-none select-none items-center justify-center overflow-hidden"
+          v-on="gestures.handlers"
+          @dragstart.prevent
+        >
+          <div class="absolute inset-0 flex items-center justify-center" :style="gestures.trackStyle.value">
+            <template v-for="step in [-1, 1]" :key="step">
+              <div
+                v-if="neighbour(step)"
+                class="pointer-events-none absolute inset-0 flex items-center justify-center"
+                :style="{ transform: `translateX(calc(${step * 100}% + ${step * SWIPE_GAP}px))` }"
+              >
+                <img
+                  :src="thumbnailUrl(neighbour(step)!.name, neighbour(step)!.album)"
+                  class="size-full object-contain"
+                  alt=""
+                />
+              </div>
+            </template>
+            <div class="flex size-full items-center justify-center" :style="gestures.contentStyle.value">
+              <video
+                v-if="isVideo(photo)"
+                :key="photo.name"
+                :src="streamUrl(photo.name, photo.album)"
+                :poster="thumbnailUrl(photo.name, photo.album)"
+                ref="videoEl"
+                class="max-h-full max-w-full"
+                controls
+                autoplay
+                @ended="lightbox.slideshow && go(1)"
+              />
+              <div v-else :key="photo.name" class="relative flex size-full items-center justify-center">
+                <img
+                  v-if="!loaded"
+                  :src="thumbnailUrl(photo.name, photo.album)"
+                  class="absolute size-full object-contain"
+                  alt=""
+                />
+                <img
+                  :src="contentUrl(photo.name, photo.album)"
+                  :alt="photo.file_name"
+                  class="relative size-full object-contain transition-opacity"
+                  :class="loaded ? 'opacity-100' : 'opacity-0'"
+                  @load="loaded = true"
+                />
+                <video
+                  v-if="liveSource && livePlaying"
+                  :key="liveSource"
+                  :src="liveSource"
+                  class="absolute max-h-full max-w-full object-contain"
+                  :style="sizeStyle"
+                  autoplay
+                  muted
+                  playsinline
+                  @ended="livePlaying = false"
+                  @error="livePlaying = false"
+                />
+                <button
+                  v-if="liveSource"
+                  class="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white"
+                  :aria-pressed="livePlaying"
+                  @click="livePlaying = !livePlaying"
+                >
+                  <LucideCirclePlay class="size-3.5" />
+                  {{ __('Live') }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         <button
-          v-if="lightbox.index > 0 && !lightbox.slideshow"
-          class="flex lightbox-button absolute left-3 top-1/2 -translate-y-1/2 bg-black/30"
+          v-if="lightbox.index > 0 && !lightbox.slideshow && chrome"
+          class="flex lightbox-button absolute left-3 top-1/2 -translate-y-1/2 bg-black/30 [@media(pointer:coarse)]:hidden"
           :aria-label="__('Previous')"
           @click="go(-1)"
         >
           <LucideChevronLeft class="size-6" />
         </button>
         <button
-          v-if="(lightbox.index < rows.length - 1 || feed?.feed.hasNext) && !lightbox.slideshow"
-          class="flex lightbox-button absolute right-3 top-1/2 -translate-y-1/2 bg-black/30"
+          v-if="(lightbox.index < rows.length - 1 || feed?.feed.hasNext) && !lightbox.slideshow && chrome"
+          class="flex lightbox-button absolute right-3 top-1/2 -translate-y-1/2 bg-black/30 [@media(pointer:coarse)]:hidden"
           :aria-label="__('Next')"
           @click="go(1)"
         >
@@ -399,6 +423,7 @@ import {
 import InfoRow from './InfoRow.vue'
 import MoveFaceDialog from './MoveFaceDialog.vue'
 import FaceAvatar from './FaceAvatar.vue'
+import { SWIPE_GAP, useViewerGestures } from '../composables/useViewerGestures'
 import PhotoEditor from './PhotoEditor.vue'
 import VideoTrimmer from './VideoTrimmer.vue'
 
@@ -595,6 +620,45 @@ function close() {
   lightbox.slideshow = false
 }
 
+const chrome = ref(true)
+const neighbour = (step: number) => rows.value[lightbox.index + step]
+watch(
+  () => lightbox.open && lightbox.index,
+  () => {
+    if (!lightbox.open) return
+    for (const step of [1, -1]) {
+      const next = neighbour(step)
+      if (next && !isVideo(next)) new Image().src = contentUrl(next.name, next.album)
+    }
+  },
+)
+const gestures = useViewerGestures({
+  canPrevious: () => lightbox.index > 0,
+  canNext: () => lightbox.index < rows.value.length - 1 || Boolean(feed.value?.feed.hasNext),
+  onPrevious: () => go(-1),
+  onNext: () => go(1),
+  onClose: close,
+  onInfo: () => (lightbox.showInfo = true),
+  onTap: () => (chrome.value = !chrome.value),
+  zoomable: () => Boolean(photo.value && !isVideo(photo.value)),
+})
+watch(
+  () => photo.value?.name,
+  () => gestures.reset(),
+)
+
+const onPopState = () => lightbox.open && close()
+watch(
+  () => lightbox.open,
+  (open) => {
+    if (open && !history.state?.photosViewer) {
+      chrome.value = true
+      history.pushState({ ...history.state, photosViewer: true }, '')
+    } else if (!open && history.state?.photosViewer) history.back()
+  },
+  { immediate: true },
+)
+
 async function toggleArchive() {
   if (!photo.value || !details.value) return
   await archive([photo.value.name], !details.value.archived)
@@ -667,9 +731,13 @@ useKeyboardShortcut([
   { combo: 'Escape', description: __('Close'), group: __('Viewer'), enabled: viewing, handler: close },
 ])
 
-onMounted(() => window.addEventListener('keydown', stopSlideshow, { capture: true }))
+onMounted(() => {
+  window.addEventListener('keydown', stopSlideshow, { capture: true })
+  window.addEventListener('popstate', onPopState)
+})
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', stopSlideshow, { capture: true })
+  window.removeEventListener('popstate', onPopState)
   clearTimeout(slideTimer)
 })
 </script>
