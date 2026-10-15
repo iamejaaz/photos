@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 
 import frappe
@@ -251,6 +252,13 @@ def _gps(gps):
         return -degrees if ref in ("S", "W") else degrees
 
     try:
-        return to_degrees(gps[2], gps[1]), to_degrees(gps[4], gps[3])
+        latitude, longitude = to_degrees(gps[2], gps[1]), to_degrees(gps[4], gps[3])
     except KeyError, IndexError, TypeError, ZeroDivisionError:
         return None, None
+    if (
+        not (math.isfinite(latitude) and math.isfinite(longitude))
+        or abs(latitude) > 90
+        or abs(longitude) > 180
+    ):
+        return None, None
+    return latitude, longitude
