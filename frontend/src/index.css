@@ -44,3 +44,10 @@ html.native .fixed.inset-0.edge-to-edge {
   inset: 0;
   padding: var(--inset-top, 0px) var(--inset-right, 0px) var(--inset-bottom, 0px) var(--inset-left, 0px);
 }
+
+@media (max-width: 639px) {
+  html.native .edge-to-edge > aside {
+    padding-top: var(--inset-top, 0px);
+    padding-bottom: var(--inset-bottom, 0px);
+  }
+}

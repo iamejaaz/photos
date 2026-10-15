@@ -9,6 +9,7 @@
         <div
           v-show="!lightbox.slideshow && chrome"
           class="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent p-3"
+          :class="{ 'max-sm:hidden': lightbox.showInfo }"
         >
           <button class="flex lightbox-button" :aria-label="__('Close')" @click="close">
             <LucideArrowLeft class="size-5" />
@@ -27,7 +28,7 @@
             </Tooltip>
             <Tooltip :text="__('Info')">
               <button
-                class="flex lightbox-button"
+                class="flex lightbox-button max-sm:hidden"
                 :class="{ 'bg-white/15': lightbox.showInfo }"
                 @click="lightbox.showInfo = !lightbox.showInfo"
               >
@@ -52,13 +53,13 @@
               </button>
             </Tooltip>
             <Tooltip v-if="inDrive" :text="__('Share')">
-              <button class="flex lightbox-button" @click="openShare([photo.name])">
+              <button class="flex lightbox-button max-sm:hidden" @click="openShare([photo.name])">
                 <LucideShare2 class="size-5" />
               </button>
             </Tooltip>
             <Tooltip v-if="photo.download !== 0" :text="__('Download')">
               <a
-                class="flex lightbox-button"
+                class="flex lightbox-button max-sm:hidden"
                 :href="downloadUrl(photo.name, photo.album)"
                 @click="nativeDownload($event, photo)"
               >
@@ -83,7 +84,7 @@
               </button>
             </Dropdown>
             <Tooltip v-if="photo.write" :text="__('Move to trash')">
-              <button class="flex lightbox-button" @click="removeCurrent">
+              <button class="flex lightbox-button max-sm:hidden" @click="removeCurrent">
                 <LucideTrash2 class="size-5" />
               </button>
             </Tooltip>
@@ -177,6 +178,27 @@
         >
           <LucideChevronRight class="size-6" />
         </button>
+        <div
+          v-show="!lightbox.slideshow && chrome && !lightbox.showInfo"
+          class="absolute inset-x-0 bottom-0 z-10 flex justify-around bg-gradient-to-t from-black/60 to-transparent pb-3 pt-8 sm:hidden"
+        >
+          <button v-if="inDrive" class="viewer-action" @click="openShare([photo.name])">
+            <LucideShare2 class="size-5" />
+            {{ __('Share') }}
+          </button>
+          <button v-if="inDrive" class="viewer-action" @click="editing = true">
+            <LucideSlidersHorizontal class="size-5" />
+            {{ isVideo(photo) ? __('Trim') : __('Edit') }}
+          </button>
+          <button class="viewer-action" @click="lightbox.showInfo = true">
+            <LucideInfo class="size-5" />
+            {{ __('Info') }}
+          </button>
+          <button v-if="photo.write" class="viewer-action" @click="removeCurrent">
+            <LucideTrash2 class="size-5" />
+            {{ __('Delete') }}
+          </button>
+        </div>
         <div v-if="lightbox.slideshow" class="absolute inset-x-0 bottom-6 flex justify-center">
           <button
             class="rounded-full bg-black/50 px-4 py-2 text-sm text-white"
@@ -189,7 +211,7 @@
 
       <aside
         v-if="lightbox.showInfo"
-        class="flex w-full max-w-sm shrink-0 flex-col overflow-y-auto bg-surface-base text-ink-gray-8 max-sm:absolute max-sm:inset-0"
+        class="flex w-full max-w-sm shrink-0 flex-col overflow-y-auto bg-surface-base text-ink-gray-8 max-sm:absolute max-sm:inset-0 max-sm:max-w-none"
       >
         <div class="flex items-center gap-2 px-5 py-4">
           <button
@@ -440,6 +462,12 @@ const moreActions = computed(() => {
   const items: { label: string; icon: string; onClick: () => unknown }[] = [
     { label: __('Slideshow'), icon: 'lucide-play', onClick: () => (lightbox.slideshow = true) },
   ]
+  if (photo.value?.download !== 0)
+    items.push({
+      label: __('Download'),
+      icon: 'lucide-download',
+      onClick: () => photo.value && download([photo.value]),
+    })
   if (inDrive.value) {
     items.push({
       label: __('Add to album'),
@@ -753,6 +781,20 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.viewer-action {
+  display: flex;
+  min-width: 4rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: rgb(255 255 255 / 0.9);
+}
+.viewer-action:active {
+  background-color: rgb(255 255 255 / 0.15);
+}
 .lightbox-button {
   @apply size-10 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 hover:text-white;
 }
