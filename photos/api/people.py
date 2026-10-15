@@ -19,15 +19,18 @@ def _own(person):
 def people(include_hidden: bool = False):
     if not engine.available():
         return {"enabled": False, "people": []}
-    filters = {"owner": frappe.session.user, "face_count": [">", 0]}
+    filters = {"owner": frappe.session.user}
     if not frappe.parse_json(include_hidden):
         filters["hidden"] = 0
-    rows = frappe.get_all(
-        "Photo Person",
-        filters=filters,
-        fields=["name", "person_name", "cover_face", "face_count", "hidden"],
-        order_by="face_count desc, creation asc",
+    rows = _with_active_photos(
+        frappe.get_all(
+            "Photo Person",
+            filters=filters,
+            fields=["name", "person_name", "cover_face", "face_count", "hidden"],
+            order_by="creation asc",
+        )
     )
+    rows.sort(key=lambda row: -row.face_count)
     named = [row for row in rows if row.person_name]
     unnamed = [row for row in rows if not row.person_name]
     return {"enabled": True, "people": named + unnamed}
@@ -36,9 +39,38 @@ def people(include_hidden: bool = False):
 @frappe.whitelist()
 def person(person: str):
     _own(person)
-    return frappe.db.get_value(
+    row = frappe.db.get_value(
         "Photo Person", person, ["name", "person_name", "cover_face", "face_count", "hidden"], as_dict=True
     )
+    return (_with_active_photos([row]) or [{**row, "face_count": 0}])[0]
+
+
+def _with_active_photos(rows):
+    if not rows:
+        return []
+    counts = {}
+    for person, file, face, score in frappe.db.sql(
+        """
+        select face.person, face.file, face.name, face.score
+        from `tabPhoto Face` face
+        join `tabFile` file on file.name = face.file
+        where face.person in %(people)s and file.status = 'Active' and ifnull(face.not_a_face, 0) = 0
+        """,
+        {"people": [row.name for row in rows]},
+    ):
+        entry = counts.setdefault(person, {"files": set(), "faces": {}})
+        entry["files"].add(file)
+        entry["faces"][face] = score or 0
+    result = []
+    for row in rows:
+        entry = counts.get(row.name)
+        if not entry:
+            continue
+        row.face_count = len(entry["files"])
+        if row.cover_face not in entry["faces"]:
+            row.cover_face = max(entry["faces"], key=entry["faces"].get)
+        result.append(row)
+    return result
 
 
 @frappe.whitelist()
@@ -109,10 +141,12 @@ NOT_SAME = "photos_not_same_people"
 def merge_suggestions(limit: int = 10):
     import numpy as np
 
-    people = frappe.get_all(
-        "Photo Person",
-        filters={"owner": frappe.session.user, "hidden": 0},
-        fields=["name", "person_name", "cover_face", "face_count", "centroid"],
+    people = _with_active_photos(
+        frappe.get_all(
+            "Photo Person",
+            filters={"owner": frappe.session.user, "hidden": 0},
+            fields=["name", "person_name", "cover_face", "face_count", "centroid"],
+        )
     )
     dismissed = set(json.loads(frappe.defaults.get_user_default(NOT_SAME) or "[]"))
     vectors = [engine._decode(person.centroid) for person in people]
