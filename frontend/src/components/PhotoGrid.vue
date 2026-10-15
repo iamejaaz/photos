@@ -44,8 +44,8 @@
               @contextmenu.prevent
             >
               <div
-                class="absolute overflow-hidden transition-all duration-200"
-                :class="selection.has(tile.photo.name) ? 'inset-3 rounded-md' : 'inset-0'"
+                class="absolute inset-0 overflow-hidden transition-transform duration-200"
+                :class="selection.has(tile.photo.name) ? 'scale-[0.84] rounded-md' : ''"
               >
                 <img
                   :src="thumbnailUrl(tile.photo.name, tile.photo.album)"
@@ -171,7 +171,9 @@ useResizeObserver(container, (entries) => {
   width.value = Math.floor(entries[0].contentRect.width)
 })
 
-const targetHeight = computed(() => (width.value < 640 ? 120 : width.value < 1100 ? 180 : 220) * zoom.value)
+const targetHeight = computed(() => (width.value < 1100 ? 180 : 220) * zoom.value)
+const square = computed(() => width.value > 0 && width.value < 640)
+const columns = computed(() => Math.min(8, Math.max(2, Math.round(4 / zoom.value))))
 
 const groups = computed(() => {
   const result: Omit<Group, 'rows'>[] = []
@@ -202,7 +204,7 @@ const lines = computed<Line[]>(() => {
   for (const day of groups.value) {
     const { rows, open } = justify(day.photos)
     const group = { ...day, rows }
-    const natural = rows.length === 1 && open ? rowWidth(rows[0]) : null
+    const natural = !square.value && rows.length === 1 && open ? rowWidth(rows[0]) : null
     const current = result[result.length - 1]
     if (natural !== null && current?.packable && !day.month && used + DAY_GAP + natural <= width.value) {
       current.groups.push(group)
@@ -232,6 +234,14 @@ function justify(photos: Photo[]): { rows: Tile[][]; open: boolean } {
   const available = width.value
   if (!available) return { rows: [], open: false }
   const rows: Tile[][] = []
+  if (square.value) {
+    const size = (available - GAP * (columns.value - 1)) / columns.value
+    for (let index = 0; index < photos.length; index += columns.value)
+      rows.push(
+        photos.slice(index, index + columns.value).map((photo) => ({ photo, width: size, height: size })),
+      )
+    return { rows, open: false }
+  }
   let current: Photo[] = []
   let ratioSum = 0
   for (const photo of photos) {
@@ -254,7 +264,7 @@ function justify(photos: Photo[]): { rows: Tile[][]; open: boolean } {
 
 function ratio(photo: Photo) {
   if (!photo.width || !photo.height) return 1
-  return Math.min(3, Math.max(0.4, photo.width / photo.height))
+  return Math.min(2.5, Math.max(0.6, photo.width / photo.height))
 }
 
 function isRecent(date: dayjs.Dayjs) {
