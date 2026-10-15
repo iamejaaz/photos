@@ -12,20 +12,23 @@
         </div>
       </div>
       <div v-if="others.length" class="border-t border-outline-gray-1 py-1">
-        <button
-          v-for="other in others"
-          :key="other.url"
-          class="flex w-full items-center gap-3 px-5 py-2.5 text-left active:bg-surface-gray-2"
-          @click="switchTo(other)"
-        >
-          <Avatar size="xl" :image="other.image ?? undefined" :label="other.fullName || other.user" />
-          <div class="min-w-0">
-            <div class="truncate text-base font-medium text-ink-gray-8">
-              {{ other.fullName || other.user }}
+        <div v-for="other in others" :key="other.url" class="flex items-center pr-3">
+          <button
+            class="flex min-w-0 flex-1 items-center gap-3 px-5 py-2.5 text-left active:bg-surface-gray-2"
+            @click="switchTo(other)"
+          >
+            <Avatar size="xl" :image="other.image ?? undefined" :label="other.fullName || other.user" />
+            <div class="min-w-0">
+              <div class="truncate text-base font-medium text-ink-gray-8">
+                {{ other.fullName || other.user }}
+              </div>
+              <div class="truncate text-sm text-ink-gray-5">{{ hostOf(other.url) }}</div>
             </div>
-            <div class="truncate text-sm text-ink-gray-5">{{ hostOf(other.url) }}</div>
-          </div>
-        </button>
+          </button>
+          <Button variant="ghost" :aria-label="__('Remove from this phone')" @click="remove(other)">
+            <template #icon><LucideX class="size-4" /></template>
+          </Button>
+        </div>
       </div>
       <div class="border-t border-outline-gray-1 py-1">
         <ListRow
@@ -55,10 +58,11 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Avatar, BottomSheet } from 'frappe-ui'
+import { Avatar, BottomSheet, Button } from 'frappe-ui'
 import LucideLogOut from '~icons/lucide/log-out'
 import LucidePlus from '~icons/lucide/plus'
 import LucideSettings from '~icons/lucide/settings'
+import LucideX from '~icons/lucide/x'
 
 import { fullName, getSessionUser, imageURL, useSessionStore } from '@/boot/session'
 import { mediaUrl } from '../resources/media'
@@ -90,6 +94,16 @@ watch(
 async function switchTo(account: Account) {
   const { switchAccount } = await import('../native/sites')
   await switchAccount(account)
+}
+
+async function remove(account: Account) {
+  const [{ forgetAccount }, { signOut }] = await Promise.all([
+    import('../native/sites'),
+    import('../native/auth'),
+  ])
+  signOut(account.url, account.clientId).catch(() => {})
+  await forgetAccount(account.url)
+  others.value = others.value.filter((item) => item.url !== account.url)
 }
 
 async function addSite() {
