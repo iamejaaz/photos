@@ -32,6 +32,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import org.json.JSONArray;
 
@@ -40,9 +47,10 @@ public class BackupWorker extends Worker {
     private static final int NOTIFICATION_ID = 4120;
     private static final int BATCH = 25;
     private static final int MAX_DROPS_IN_ROW = 3;
+    private static final int PARALLEL = 3;
     static volatile boolean running;
     private static final ReentrantLock LOCK = new ReentrantLock();
-    private String skipped;
+    private volatile String skipped;
 
     private final BackupStore store;
     private final BackupClient client;
@@ -116,50 +124,81 @@ public class BackupWorker extends Worker {
         items.sort((a, b) -> Long.compare(b.modified, a.modified));
         List<Item> pending = new ArrayList<>();
         for (Item item : items) if (!store.isDone(item.key)) pending.add(item);
-        int done = items.size() - pending.size();
-        int dropsInRow = 0;
-        store.progress(items.size(), done);
+        AtomicInteger done = new AtomicInteger(items.size() - pending.size());
+        AtomicInteger dropsInRow = new AtomicInteger();
+        AtomicReference<IOException> fatal = new AtomicReference<>();
+        store.progress(items.size(), done.get());
         PhotosBackupPlugin.emit(getApplicationContext());
-        if (pending.size() > 50) setForegroundAsync(foregroundInfo(done, items.size()));
+        if (pending.size() > 50) setForegroundAsync(foregroundInfo(done.get(), items.size()));
 
-        for (int start = 0; start < pending.size(); start += BATCH) {
-            if (isStopped()) return;
-            List<Item> batch = pending.subList(start, Math.min(pending.size(), start + BATCH));
-            List<String> hashes = new ArrayList<>();
-            JSONArray request = new JSONArray();
-            for (Item item : batch) {
-                String hash = hashOf(item);
-                hashes.add(hash);
-                if (hash != null) request.put(hash);
-            }
-            JSONArray missing = request.length() > 0 ? client.missing(request) : new JSONArray();
-            List<String> wanted = new ArrayList<>();
-            for (int i = 0; missing != null && i < missing.length(); i++) wanted.add(missing.optString(i));
-            for (int i = 0; i < batch.size(); i++) {
+        ExecutorService pool = Executors.newFixedThreadPool(PARALLEL);
+        try {
+            for (int start = 0; start < pending.size(); start += BATCH) {
                 if (isStopped()) return;
-                Item item = batch.get(i);
-                String hash = hashes.get(i);
-                if (hash == null) continue;
-                if (wanted.contains(hash)) {
-                    try {
-                        String uploaded = client.upload(folder, item.name, item.mime, item.size, item.modified, hash, (offset, length) -> readUri(item.uri, offset, length));
-                        if (uploaded != null) client.mark(uploaded, hash);
-                        dropsInRow = 0;
-                    } catch (BackupClient.Rejected e) {
-                        skipped = item.name + ": " + e.getMessage();
-                        continue;
-                    } catch (BackupClient.Dropped e) {
-                        if (BackupClient.siteDown(e) || ++dropsInRow >= MAX_DROPS_IN_ROW) throw e;
-                        skipped = e.getMessage();
-                        continue;
-                    }
+                List<Item> batch = pending.subList(start, Math.min(pending.size(), start + BATCH));
+                List<Callable<String>> hashing = new ArrayList<>();
+                for (Item item : batch) hashing.add(() -> hashOf(item));
+                List<String> hashes = results(pool.invokeAll(hashing));
+                JSONArray request = new JSONArray();
+                for (String hash : hashes) if (hash != null) request.put(hash);
+                JSONArray missing = request.length() > 0 ? client.missing(request) : new JSONArray();
+                List<String> wanted = new ArrayList<>();
+                for (int i = 0; missing != null && i < missing.length(); i++) wanted.add(missing.optString(i));
+                List<Callable<Void>> uploads = new ArrayList<>();
+                for (int i = 0; i < batch.size(); i++) {
+                    Item item = batch.get(i);
+                    String hash = hashes.get(i);
+                    if (hash == null) continue;
+                    uploads.add(() -> {
+                        if (isStopped() || fatal.get() != null) return null;
+                        if (wanted.contains(hash)) {
+                            try {
+                                String uploaded = client.upload(folder, item.name, item.mime, item.size, item.modified, hash, (offset, length) -> readUri(item.uri, offset, length));
+                                if (uploaded != null) client.mark(uploaded, hash);
+                                dropsInRow.set(0);
+                            } catch (BackupClient.Rejected e) {
+                                skipped = item.name + ": " + e.getMessage();
+                                return null;
+                            } catch (BackupClient.Dropped e) {
+                                if (BackupClient.siteDown(e) || dropsInRow.incrementAndGet() >= MAX_DROPS_IN_ROW) fatal.compareAndSet(null, e);
+                                else skipped = e.getMessage();
+                                return null;
+                            } catch (IOException e) {
+                                fatal.compareAndSet(null, e);
+                                return null;
+                            }
+                        }
+                        store.markDone(item.key, hash);
+                        int now = done.incrementAndGet();
+                        store.progress(items.size(), now);
+                        PhotosBackupPlugin.emit(getApplicationContext());
+                        if (pending.size() > 50) setForegroundAsync(foregroundInfo(now, items.size()));
+                        return null;
+                    });
                 }
-                store.markDone(item.key, hash);
-                store.progress(items.size(), ++done);
-                PhotosBackupPlugin.emit(getApplicationContext());
-                if (pending.size() > 50) setForegroundAsync(foregroundInfo(done, items.size()));
+                results(pool.invokeAll(uploads));
+                if (fatal.get() != null) throw fatal.get();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    private static <T> List<T> results(List<Future<T>> futures) throws IOException, InterruptedException {
+        List<T> values = new ArrayList<>();
+        for (Future<T> future : futures) {
+            try {
+                values.add(future.get());
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof IOException) throw (IOException) cause;
+                if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+                throw new IOException(cause);
             }
         }
+        return values;
     }
 
     private List<Item> query(Uri collection, String kind) { return query(getApplicationContext(), collection, kind); }

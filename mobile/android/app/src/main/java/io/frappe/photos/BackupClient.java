@@ -142,12 +142,28 @@ final class BackupClient {
                 .field("file_modified", String.valueOf(modified)).field("chunk_index", String.valueOf(index))
                 .field("total_chunk_count", String.valueOf(total)).field("chunk_byte_offset", String.valueOf(offset))
                 .file("file", name, mime, chunk);
-            JSONObject response = call("POST", "/api/method/suite.drive.api.files.upload_file", form.body(), form.contentType());
+            JSONObject response = sendChunk(form);
             JSONObject message = response.optJSONObject("message");
             if (message != null) result = message.optString("name", result);
         }
         if (result == null) throw new IOException("Upload did not return a file");
         return result;
+    }
+
+    private static final String PHOTOS_UPLOAD = "/api/method/photos.api.backup.upload";
+    private static final String DRIVE_UPLOAD = "/api/method/suite.drive.api.files.upload_file";
+    private volatile boolean olderSite;
+
+    private JSONObject sendChunk(Multipart form) throws IOException {
+        if (!olderSite) {
+            try {
+                return call("POST", PHOTOS_UPLOAD, form.body(), form.contentType());
+            } catch (Rejected e) {
+                if (e.getMessage() == null || !e.getMessage().contains("has no attribute 'upload'")) throw e;
+                olderSite = true;
+            }
+        }
+        return call("POST", DRIVE_UPLOAD, form.body(), form.contentType());
     }
 
     interface ChunkSource { byte[] read(long offset, int length) throws IOException; }
@@ -185,6 +201,10 @@ final class BackupClient {
 
     private void ensureFresh() throws IOException {
         if (!store.signedIn()) throw new SignedOut();
+        if (store.expiresAt() - System.currentTimeMillis() < 60_000) refreshIfExpiring();
+    }
+
+    private synchronized void refreshIfExpiring() throws IOException {
         if (store.expiresAt() - System.currentTimeMillis() < 60_000) refresh();
     }
 
