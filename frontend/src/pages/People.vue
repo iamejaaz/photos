@@ -43,7 +43,7 @@
     class="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-x-3 gap-y-5 p-3 sm:p-5"
   >
     <router-link
-      v-for="person in data?.people ?? []"
+      v-for="person in shownPeople"
       :key="person.name"
       :to="{ name: 'photos-person', params: { person: person.name } }"
       class="group flex flex-col items-center gap-2 text-center"
@@ -61,6 +61,11 @@
       </div>
       <div class="-mt-1.5 text-sm text-ink-gray-5">{{ itemCount(person.face_count) }}</div>
     </router-link>
+  </div>
+  <div v-if="collapsed" class="flex justify-center pb-6">
+    <Button variant="ghost" @click="showAll = true">
+      {{ __('Show {0} more people', [fewPhotos.length]) }}
+    </Button>
   </div>
   <div
     v-if="data?.enabled && !data.people.length"
@@ -84,6 +89,19 @@ import { mergedToast } from '../data/actions'
 
 const data = ref<{ enabled: boolean; people: Person[] }>()
 const showHidden = ref(false)
+const showAll = ref(false)
+const fewPhotos = computed(() =>
+  (data.value?.people ?? []).filter((person) => !person.person_name && person.face_count < 2),
+)
+const collapsed = computed(
+  () =>
+    !showAll.value && fewPhotos.value.length > 0 && fewPhotos.value.length < (data.value?.people.length ?? 0),
+)
+const shownPeople = computed(() =>
+  collapsed.value
+    ? (data.value?.people ?? []).filter((person) => !fewPhotos.value.includes(person))
+    : (data.value?.people ?? []),
+)
 const suggestions = ref<Awaited<ReturnType<typeof mergeSuggestions>>>([])
 const suggestion = computed(() => suggestions.value[0])
 const answering = ref(false)
