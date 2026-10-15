@@ -63,8 +63,11 @@
               @contextmenu.prevent
             >
               <div
-                class="absolute inset-0 overflow-hidden transition-transform duration-200"
-                :class="selection.has(tile.photo.name) ? 'scale-[0.84] rounded-md' : ''"
+                class="absolute inset-0 overflow-hidden transition-[transform,border-radius] duration-200"
+                :class="{ 'rounded-md': selection.has(tile.photo.name) }"
+                :style="
+                  selection.has(tile.photo.name) ? { transform: `scale(${selectedScale(tile)})` } : undefined
+                "
               >
                 <img
                   :src="thumbnailUrl(tile.photo.name, tile.photo.album, needsLarge(tile))"
@@ -361,6 +364,13 @@ function needsLarge(tile: Tile) {
   if (isVideo(tile.photo)) return false
   const size = square.value ? squareSize.value * (tile.span ?? 1) : Math.max(tile.width, tile.height)
   return size * window.devicePixelRatio > LARGE_FROM
+}
+
+const SELECTED_MARGIN = 10
+
+function selectedScale(tile: Tile) {
+  const size = square.value ? squareSize.value * (tile.span ?? 1) : Math.min(tile.width, tile.height)
+  return Math.max(0.84, 1 - (2 * SELECTED_MARGIN) / size)
 }
 
 function onThumbLoad(event: Event, name: string) {
