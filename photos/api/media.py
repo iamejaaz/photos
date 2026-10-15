@@ -125,15 +125,27 @@ def _large_thumbnail(file):
 def _own_thumbnail(file):
     target = formats.derived_path(file.name, ".thumb.webp")
     if not target.exists():
-        if not formats.needs_display_image(file):
-            return None
         try:
-            image = formats.open_image(formats.source_path(file), file.file_name)
+            image = (
+                _first_frame(file)
+                if file.file_type == "Video"
+                else formats.open_image(formats.source_path(file), file.file_name)
+            )
         except Exception:
             return None
         image.thumbnail((512, 512))
         image.convert("RGB").save(target, "WEBP", quality=80)
     return BytesIO(target.read_bytes())
+
+
+def _first_frame(file):
+    import av
+
+    with av.open(str(formats.source_path(file))) as container:
+        frame = next(container.decode(video=0))
+        rotation = getattr(frame, "rotation", 0) or 0
+        image = frame.to_image()
+    return image.rotate(rotation, expand=True) if rotation else image
 
 
 def _preview(manager, file, size=1600):
