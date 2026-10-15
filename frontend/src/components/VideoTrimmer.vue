@@ -59,6 +59,7 @@ import LucidePlay from '~icons/lucide/play'
 import LucideX from '~icons/lucide/x'
 
 import { type Photo, streamUrl, trimVideo } from '../api'
+import { useBackClose } from '../composables/useBackClose'
 
 const props = defineProps<{ photo: Photo | null }>()
 const emit = defineEmits<{ close: [] }>()
@@ -73,6 +74,10 @@ const current = ref(0)
 const playing = ref(false)
 const saving = ref(false)
 const range = reactive({ start: 0, end: 0 })
+useBackClose(
+  () => Boolean(props.photo),
+  () => emit('close'),
+)
 
 watch(
   () => props.photo?.name,

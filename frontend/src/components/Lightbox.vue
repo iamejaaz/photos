@@ -423,6 +423,7 @@ import {
 import InfoRow from './InfoRow.vue'
 import MoveFaceDialog from './MoveFaceDialog.vue'
 import FaceAvatar from './FaceAvatar.vue'
+import { useBackClose } from '../composables/useBackClose'
 import { SWIPE_GAP, useViewerGestures } from '../composables/useViewerGestures'
 import PhotoEditor from './PhotoEditor.vue'
 import VideoTrimmer from './VideoTrimmer.vue'
@@ -621,6 +622,10 @@ function close() {
 }
 
 const chrome = ref(true)
+useBackClose(
+  () => lightbox.open && lightbox.showInfo,
+  () => (lightbox.showInfo = false),
+)
 const neighbour = (step: number) => rows.value[lightbox.index + step]
 watch(
   () => lightbox.open && lightbox.index,

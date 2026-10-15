@@ -121,9 +121,14 @@ import LucideRotateCw from '~icons/lucide/rotate-cw'
 import LucideX from '~icons/lucide/x'
 
 import { type Photo, contentUrl, getUploadFolder, thumbnailUrl, uploadFile } from '../api'
+import { useBackClose } from '../composables/useBackClose'
 
 const props = defineProps<{ photo: Photo | null; folder?: string | null }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
+useBackClose(
+  () => Boolean(props.photo),
+  () => emit('close'),
+)
 
 type SliderKey = 'brightness' | 'contrast' | 'saturation' | 'warmth'
 const FILTERS = [

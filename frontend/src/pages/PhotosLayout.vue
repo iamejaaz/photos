@@ -104,6 +104,7 @@ import EditDateDialog from '../components/EditDateDialog.vue'
 import EditLocationDialog from '../components/EditLocationDialog.vue'
 import Lightbox from '../components/Lightbox.vue'
 import PhotosSidebar from '../components/PhotosSidebar.vue'
+import { useBackClose } from '../composables/useBackClose'
 import {
   changeZoom,
   clearSelection,
@@ -119,6 +120,7 @@ import {
 } from '../store'
 
 setupTheme()
+useBackClose(() => selection.size > 0, clearSelection)
 const loggedIn = computed(() => useSessionStore().isLoggedIn)
 if (loggedIn.value) {
   initSocket().on('photos-import-update', async (data: { name: string }) => {
