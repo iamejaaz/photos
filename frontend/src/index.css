@@ -39,3 +39,8 @@ html.native .fixed.inset-0 {
   bottom: var(--inset-bottom, 0px);
   left: var(--inset-left, 0px);
 }
+
+html.native .fixed.inset-0.edge-to-edge {
+  inset: 0;
+  padding: var(--inset-top, 0px) var(--inset-right, 0px) var(--inset-bottom, 0px) var(--inset-left, 0px);
+}

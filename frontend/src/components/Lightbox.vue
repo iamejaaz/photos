@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="lightbox.open && photo"
-      class="fixed inset-0 z-50 flex text-white"
+      class="edge-to-edge fixed inset-0 z-50 flex text-white"
       :style="{ backgroundColor: `rgba(0, 0, 0, ${gestures.backdropOpacity.value})` }"
     >
       <div class="relative flex min-w-0 flex-1 flex-col">
@@ -651,6 +651,11 @@ watch(
   () => photo.value?.name,
   () => gestures.reset(),
 )
+
+if (import.meta.env.VITE_NATIVE)
+  watch([() => lightbox.open && !lightbox.showInfo, chrome], ([open, visible]) =>
+    import('../native/bars').then(({ viewerBars }) => viewerBars(open, visible)),
+  )
 
 const onPopState = () => lightbox.open && close()
 watch(
