@@ -38,10 +38,12 @@ final class BackupScheduler {
         runNow(context);
     }
 
-    static void runNow(Context context) {
+    static void runNow(Context context) { runNow(context, false); }
+
+    static void runNow(Context context, boolean anyNetwork) {
         BackupStore store = new BackupStore(context);
         OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(BackupWorker.class)
-            .setConstraints(network(store))
+            .setConstraints(anyNetwork ? new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build() : network(store))
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .build();
         WorkManager.getInstance(context).enqueueUniqueWork(NOW, ExistingWorkPolicy.APPEND_OR_REPLACE, request);

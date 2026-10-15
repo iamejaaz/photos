@@ -6,6 +6,9 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -65,6 +68,14 @@ public class PhotosBackupPlugin extends Plugin {
     @Override
     public void load() {
         instance = new WeakReference<>(this);
+        ConnectivityManager connectivity = getContext().getSystemService(ConnectivityManager.class);
+        connectivity.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onCapabilitiesChanged(Network network, NetworkCapabilities capabilities) { emit(getContext()); }
+
+            @Override
+            public void onLost(Network network) { emit(getContext()); }
+        });
         deleteLauncher = getActivity().registerForActivityResult(new ActivityResultContracts.StartIntentSenderForResult(), result -> {
             PluginCall call = deleteCall;
             deleteCall = null;
@@ -91,6 +102,7 @@ public class PhotosBackupPlugin extends Plugin {
         JSObject status = new JSObject();
         status.put("enabled", store.enabled());
         status.put("wifiOnly", store.wifiOnly());
+        status.put("network", network(context));
         status.put("includeVideos", store.includeVideos());
         status.put("permission", permission(context));
         status.put("running", BackupWorker.running);
@@ -102,6 +114,13 @@ public class PhotosBackupPlugin extends Plugin {
         status.put("site", store.site());
         status.put("user", store.user());
         return status;
+    }
+
+    private static String network(Context context) {
+        ConnectivityManager connectivity = context.getSystemService(ConnectivityManager.class);
+        NetworkCapabilities capabilities = connectivity.getNetworkCapabilities(connectivity.getActiveNetwork());
+        if (capabilities == null || !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return "none";
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) ? "wifi" : "mobile";
     }
 
     private static String permission(Context context) {
@@ -159,7 +178,7 @@ public class PhotosBackupPlugin extends Plugin {
 
     @PluginMethod
     public void runNow(PluginCall call) {
-        BackupScheduler.runNow(getContext());
+        BackupScheduler.runNow(getContext(), true);
         call.resolve();
     }
 

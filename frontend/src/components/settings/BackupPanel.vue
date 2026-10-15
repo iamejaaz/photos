@@ -52,11 +52,27 @@
           </SettingsRow>
         </div>
         <Progress v-if="status.running && status.total" :value="percent" size="sm" />
-        <ErrorMessage v-if="status.lastError && !status.running" :message="errorText(status.lastError)" />
+        <div v-if="waiting" class="text-p-base text-ink-gray-6">
+          {{
+            waiting === 'wifi'
+              ? __(
+                  'You are on mobile data and Only on Wi-Fi is on. Backup starts when you join Wi-Fi, or back up now over mobile data.',
+                )
+              : __('No internet connection. Backup starts again when you are back online.')
+          }}
+        </div>
+        <ErrorMessage
+          v-else-if="status.lastError && !status.running"
+          :message="errorText(status.lastError)"
+        />
         <div>
-          <Button :loading="status.running" :disabled="!status.enabled" @click="runNow">{{
-            __('Back up now')
-          }}</Button>
+          <Button
+            :loading="status.running"
+            :disabled="!status.enabled || waiting === 'internet'"
+            @click="runNow"
+          >
+            {{ waiting === 'wifi' ? __('Back up now over mobile data') : __('Back up now') }}
+          </Button>
         </div>
         <div
           v-if="status.permission !== 'prompt' && status.permission !== 'denied'"
@@ -103,7 +119,7 @@ import {
 } from 'frappe-ui'
 import dayjs from 'dayjs'
 
-import { type BackupStatus, photosBackup } from '../../native/backup'
+import { type BackupStatus, photosBackup, waitingFor } from '../../native/backup'
 import { formatBytes } from '../../format'
 
 const status = ref<BackupStatus | null>(null)
@@ -116,6 +132,7 @@ photosBackup().then(async ({ plugin }) => {
 })
 onBeforeUnmount(() => stop?.())
 
+const waiting = computed(() => (status.value ? waitingFor(status.value) : null))
 const percent = computed(() =>
   status.value?.total ? Math.round((status.value.done / status.value.total) * 100) : 0,
 )
@@ -124,6 +141,9 @@ const summary = computed(() => {
   if (!value?.enabled) return __('Off')
   if (value.running) return __('Backing up {0} of {1}', [value.done, value.total])
   const left = value.total - value.done
+  if (waiting.value === 'internet') return __('Waiting for an internet connection')
+  if (waiting.value === 'wifi')
+    return left > 0 ? __('{0} items waiting for Wi-Fi', [left]) : __('Waiting for Wi-Fi')
   if (left > 0) return __('{0} items waiting', [left])
   return value.lastRun
     ? __('Up to date, checked at {0}', [dayjs(value.lastRun).format('h:mm A')])

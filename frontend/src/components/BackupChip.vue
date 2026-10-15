@@ -14,8 +14,9 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import LucideCloudCheck from '~icons/lucide/cloud-check'
 import LucideCloudOff from '~icons/lucide/cloud-off'
 import LucideCloudUpload from '~icons/lucide/cloud-upload'
+import LucideWifiOff from '~icons/lucide/wifi-off'
 
-import { type BackupStatus, photosBackup } from '../native/backup'
+import { type BackupStatus, photosBackup, waitingFor } from '../native/backup'
 import { openSettings } from '../data/dialogs'
 
 const status = ref<BackupStatus | null>(null)
@@ -33,12 +34,15 @@ const label = computed(() => {
   if (!value.enabled) return __('Backup is off')
   if (value.permission !== 'granted' && value.permission !== 'partial') return __('Allow photo access')
   if (value.running && value.total) return __('Backing up {0} of {1}', [value.done, value.total])
+  if (waitingFor(value) === 'wifi') return __('Waiting for Wi-Fi')
+  if (waitingFor(value) === 'internet') return __('No internet')
   if (value.lastError) return __('Backup paused')
   return __('Backup complete')
 })
 const icon = computed(() => {
   const value = status.value!
   if (value.running) return LucideCloudUpload
+  if (waitingFor(value)) return LucideWifiOff
   if (!value.enabled || value.lastError) return LucideCloudOff
   return LucideCloudCheck
 })

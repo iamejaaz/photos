@@ -3,6 +3,7 @@ import { nativePlugin } from './platform'
 export type BackupStatus = {
   enabled: boolean
   wifiOnly: boolean
+  network: 'wifi' | 'mobile' | 'none'
   includeVideos: boolean
   permission: 'granted' | 'partial' | 'denied' | 'prompt'
   running: boolean
@@ -44,3 +45,10 @@ export type PhotosBackupPlugin = {
 }
 
 export const photosBackup = nativePlugin<PhotosBackupPlugin>('PhotosBackup')
+
+export function waitingFor(status: BackupStatus): 'wifi' | 'internet' | null {
+  if (!status.enabled || status.running) return null
+  if (status.network === 'none') return 'internet'
+  if (status.wifiOnly && status.network === 'mobile') return 'wifi'
+  return null
+}
