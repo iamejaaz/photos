@@ -8,6 +8,7 @@ import frappe
 import requests
 
 ZOO = "https://github.com/opencv/opencv_zoo/raw/main/models"
+CLIP = "https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main"
 ASSETS = {
     "face_detector": (
         "face_detection_yunet_2023mar.onnx",
@@ -39,6 +40,21 @@ ASSETS = {
         f"{ZOO}/text_recognition_crnn/text_recognition_CRNN_EN_2021sep.onnx",
         "a84b1f6e11a65c2d733cb0cc1f014aae3f99051e3f11447dc282faa678eee544",
     ),
+    "clip_vision": (
+        "clip_vision_quantized.onnx",
+        f"{CLIP}/onnx/vision_model_quantized.onnx",
+        "583fd1110a514667812fee7d684952aaf82a99b959760c8d7dca7e0ab9839299",
+    ),
+    "clip_text": (
+        "clip_text_quantized.onnx",
+        f"{CLIP}/onnx/text_model_quantized.onnx",
+        "73baab855d406190da9faa498cfedf65f15cf309f4cc7385b7b032e6d08e5c3a",
+    ),
+    "clip_tokenizer": (
+        "clip_tokenizer.json",
+        f"{CLIP}/tokenizer.json",
+        "f7f3b7af117d467b58374797691a6438d3e6b9e9cef800dfd5dced7f697a90cd",
+    ),
     "cities": (
         "cities15000.txt",
         "https://download.geonames.org/export/dump/cities15000.zip",
@@ -57,6 +73,15 @@ def path(key):
 
 def ready(*keys):
     return all(path(key).exists() for key in keys)
+
+
+def onnx_installed():
+    try:
+        import onnxruntime
+        import tokenizers
+    except ImportError:
+        return False
+    return True
 
 
 def opencv_installed():

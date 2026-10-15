@@ -23,6 +23,8 @@
   "things_scanned",
   "text",
   "text_scanned",
+  "embedding",
+  "embedded",
   "source",
   "live_video",
   "live_of",
@@ -134,6 +136,18 @@
    "fieldname": "text_scanned",
    "fieldtype": "Check",
    "label": "Text Scanned"
+  },
+  {
+   "fieldname": "embedding",
+   "fieldtype": "Long Text",
+   "label": "Embedding",
+   "hidden": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "embedded",
+   "fieldtype": "Check",
+   "label": "Embedded"
   },
   {
    "fieldname": "source",

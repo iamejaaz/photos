@@ -205,7 +205,7 @@ export const mergePeople = (target: string, sources: string[]) =>
 export const removePhotosFromPerson = (person: string, files: string[]) =>
   call(`${PEOPLE}.remove_photos`, { person, files })
 
-export type Feature = 'people' | 'places' | 'things' | 'text'
+export type Feature = 'people' | 'places' | 'things' | 'text' | 'smart_search'
 export interface Settings extends Record<Feature, boolean> {
   status: string | null
   error: string | null
@@ -246,6 +246,22 @@ export const trimVideo = (file: string, start: number, end: number) =>
   call(`${EDIT}.trim_video`, { file, start, end })
 export const searchPlaces = (query: string) =>
   call(`${EDIT}.search_places`, { query }) as Promise<PlaceMatch[]>
+
+const GOOGLE = 'photos.api.google'
+export interface GoogleStatus {
+  configured: boolean
+  connected: boolean
+  can_configure: boolean
+}
+export const googleStatus = () => call(`${GOOGLE}.status`) as Promise<GoogleStatus>
+export const connectGoogle = () => call(`${GOOGLE}.connect`) as Promise<string>
+export const disconnectGoogle = () => call(`${GOOGLE}.disconnect`)
+export const startGooglePicking = () =>
+  call(`${GOOGLE}.start_picking`) as Promise<{ id: string; url: string; poll_seconds: number }>
+export const googlePickingDone = (sessionId: string) =>
+  call(`${GOOGLE}.picking_done`, { session_id: sessionId }) as Promise<boolean>
+export const importGooglePicked = (sessionId: string) =>
+  call(`${GOOGLE}.import_picked`, { session_id: sessionId })
 
 const EXPORT = 'photos.api.export'
 export const exportFiles = (files: string[], album?: string) =>

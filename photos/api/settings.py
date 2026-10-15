@@ -16,9 +16,25 @@ def get_settings():
 
 
 @frappe.whitelist()
-def save_settings(people: bool = False, places: bool = False, things: bool = False, text: bool = False):
+def save_settings(
+    people: bool = False,
+    places: bool = False,
+    things: bool = False,
+    text: bool = False,
+    smart_search: bool = False,
+):
     frappe.only_for("System Manager")
-    values = {"people": int(people), "places": int(places), "things": int(things), "text": int(text)}
+    values = {
+        "people": int(people),
+        "places": int(places),
+        "things": int(things),
+        "text": int(text),
+        "smart_search": int(smart_search),
+    }
+    if values["smart_search"] and not assets.onnx_installed():
+        frappe.throw(
+            "Search by description needs onnxruntime and tokenizers on the server: bench pip install onnxruntime tokenizers"
+        )
     if (values["people"] or values["things"] or values["text"]) and not assets.opencv_installed():
         frappe.throw(
             "People, things and text need OpenCV on the server: bench pip install opencv-python-headless"

@@ -9,6 +9,7 @@
   "places",
   "things",
   "text",
+  "smart_search",
   "setup_status",
   "setup_error",
   "oauth_client"
@@ -37,6 +38,12 @@
    "fieldname": "text",
    "fieldtype": "Check",
    "label": "Text in photos"
+  },
+  {
+   "default": "0",
+   "fieldname": "smart_search",
+   "fieldtype": "Check",
+   "label": "Search by description"
   },
   {
    "fieldname": "setup_status",

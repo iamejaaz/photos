@@ -12,6 +12,7 @@ from suite.drive.api.list import get_query_data
 from suite.drive.api.permissions import get_user_access, user_has_permission
 from suite.drive.utils import GENERAL_USER, STATUS_ACTIVE, STATUS_TRASHED, get_principals, get_user_folder
 
+from photos import clip
 from photos.metadata import HASH_SIZE, enqueue_missing, file_hash
 
 File = frappe.qb.DocType("File")
@@ -134,6 +135,7 @@ def _apply_search(query, search):
             faces = frappe.qb.from_(Face).select(Face.file).where(Face.person == person)
             query = query.where(File.name.isin(faces))
             search = search.replace(name.lower(), " ")
+    free = []
     for token in search.split():
         if re.fullmatch(r"(19|20)\d\d", token):
             query = query.where(Year(taken) == int(token))
@@ -146,8 +148,12 @@ def _apply_search(query, search):
         elif token in ("photo", "photos", "image", "images"):
             query = query.where(File.mime_type.like("image/%"))
         else:
+            free.append(token)
+    if free:
+        condition = None
+        for token in free:
             like = f"%{token}%"
-            query = query.where(
+            words = (
                 File.file_name.like(like)
                 | Metadata.camera.like(like)
                 | Metadata.place.like(like)
@@ -156,7 +162,21 @@ def _apply_search(query, search):
                 | Metadata.description.like(like)
                 | Metadata.text.like(like)
             )
+            condition = words if condition is None else condition & words
+        if clip.available() and (similar := clip.matches(" ".join(free), _embeddings())):
+            condition = condition | File.name.isin(similar)
+        query = query.where(condition)
     return query
+
+
+def _embeddings():
+    return (
+        media_base(archived=None)
+        .select(Metadata.name, Metadata.embedding)
+        .where(Metadata.embedded == 1)
+        .where(Metadata.embedding.isnotnull())
+        .run()
+    )
 
 
 def page(query, start, limit, favourites_only=False):

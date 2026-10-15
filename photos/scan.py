@@ -1,14 +1,14 @@
 import frappe
 from suite.drive.utils.files import FileManager, storage_key
 
-from photos import faces, places, text, things
+from photos import clip, faces, places, text, things
 
 
 def enrich(file_name):
     meta = frappe.db.get_value(
         "Photo Metadata",
         file_name,
-        ["name", "latitude", "longitude", "place", "things_scanned", "text_scanned"],
+        ["name", "latitude", "longitude", "place", "things_scanned", "text_scanned", "embedded"],
         as_dict=True,
     )
     if not meta:
@@ -28,6 +28,11 @@ def enrich(file_name):
         if image is not None:
             updates["text"] = text.read(image) or None
         updates["text_scanned"] = 1
+    if not meta.embedded and clip.available():
+        image = _preview(file_name)
+        if image is not None:
+            updates["embedding"] = clip.embed_image(image)
+        updates["embedded"] = 1
     if updates:
         frappe.db.set_value("Photo Metadata", meta.name, updates, update_modified=False)
     faces.scan_file(file_name)
@@ -59,6 +64,7 @@ def run():
         or_filters=[
             ["things_scanned", "=", 0],
             ["text_scanned", "=", 0],
+            ["embedded", "=", 0],
             ["faces_scanned", "=", 0],
             ["place", "is", "not set"],
         ],

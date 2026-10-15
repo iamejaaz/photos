@@ -62,9 +62,20 @@ const features: { key: Feature; label: string; description: string }[] = [
     label: __('Text in photos'),
     description: __('Find receipts, signs and screenshots by the words in them'),
   },
+  {
+    key: 'smart_search',
+    label: __('Search by description'),
+    description: __('Find photos by what is in them, like “dog on the beach” or “birthday cake”'),
+  },
 ]
 
-const form = reactive<Record<Feature, boolean>>({ people: false, places: false, things: false, text: false })
+const form = reactive<Record<Feature, boolean>>({
+  people: false,
+  places: false,
+  things: false,
+  text: false,
+  smart_search: false,
+})
 const saving = ref(false)
 watchEffect(() => {
   if (settings.data) features.forEach(({ key }) => (form[key] = settings.data![key]))

@@ -7,6 +7,7 @@ FEATURES = {
     "places": ("cities",),
     "things": ("classifier", "classifier_labels"),
     "text": ("text_detector", "text_recognizer"),
+    "smart_search": ("clip_vision", "clip_text", "clip_tokenizer"),
 }
 SETTINGS = "Photos Settings"
 
