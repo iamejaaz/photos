@@ -142,6 +142,11 @@ if (loggedIn.value) {
     if (data.status === 'Ready') toast.success(__('People, places and things are ready'))
     if (data.status === 'Failed') toast.error(__('Photos setup failed. Open Settings to see why.'))
   })
+  initSocket().on('photos-trim-ready', () => {
+    notifyUploaded()
+    toast.success(__('The trimmed video is ready in Photos'))
+  })
+  initSocket().on('photos-trim-failed', () => toast.error(__('Could not trim this video')))
   initSocket().on('photos-movie-ready', (data: { title: string }) => {
     notifyUploaded()
     toast.success(__('“{0}” is ready in Photos', [data.title]), {

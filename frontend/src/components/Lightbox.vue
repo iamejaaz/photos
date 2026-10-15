@@ -42,7 +42,7 @@
                 </button>
               </Tooltip>
             </template>
-            <Tooltip v-if="inDrive && !isVideo(photo)" :text="__('Edit')">
+            <Tooltip v-if="inDrive" :text="isVideo(photo) ? __('Trim') : __('Edit')">
               <button class="flex lightbox-button max-sm:hidden" @click="editing = true">
                 <LucideSlidersHorizontal class="size-5" />
               </button>
@@ -316,8 +316,9 @@
         </div>
       </aside>
     </div>
+    <VideoTrimmer :photo="editing && photo && isVideo(photo) ? photo : null" @close="editing = false" />
     <PhotoEditor
-      :photo="editing ? photo : null"
+      :photo="editing && photo && !isVideo(photo) ? photo : null"
       :folder="details?.folder"
       @close="editing = false"
       @saved="notifyUploaded"
@@ -399,6 +400,7 @@ import InfoRow from './InfoRow.vue'
 import MoveFaceDialog from './MoveFaceDialog.vue'
 import FaceAvatar from './FaceAvatar.vue'
 import PhotoEditor from './PhotoEditor.vue'
+import VideoTrimmer from './VideoTrimmer.vue'
 
 const router = useRouter()
 const feed = computed(() => activeFeed.value)
@@ -418,12 +420,11 @@ const moreActions = computed(() => {
       icon: 'lucide-image-plus',
       onClick: () => pickAlbumFor([photo.value!.name]),
     })
-    if (!isVideo(photo.value!))
-      items.push({
-        label: __('Edit'),
-        icon: 'lucide-sliders-horizontal',
-        onClick: () => (editing.value = true),
-      })
+    items.push({
+      label: isVideo(photo.value!) ? __('Trim') : __('Edit'),
+      icon: 'lucide-sliders-horizontal',
+      onClick: () => (editing.value = true),
+    })
     items.push({
       label: details.value?.archived ? __('Unarchive') : __('Archive'),
       icon: 'lucide-archive',

@@ -71,3 +71,50 @@ def _writable(files):
         if not frappe.db.exists(METADATA, name):
             extract(name)
     return names
+
+
+@frappe.whitelist(methods=["POST"])
+def trim_video(file: str, start: float, end: float):
+    from photos.api.albums import can_read
+
+    start, end = max(0.0, float(start)), float(end)
+    if end - start < 0.5:
+        frappe.throw("Keep at least half a second.")
+    if not can_read(file, None) or not (frappe.db.get_value("File", file, "mime_type") or "").startswith(
+        "video/"
+    ):
+        frappe.throw("You can only trim videos you can see.", frappe.PermissionError)
+    frappe.enqueue(
+        "photos.api.edit.build_trim",
+        queue="long",
+        timeout=3600,
+        file=file,
+        start=start,
+        end=end,
+        user=frappe.session.user,
+    )
+
+
+def build_trim(file, start, end, user):
+    import tempfile
+    from datetime import timedelta
+    from pathlib import Path
+
+    from photos import formats
+    from photos.library import add_file
+
+    frappe.set_user(user)
+    source = frappe.db.get_value("File", file, ["name", "file_name", "file_url", "folder"], as_dict=True)
+    taken = frappe.db.get_value(METADATA, file, "taken_on") or frappe.utils.now_datetime()
+    parent = source.folder if user_has_permission(source.folder, "upload") else None
+    stem = Path(source.file_name).stem
+    try:
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / f"{stem}-trimmed.mp4"
+            formats.transcode(formats.source_path(source), target, start=start, end=end)
+            name = add_file(target, user, get_datetime(taken) + timedelta(seconds=start), parent)
+        frappe.db.commit()
+        frappe.publish_realtime("photos-trim-ready", {"name": name}, user=user)
+    except Exception:
+        frappe.log_error("Photos video trim failed")
+        frappe.publish_realtime("photos-trim-failed", {"name": file}, user=user)

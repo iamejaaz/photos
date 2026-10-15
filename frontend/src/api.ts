@@ -242,6 +242,8 @@ export const editLocation = (files: string[], place: PlaceMatch | null) =>
   })
 export const editCaption = (file: string, caption: string) =>
   call(`${EDIT}.edit_caption`, { file, caption }) as Promise<string | null>
+export const trimVideo = (file: string, start: number, end: number) =>
+  call(`${EDIT}.trim_video`, { file, start, end })
 export const searchPlaces = (query: string) =>
   call(`${EDIT}.search_places`, { query }) as Promise<PlaceMatch[]>
 

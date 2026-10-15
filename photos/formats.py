@@ -1,3 +1,4 @@
+from fractions import Fraction
 from pathlib import Path, PurePosixPath
 
 import frappe
@@ -114,33 +115,49 @@ def enqueue_display_video(name):
 
 
 def build_display_video(name):
-    import av
-
     file = frappe.db.get_value("File", name, ["name", "file_url"], as_dict=True)
     if not file:
         return
     target = derived_path(name, ".mp4")
     partial = target.with_suffix(".part.mp4")
-    with av.open(str(source_path(file))) as source, av.open(str(partial), "w") as output:
+    transcode(source_path(file), partial, max_height=VIDEO_HEIGHT)
+    partial.rename(target)
+
+
+def transcode(source_file, target_file, start=None, end=None, max_height=None):
+    import av
+
+    with av.open(str(source_file)) as source, av.open(str(target_file), "w") as output:
         video = source.streams.video[0]
         audio = next(iter(source.streams.audio), None)
         rotation = _rotation(video)
-        height = min(VIDEO_HEIGHT, video.codec_context.height or VIDEO_HEIGHT) // 2 * 2
-        width = (
-            round((video.codec_context.width or 1920) * height / (video.codec_context.height or 1080) / 2) * 2
-        )
-        encoder = output.add_stream("libx264", rate=video.average_rate or 30)
+        source_height = video.codec_context.height or VIDEO_HEIGHT
+        height = min(max_height or source_height, source_height) // 2 * 2
+        width = round((video.codec_context.width or 1920) * height / source_height / 2) * 2
+        rate = video.average_rate or 30
+        encoder = output.add_stream("libx264", rate=rate)
         encoder.width, encoder.height = (height, width) if rotation in (90, 270) else (width, height)
         encoder.pix_fmt = "yuv420p"
         encoder.options = {"crf": "23", "preset": "veryfast", "movflags": "+faststart"}
         sound = output.add_stream("aac", rate=audio.codec_context.sample_rate or 44100) if audio else None
+        if start:
+            source.seek(int(start / video.time_base), stream=video, backward=True)
         streams = [video] + ([audio] if audio else [])
+        count = 0
         for packet in source.demux(streams):
             for frame in packet.decode():
+                seconds = float(frame.time) if frame.time is not None else None
+                if seconds is not None and start and seconds < start:
+                    continue
+                if seconds is not None and end is not None and seconds > end:
+                    continue
                 if packet.stream is video:
                     frame = frame.reformat(width=width, height=height, format="yuv420p")
                     if rotation:
                         frame = _rotate(frame, rotation)
+                    frame.pts = count
+                    frame.time_base = Fraction(1, 1) / rate
+                    count += 1
                     output.mux(encoder.encode(frame))
                 elif sound:
                     frame.pts = None
@@ -148,7 +165,6 @@ def build_display_video(name):
         output.mux(encoder.encode())
         if sound:
             output.mux(sound.encode())
-    partial.rename(target)
 
 
 def _rotation(stream):
