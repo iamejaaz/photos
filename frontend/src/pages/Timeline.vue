@@ -11,18 +11,33 @@
       <PhotoGrid
         :handle="handle"
         :empty-icon="LucideImages"
-        :empty-title="__('Your photos will show up here')"
+        :empty-title="__('Welcome to Photos')"
         :empty-text="
           __(
-            'Upload photos and videos, or add them in Drive. Every image you can see in Drive appears here, newest first.',
+            'Bring your photos and videos here. They stay private to you until you share them, and people, places and things are found for you.',
           )
         "
       >
         <template #empty-action>
-          <Button @click="openSettings('import')">
-            <template #prefix><LucideHardDriveDownload class="size-4" /></template>
-            {{ __('Import from Google Photos') }}
-          </Button>
+          <div class="mt-2 flex flex-col items-center gap-3">
+            <div class="flex flex-wrap justify-center gap-2">
+              <Button v-if="native" variant="solid" size="md" @click="openSettings('backup')">
+                <template #prefix><LucideCloudUpload class="size-4" /></template>
+                {{ __('Back up this phone') }}
+              </Button>
+              <Button :variant="native ? 'subtle' : 'solid'" size="md" @click="pickAndUpload()">
+                <template #prefix><LucideUpload class="size-4" /></template>
+                {{ __('Upload photos') }}
+              </Button>
+              <Button variant="subtle" size="md" @click="openSettings('import')">
+                <template #prefix><LucideHardDriveDownload class="size-4" /></template>
+                {{ __('Import from Google Photos') }}
+              </Button>
+            </div>
+            <div v-if="!native" class="text-sm text-ink-gray-5 max-sm:hidden">
+              {{ __('You can also drop photos anywhere on this page.') }}
+            </div>
+          </div>
         </template>
       </PhotoGrid>
     </div>
@@ -33,7 +48,9 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue'
 import { Button, usePageMeta } from 'frappe-ui'
+import LucideCloudUpload from '~icons/lucide/cloud-upload'
 import LucideHardDriveDownload from '~icons/lucide/hard-drive-download'
+import LucideUpload from '~icons/lucide/upload'
 import LucideImages from '~icons/lucide/images'
 
 import { appPageMeta } from '@/utils/documentTitle'
@@ -43,7 +60,7 @@ import Memories from '../components/Memories.vue'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { createFeed } from '../data/feed'
-import { onUploaded } from '../data/uploads'
+import { onUploaded, pickAndUpload } from '../data/uploads'
 import { openSettings } from '../data/dialogs'
 
 const native = Boolean(import.meta.env.VITE_NATIVE)

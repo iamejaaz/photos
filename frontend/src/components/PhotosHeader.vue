@@ -106,7 +106,7 @@ import { archive, download, hide, removeForever, restore, toggleFavourite, trash
 import { clearSelection, selection } from '../data/selection'
 import { editMetadata, makeCollage, openShare, makeMovie } from '../data/dialogs'
 import { startExport } from '../data/imports'
-import { notifyUploaded, upload, uploadPhotos } from '../data/uploads'
+import { notifyUploaded, pickAndUpload, upload } from '../data/uploads'
 import { openLightbox } from '../data/viewer'
 import { pickAlbumFor } from '../data/albums'
 import { errorText } from '../resources/drive'
@@ -324,12 +324,5 @@ function search() {
   if (query.value.trim()) router.push({ name: 'photos-search', query: { q: query.value.trim() } })
 }
 
-function pickFiles() {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.multiple = true
-  input.accept = 'image/*,video/*'
-  input.onchange = () => input.files && uploadPhotos([...input.files], props.album?.name)
-  input.click()
-}
+const pickFiles = () => pickAndUpload(props.album?.name)
 </script>

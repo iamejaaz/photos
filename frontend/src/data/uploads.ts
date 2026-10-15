@@ -62,3 +62,11 @@ export async function uploadPhotos(files: File[], album?: string): Promise<strin
   if (added) toast.success(added === 1 ? __('1 item added') : __('{0} items added', [added]))
   return names
 }
+export function pickAndUpload(album?: string) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.multiple = true
+  input.accept = 'image/*,video/*'
+  input.onchange = () => input.files && uploadPhotos([...input.files], album)
+  input.click()
+}
