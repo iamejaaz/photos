@@ -1,5 +1,11 @@
 <template>
-  <div ref="container" class="px-3 pb-10 sm:px-5" @wheel="onWheel">
+  <div
+    ref="container"
+    class="px-3 pb-10 sm:px-5"
+    @wheel="onWheel"
+    @touchstart="onPinchStart"
+    @touchmove="onPinchMove"
+  >
     <template v-for="line in lines" :key="line.key">
       <h2 v-if="line.month" class="pb-1 pt-6 text-xl font-semibold text-ink-gray-9">
         {{ line.month }}
@@ -288,6 +294,21 @@ function onWheel(event: WheelEvent) {
   if (!event.ctrlKey && !event.metaKey) return
   event.preventDefault()
   changeZoom(event.deltaY < 0 ? 0.1 : -0.1)
+}
+
+let pinch: { distance: number; zoom: number } | null = null
+const touchDistance = (touches: TouchList) =>
+  Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
+
+function onPinchStart(event: TouchEvent) {
+  pinch = event.touches.length === 2 ? { distance: touchDistance(event.touches), zoom: zoom.value } : null
+}
+
+function onPinchMove(event: TouchEvent) {
+  if (!pinch || event.touches.length !== 2) return
+  event.preventDefault()
+  const target = pinch.zoom * (touchDistance(event.touches) / pinch.distance)
+  changeZoom(target - zoom.value)
 }
 
 function onTileClick(event: MouseEvent, photo: Photo) {
