@@ -25,15 +25,17 @@ export function createFeed(method: string, params: Record<string, unknown> = {})
   })
 
   let pending: Promise<void> | null = null
+  let generation = 0
 
   function loadMore(limit?: number) {
     if (pending) return pending
     if (!feed.hasNext) return Promise.resolve()
-    pending = fetchMore(limit).finally(() => (pending = null))
-    return pending
+    const request = fetchMore(limit, generation).finally(() => pending === request && (pending = null))
+    pending = request
+    return request
   }
 
-  async function fetchMore(limit?: number) {
+  async function fetchMore(limit: number | undefined, started: number) {
     feed.loading = true
     try {
       const page = await fetchPage(feed.method, {
@@ -41,21 +43,27 @@ export function createFeed(method: string, params: Record<string, unknown> = {})
         start: feed.nextStart,
         ...(limit ? { limit } : {}),
       })
+      if (started !== generation) return
       const known = new Set(feed.rows.map((row) => row.name))
       feed.rows.push(...page.rows.filter((row) => !known.has(row.name)))
       feed.nextStart = page.next_start
       feed.hasNext = page.has_next
       feed.error = null
     } catch (error) {
+      if (started !== generation) return
       feed.error = errorText(error)
       feed.hasNext = false
     } finally {
-      feed.loading = false
-      feed.loaded = true
+      if (started === generation) {
+        feed.loading = false
+        feed.loaded = true
+      }
     }
   }
 
   async function reload() {
+    generation++
+    pending = null
     feed.rows = []
     feed.nextStart = 0
     feed.hasNext = true
