@@ -11,7 +11,7 @@ import { accessToken, setSessionLostHandler, setTokenRefreshedHandler, startSess
 import { setActiveSite } from './site'
 import { getSocket, startSocket } from './socket'
 import SitePicker from './SitePicker.vue'
-import { type Site, isAddingSite, rememberAccount, savedSite } from './sites'
+import { type Site, isAddingSite, rememberAccount, savedSite, siteProblem, siteStatus } from './sites'
 
 type Boot = {
   user: string
@@ -63,12 +63,14 @@ export async function startNative(): Promise<boolean> {
   await setMediaSession(accessToken())
 
   let boot: Boot
+  let status: number | null = null
   try {
     const response = await fetch('/api/method/photos.api.native.boot')
+    status = response.status
     if (!response.ok) throw new Error(String(response.status))
     boot = (await response.json()).message
   } catch {
-    return showPicker(site, __('Could not reach {0}. Check your connection and try again.', [site.url]))
+    return showPicker(site, siteProblem(site.url, status ?? (await siteStatus(site.url))))
   }
   setCookie('user_id', boot.user)
   setCookie('full_name', boot.full_name)

@@ -22,7 +22,32 @@ export const normalizeSiteUrl = (input: string): string | null => {
 }
 
 type ClientInfo = { client_id?: string | null; sitename?: string; app_name?: string; photos_version?: string }
-export type ProbeResult = { site: Site } | { error: 'unreachable' | 'not-photos' | 'no-client' }
+export type ProbeResult =
+  { site: Site } | { error: 'unreachable' | 'not-photos' | 'no-client' } | { error: 'down'; status: number }
+
+export const siteProblem = (url: string, status: number | null) => {
+  const host = new URL(url).host
+  if (!status) return __('Could not reach {0}. Check your internet connection.', [host])
+  if (status === 503) return __('{0} is being updated. Try again in a few minutes.', [host])
+  if (status === 502 || status === 504)
+    return __('{0} is not responding right now. Try again in a few minutes.', [host])
+  if (status >= 500) return __('{0} ran into an error ({1}). Try again in a few minutes.', [host, status])
+  return __('{0} answered with an error ({1}).', [host, status])
+}
+
+export const siteStatus = async (url: string): Promise<number | null> => {
+  const { CapacitorHttp } = await import('@capacitor/core')
+  try {
+    const res = await CapacitorHttp.get({
+      url: `${url}/api/method/ping`,
+      connectTimeout: 8000,
+      readTimeout: 8000,
+    })
+    return res.status >= 400 ? res.status : null
+  } catch {
+    return null
+  }
+}
 
 export const probeSite = async (url: string): Promise<ProbeResult> => {
   const { CapacitorHttp } = await import('@capacitor/core')
@@ -36,6 +61,7 @@ export const probeSite = async (url: string): Promise<ProbeResult> => {
   } catch {
     return { error: 'unreachable' }
   }
+  if (res.status >= 500) return { error: 'down', status: res.status }
   const message = (res.data as { message?: ClientInfo } | null)?.message
   if (res.status !== 200 || !message?.sitename || !message.photos_version) return { error: 'not-photos' }
   if (!message.client_id) return { error: 'no-client' }

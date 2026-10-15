@@ -67,6 +67,7 @@ import {
   type Site,
   normalizeSiteUrl,
   probeSite,
+  siteProblem,
   saveSite,
   savedAccounts,
   stopAddingSite,
@@ -113,7 +114,11 @@ async function connect() {
   try {
     const probe = await probeSite(url)
     if ('error' in probe) {
-      error.value = messages[probe.error]
+      error.value = probe.error === 'down' ? siteProblem(url, probe.status) : messages[probe.error]
+      return
+    }
+    if (probe.site.url === props.site?.url && (await tokenStore.get(probe.site.url))) {
+      window.location.replace('/')
       return
     }
     await signIn(probe.site.url, probe.site.clientId)
