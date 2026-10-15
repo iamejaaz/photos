@@ -1,5 +1,5 @@
 <template>
-  <PhotosHeader :title="__('Photos')" searchable>
+  <PhotosHeader account :title="__('Photos')" searchable>
     <template v-if="native" #title>
       <BackupChip class="sm:hidden" />
       <h1 class="truncate text-lg font-semibold text-ink-gray-9 max-sm:hidden">{{ __('Photos') }}</h1>

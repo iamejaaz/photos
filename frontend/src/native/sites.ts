@@ -64,3 +64,43 @@ export const saveSite = (site: Site | null) =>
   withPrefs((p) =>
     site ? p.set({ key: SITE_KEY, value: JSON.stringify(site) }) : p.remove({ key: SITE_KEY }),
   )
+
+export type Account = Site & { user: string; fullName: string; image: string | null }
+
+const ACCOUNTS_KEY = 'accounts'
+const ADDING_KEY = 'photos-adding-site'
+
+export const savedAccounts = (): Promise<Account[]> =>
+  withPrefs(async (p) => {
+    const { value } = await p.get({ key: ACCOUNTS_KEY })
+    try {
+      return value ? (JSON.parse(value) as Account[]) : []
+    } catch {
+      return []
+    }
+  })
+
+const writeAccounts = (accounts: Account[]) =>
+  withPrefs((p) => p.set({ key: ACCOUNTS_KEY, value: JSON.stringify(accounts) }))
+
+export const rememberAccount = async (account: Account) => {
+  const accounts = (await savedAccounts()).filter((item) => item.url !== account.url)
+  await writeAccounts([account, ...accounts])
+}
+
+export const forgetAccount = async (url: string) =>
+  writeAccounts((await savedAccounts()).filter((item) => item.url !== url))
+
+export const switchAccount = async (account: Site) => {
+  await saveSite(account)
+  window.location.replace('/')
+}
+
+export const isAddingSite = () => sessionStorage.getItem(ADDING_KEY) === '1'
+
+export const startAddingSite = () => {
+  sessionStorage.setItem(ADDING_KEY, '1')
+  window.location.replace('/')
+}
+
+export const stopAddingSite = () => sessionStorage.removeItem(ADDING_KEY)

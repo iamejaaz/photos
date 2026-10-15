@@ -66,3 +66,4 @@ export function makeMovie(files: string[], album?: string) {
   movie.album = album
   movie.open = true
 }
+export const accountSheet = reactive({ open: false })

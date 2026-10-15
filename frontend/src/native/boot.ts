@@ -11,7 +11,7 @@ import { accessToken, setSessionLostHandler, setTokenRefreshedHandler, startSess
 import { setActiveSite } from './site'
 import { getSocket, startSocket } from './socket'
 import SitePicker from './SitePicker.vue'
-import { type Site, savedSite } from './sites'
+import { type Site, isAddingSite, rememberAccount, savedSite } from './sites'
 
 type Boot = {
   user: string
@@ -33,8 +33,8 @@ const socketUrl = (origin: string, port: number) => {
   return url.origin
 }
 
-const showPicker = (site?: Site | null, notice?: string) => {
-  createApp(SitePicker, { site, notice }).use(translationPlugin).mount('#app')
+const showPicker = (site?: Site | null, notice?: string, cancellable = false) => {
+  createApp(SitePicker, { site, notice, cancellable }).use(translationPlugin).mount('#app')
   import('./splash').then(({ hideSplash }) => hideSplash())
   return false
 }
@@ -43,6 +43,7 @@ export async function startNative(): Promise<boolean> {
   document.documentElement.classList.add('native')
   const site = await savedSite()
   if (!site) return showPicker()
+  if (isAddingSite()) return showPicker(null, undefined, true)
   const state = await startSession(site)
   if (state !== 'ok') {
     if (state === 'rejected') await tokenStore.remove(site.url)
@@ -74,6 +75,12 @@ export async function startNative(): Promise<boolean> {
   setCookie('user_image', boot.user_image)
   setCookie('system_user', boot.roles.includes('System Manager') ? 'yes' : 'no')
   window.csrf_token = boot.csrf_token
+  rememberAccount({
+    ...site,
+    user: boot.user,
+    fullName: boot.full_name,
+    image: boot.user_image ? new URL(boot.user_image, site.url).href : null,
+  })
   startSocket(
     { url: socketUrl(site.url, boot.socketio_port), namespace: boot.sitename, origin: site.url },
     accessToken,
@@ -94,8 +101,13 @@ async function connectBackup(site: Site, user: string) {
   })
   const status = await plugin.getStatus().catch(() => null)
   if (!status) return
-  if (status.signedIn && status.site === site.url && status.user === user) return
-  if (status.signedIn) await plugin.signOut()
+  if (status.signedIn) return
+  await moveBackupHere(site, user)
+}
+
+export async function moveBackupHere(site: Site, user: string) {
+  const { plugin } = await photosBackup()
+  await plugin.signOut().catch(() => {})
   const response = await fetch('/api/method/photos.api.backup.device_token', { method: 'POST' })
   if (!response.ok) return
   const token = (await response.json()).message

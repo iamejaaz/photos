@@ -1,5 +1,5 @@
 <template>
-  <PhotosHeader :title="__('Explore')" searchable hide-upload />
+  <PhotosHeader account :title="__('Explore')" searchable hide-upload />
   <div v-if="empty" class="flex flex-col items-center justify-center gap-3 px-6 py-24 text-center">
     <div class="flex size-14 items-center justify-center rounded-full bg-surface-gray-2">
       <LucideCompass class="size-6 text-ink-gray-6" />

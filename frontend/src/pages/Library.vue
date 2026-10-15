@@ -1,5 +1,5 @@
 <template>
-  <PhotosHeader :title="__('Library')" hide-upload />
+  <PhotosHeader account :title="__('Library')" hide-upload />
   <div class="flex flex-col gap-6 px-3 pb-6 pt-3 sm:px-5">
     <nav class="grid grid-cols-2 gap-2 sm:grid-cols-4">
       <router-link

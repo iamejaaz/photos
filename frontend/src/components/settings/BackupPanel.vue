@@ -27,6 +27,14 @@
             )
           }}
         </div>
+        <div v-if="elsewhere" class="flex flex-col gap-2 rounded-lg bg-surface-gray-2 p-3">
+          <div class="text-base text-ink-gray-8">
+            {{ __('This phone backs up to {0} on {1}.', [status.user, hostOf(status.site)]) }}
+          </div>
+          <div>
+            <Button :loading="moving" @click="moveHere">{{ __('Back up to this account instead') }}</Button>
+          </div>
+        </div>
         <div class="divide-y divide-outline-gray-1">
           <SettingsRow :title="__('Back up this phone')" :description="summary">
             <Switch :model-value="status.enabled" @update:model-value="set({ enabled: !!$event })" />
@@ -94,6 +102,8 @@ import dayjs from 'dayjs'
 
 import { type BackupStatus, photosBackup } from '../../native/backup'
 import { formatBytes } from '../../format'
+import { siteOrigin } from '../../native/site'
+import { getSessionUser } from '@/boot/session'
 
 const status = ref<BackupStatus | null>(null)
 let stop: (() => void) | undefined
@@ -129,6 +139,30 @@ async function set(options: Partial<Pick<BackupStatus, 'enabled' | 'wifiOnly' | 
 async function allow() {
   const { plugin } = await photosBackup()
   status.value = await plugin.requestPermission()
+}
+
+const hostOf = (url: string) => (url ? new URL(url).host : '')
+const currentSite = siteOrigin()
+const currentUser = getSessionUser() ?? ''
+const elsewhere = computed(
+  () => status.value?.signedIn && (status.value.site !== currentSite || status.value.user !== currentUser),
+)
+const moving = ref(false)
+
+async function moveHere() {
+  moving.value = true
+  try {
+    const [{ moveBackupHere }, { savedSite }] = await Promise.all([
+      import('../../native/boot'),
+      import('../../native/sites'),
+    ])
+    const site = await savedSite()
+    if (site) await moveBackupHere(site, currentUser)
+    const { plugin } = await photosBackup()
+    status.value = await plugin.getStatus()
+  } finally {
+    moving.value = false
+  }
 }
 
 const checking = ref(false)

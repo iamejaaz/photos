@@ -12,10 +12,6 @@
           <template #prefix><span class="lucide-cloud-upload size-4 shrink-0 text-ink-gray-6" /></template>
           {{ __('Backup') }}
         </SettingsNavItem>
-        <SettingsNavItem value="account">
-          <template #prefix><span class="lucide-circle-user size-4 shrink-0 text-ink-gray-6" /></template>
-          {{ __('Account') }}
-        </SettingsNavItem>
       </SettingsNavGroup>
       <SettingsNavGroup :label="__('Photos')">
         <SettingsNavItem value="memories">
@@ -43,7 +39,6 @@
     <SettingsContent class="photos-settings">
       <template v-if="native">
         <SettingsPanel value="backup"><BackupPanel /></SettingsPanel>
-        <SettingsPanel value="account"><AccountPanel /></SettingsPanel>
       </template>
       <SettingsPanel value="memories"><MemoriesPanel /></SettingsPanel>
       <SettingsPanel value="import"><ImportPanel /></SettingsPanel>
@@ -77,9 +72,6 @@ import MemoriesPanel from './MemoriesPanel.vue'
 const native = Boolean(import.meta.env.VITE_NATIVE)
 const BackupPanel = import.meta.env.VITE_NATIVE
   ? defineAsyncComponent(() => import('./BackupPanel.vue'))
-  : null
-const AccountPanel = import.meta.env.VITE_NATIVE
-  ? defineAsyncComponent(() => import('./AccountPanel.vue'))
   : null
 </script>
 

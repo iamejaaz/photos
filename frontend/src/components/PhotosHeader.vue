@@ -48,6 +48,14 @@
             {{ upload.active ? __('Uploading {0} of {1}', [upload.done + 1, upload.total]) : __('Upload') }}
           </span>
         </Button>
+        <button
+          v-if="account && loggedIn"
+          class="ml-1 rounded-full sm:hidden"
+          :aria-label="__('Account')"
+          @click="accountSheet.open = true"
+        >
+          <Avatar size="lg" :image="avatarImage" :label="fullName || __('Account')" />
+        </button>
       </div>
     </template>
     <div
@@ -70,7 +78,7 @@
 <script setup lang="ts">
 import { type Component, computed, onActivated, onDeactivated, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, Dialog, Dropdown, PageHeader, TextInput, Tooltip, toast } from 'frappe-ui'
+import { Avatar, Button, Dialog, Dropdown, PageHeader, TextInput, Tooltip, toast } from 'frappe-ui'
 import LucideArchive from '~icons/lucide/archive'
 import LucideArchiveRestore from '~icons/lucide/archive-restore'
 import LucideCalendarClock from '~icons/lucide/calendar-clock'
@@ -96,7 +104,7 @@ import LucideUpload from '~icons/lucide/upload'
 import LucideUserX from '~icons/lucide/user-x'
 import LucideX from '~icons/lucide/x'
 
-import { useSessionStore } from '@/boot/session'
+import { fullName, imageURL, useSessionStore } from '@/boot/session'
 import { type Album } from '../resources/albums'
 import { type Photo, getPhotoRow, isVideo, saveToLibrary } from '../resources/photos'
 import { createAnimation } from '../resources/edit'
@@ -104,7 +112,8 @@ import { exportFiles } from '../resources/export'
 import { activeFeed, createStaticFeed } from '../data/feed'
 import { archive, download, hide, removeForever, restore, toggleFavourite, trash } from '../data/actions'
 import { clearSelection, selection } from '../data/selection'
-import { editMetadata, makeCollage, openShare, makeMovie } from '../data/dialogs'
+import { accountSheet, editMetadata, makeCollage, openShare, makeMovie } from '../data/dialogs'
+import { mediaUrl } from '../resources/media'
 import { startExport } from '../data/imports'
 import { notifyUploaded, pickAndUpload, upload } from '../data/uploads'
 import { openLightbox } from '../data/viewer'
@@ -121,7 +130,14 @@ interface Action {
 }
 
 const props = withDefaults(
-  defineProps<{ title?: string; mode?: Mode; album?: Album; hideUpload?: boolean; searchable?: boolean }>(),
+  defineProps<{
+    title?: string
+    mode?: Mode
+    album?: Album
+    hideUpload?: boolean
+    searchable?: boolean
+    account?: boolean
+  }>(),
   { mode: 'library' },
 )
 const emit = defineEmits<{
@@ -329,4 +345,6 @@ const pickFiles = () => pickAndUpload(props.album?.name)
 const active = ref(true)
 onActivated(() => (active.value = true))
 onDeactivated(() => (active.value = false))
+
+const avatarImage = computed(() => (imageURL.value ? mediaUrl(imageURL.value) : undefined))
 </script>

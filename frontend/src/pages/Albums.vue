@@ -1,5 +1,5 @@
 <template>
-  <PhotosHeader :title="shared ? __('Sharing') : __('Albums')" hide-upload>
+  <PhotosHeader account :title="shared ? __('Sharing') : __('Albums')" hide-upload>
     <template #actions>
       <Dropdown v-if="list.length > 1" :options="sortOptions">
         <Button variant="ghost">
