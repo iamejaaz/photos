@@ -80,9 +80,70 @@ def photo_people(file: str, album: str | None = None):
 
 
 @frappe.whitelist()
-def rename_person(person: str, person_name: str):
+def rename_person(person: str, person_name: str, merge: bool = False, separate: bool = False):
     _own(person)
-    frappe.db.set_value("Photo Person", person, "person_name", (person_name or "").strip()[:140])
+    person_name = (person_name or "").strip()[:140]
+    duplicate = (
+        person_name
+        and not frappe.parse_json(separate)
+        and frappe.db.get_value(
+            "Photo Person",
+            {"owner": frappe.session.user, "person_name": person_name, "name": ["!=", person]},
+            ["name", "person_name", "cover_face", "face_count"],
+            as_dict=True,
+        )
+    )
+    if duplicate and not frappe.parse_json(merge):
+        return {"duplicate": duplicate}
+    if duplicate:
+        merge_people(duplicate.name, [person])
+        return {"merged_into": duplicate.name}
+    frappe.db.set_value("Photo Person", person, "person_name", person_name)
+
+
+SUGGEST_FROM = 0.4
+NOT_SAME = "photos_not_same_people"
+
+
+@frappe.whitelist()
+def merge_suggestions(limit: int = 10):
+    import numpy as np
+
+    people = frappe.get_all(
+        "Photo Person",
+        filters={"owner": frappe.session.user, "hidden": 0},
+        fields=["name", "person_name", "cover_face", "face_count", "centroid"],
+    )
+    dismissed = set(json.loads(frappe.defaults.get_user_default(NOT_SAME) or "[]"))
+    vectors = [engine._decode(person.centroid) for person in people]
+    pairs = []
+    for i, first in enumerate(people):
+        for j in range(i + 1, len(people)):
+            second = people[j]
+            if "|".join(sorted([first.name, second.name])) in dismissed:
+                continue
+            if first.person_name and second.person_name and first.person_name != second.person_name:
+                continue
+            score = float(np.dot(vectors[i], vectors[j]))
+            if score >= SUGGEST_FROM:
+                pairs.append((score, first, second))
+    pairs.sort(key=lambda pair: -pair[0])
+    return [
+        {"first": _summary(a), "second": _summary(b), "score": round(s, 3)} for s, a, b in pairs[: int(limit)]
+    ]
+
+
+def _summary(person):
+    return {key: person[key] for key in ("name", "person_name", "cover_face", "face_count")}
+
+
+@frappe.whitelist(methods=["POST"])
+def not_same_people(first: str, second: str):
+    _own(first)
+    _own(second)
+    dismissed = set(json.loads(frappe.defaults.get_user_default(NOT_SAME) or "[]"))
+    dismissed.add("|".join(sorted([first, second])))
+    frappe.defaults.set_user_default(NOT_SAME, json.dumps(sorted(dismissed)))
 
 
 @frappe.whitelist()

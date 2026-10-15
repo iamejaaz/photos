@@ -80,6 +80,30 @@
       </div>
     </template>
   </Dialog>
+  <Dialog
+    :open="Boolean(duplicate)"
+    :title="__('Same person?')"
+    size="sm"
+    @update:open="(open: boolean) => !open && (duplicate = null)"
+  >
+    <div class="flex flex-col items-center gap-4 py-2 text-center">
+      <div class="flex items-center gap-3">
+        <FaceAvatar :face="info?.cover_face" class="size-20" />
+        <FaceAvatar :face="duplicate?.cover_face" class="size-20" />
+      </div>
+      <p class="text-base text-ink-gray-7">
+        {{
+          __('You already have someone named {0}. Are these the same person?', [duplicate?.person_name ?? ''])
+        }}
+      </p>
+    </div>
+    <template #actions>
+      <div class="flex justify-end gap-2">
+        <Button @click="keepSeparate">{{ __('Different people') }}</Button>
+        <Button variant="solid" @click="mergeIntoDuplicate">{{ __('Same person') }}</Button>
+      </div>
+    </template>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -95,6 +119,7 @@ import { appPageMeta } from '@/utils/documentTitle'
 import {
   PERSON_PHOTOS,
   type Person,
+  type PersonSummary,
   getPeople,
   getPerson,
   mergePeople,
@@ -115,6 +140,7 @@ const editing = ref(false)
 const nameForm = ref<HTMLFormElement>()
 const nameDraft = ref('')
 const merging = ref(false)
+const duplicate = ref<PersonSummary | null>(null)
 const others = ref<Person[]>([])
 const mergePicks = reactive(new Set<string>())
 
@@ -134,8 +160,27 @@ async function saveName() {
   if (!editing.value) return
   editing.value = false
   if ((nameDraft.value || '') === (info.value?.person_name || '')) return
-  await renamePerson(props.person, nameDraft.value)
+  const result = await renamePerson(props.person, nameDraft.value)
+  if (result?.duplicate) {
+    duplicate.value = result.duplicate
+    return
+  }
   await refresh()
+}
+
+async function keepSeparate() {
+  if (!duplicate.value) return
+  await renamePerson(props.person, duplicate.value.person_name ?? '', false, true)
+  duplicate.value = null
+  await refresh()
+}
+
+async function mergeIntoDuplicate() {
+  if (!duplicate.value) return
+  const result = await renamePerson(props.person, duplicate.value.person_name ?? '', true)
+  duplicate.value = null
+  toast.success(__('Merged'))
+  if (result?.merged_into) router.replace({ name: 'photos-person', params: { person: result.merged_into } })
 }
 
 const menu = computed(() => [

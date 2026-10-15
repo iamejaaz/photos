@@ -197,8 +197,23 @@ export const moveFace = (face: string, person: string | null, personName?: strin
   call(`${PEOPLE}.move_face`, { face, person, person_name: personName })
 export const markNotAFace = (face: string) => call(`${PEOPLE}.not_a_face`, { face })
 export const unassignFace = (face: string) => call(`${PEOPLE}.remove_face`, { face })
-export const renamePerson = (person: string, personName: string) =>
-  call(`${PEOPLE}.rename_person`, { person, person_name: personName })
+export interface PersonSummary {
+  name: string
+  person_name: string | null
+  cover_face: string
+  face_count: number
+}
+export const renamePerson = (person: string, personName: string, merge = false, separate = false) =>
+  call(`${PEOPLE}.rename_person`, { person, person_name: personName, merge, separate }) as Promise<{
+    duplicate?: PersonSummary
+    merged_into?: string
+  } | null>
+export const mergeSuggestions = () =>
+  call(`${PEOPLE}.merge_suggestions`) as Promise<
+    { first: PersonSummary; second: PersonSummary; score: number }[]
+  >
+export const notSamePeople = (first: string, second: string) =>
+  call(`${PEOPLE}.not_same_people`, { first, second })
 export const setPersonHidden = (person: string, hidden: boolean) =>
   call(`${PEOPLE}.set_hidden`, { person, hidden })
 export const mergePeople = (target: string, sources: string[]) =>
