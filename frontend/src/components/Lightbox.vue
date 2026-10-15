@@ -87,7 +87,11 @@
               </button>
             </Dropdown>
             <Tooltip v-if="photo.write" :text="__('Move to trash')">
-              <button class="flex lightbox-button max-sm:hidden" @click="removeCurrent">
+              <button
+                class="flex lightbox-button max-sm:hidden"
+                :aria-label="__('Move to trash')"
+                @click="removeCurrent"
+              >
                 <LucideTrash2 class="size-5" />
               </button>
             </Tooltip>

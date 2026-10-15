@@ -4,7 +4,8 @@ import { type Photo, setArchived } from '../resources/photos'
 import { deleteForever, setFavourite, toggleTrash } from '../resources/drive'
 import { downloadUrl } from '../resources/media'
 import { setHidden } from '../resources/hidden'
-import { activeFeed } from './feed'
+import { type FeedHandle, activeFeed } from './feed'
+import { lightbox, openLightbox } from './viewer'
 import { selection } from './selection'
 
 export async function toggleFavourite(photos: Photo[], value?: boolean) {
@@ -24,23 +25,66 @@ function dropFromFeed(names: string[]) {
 }
 export const countLabel = (one: string, many: string, count: number) =>
   count === 1 ? __(one) : __(many, [count])
-function undoable(message: string, revert: () => Promise<unknown>) {
+const UNDO_TOAST = 'photos-undo'
+interface Removal {
+  key: string
+  feed: FeedHandle | null
+  names: string[]
+  steps: { row: Photo; index: number }[][]
+  viewing: boolean
+}
+let lastRemoval: Removal | null = null
+
+function removeWithUndo(
+  key: string,
+  names: string[],
+  label: (count: number) => string,
+  revert: (names: string[]) => Promise<unknown>,
+) {
   const feed = activeFeed.value
-  toast.success(message, {
+  const wanted = new Set(names)
+  const step = (feed?.feed.rows ?? []).flatMap((row, index) => (wanted.has(row.name) ? [{ row, index }] : []))
+  dropFromFeed(names)
+  if (lastRemoval?.key === key && lastRemoval.feed === feed) {
+    lastRemoval.names.push(...names)
+    lastRemoval.steps.push(step)
+  } else lastRemoval = { key, feed, names: [...names], steps: [step], viewing: lightbox.open }
+  if (lightbox.open) lastRemoval.viewing = true
+  const removal = lastRemoval
+  const forget = () => lastRemoval === removal && (lastRemoval = null)
+  toast.success(label(removal.names.length), {
+    id: UNDO_TOAST,
     duration: 8000,
+    onAutoClose: forget,
+    onDismiss: forget,
     action: {
       label: __('Undo'),
       onClick: async () => {
-        await revert()
-        feed?.reload()
+        forget()
+        await revert(removal.names)
+        putBack(removal)
+        const last = removal.names[removal.names.length - 1]
+        if (removal.viewing && removal.feed) openLightbox(removal.feed, last)
+        toast.success(countLabel('Restored', '{0} items restored', removal.names.length), { id: UNDO_TOAST })
       },
     },
   })
 }
+function putBack(removal: Removal) {
+  const rows = removal.feed?.feed.rows
+  if (!rows) return
+  for (const step of [...removal.steps].reverse()) {
+    for (const { row, index } of step) rows.splice(Math.min(index, rows.length), 0, row)
+  }
+}
 export async function trash(names: string[]) {
   await toggleTrash(names)
-  dropFromFeed(names)
-  undoable(countLabel('Moved to trash', '{0} items moved to trash', names.length), () => toggleTrash(names))
+  removeWithUndo(
+    'trash',
+    names,
+    (count) => countLabel('Moved to trash', '{0} items moved to trash', count),
+    toggleTrash,
+  )
 }
 export async function restore(names: string[]) {
   await toggleTrash(names)
@@ -54,12 +98,14 @@ export async function removeForever(names: string[]) {
 }
 export async function archive(names: string[], value = true) {
   await setArchived(names, value)
-  dropFromFeed(names)
-  undoable(
-    value
-      ? countLabel('Archived', '{0} items archived', names.length)
-      : countLabel('Moved back to photos', '{0} items moved back to photos', names.length),
-    () => setArchived(names, !value),
+  removeWithUndo(
+    `archive:${value}`,
+    names,
+    (count) =>
+      value
+        ? countLabel('Archived', '{0} items archived', count)
+        : countLabel('Moved back to photos', '{0} items moved back to photos', count),
+    (all) => setArchived(all, !value),
   )
 }
 export async function hide(names: string[], value = true) {
