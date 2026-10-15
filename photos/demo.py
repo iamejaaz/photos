@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 
 from photos.api import albums as album_api
 from photos.api import photos as photos_api
-from photos.library import add_file
+from photos.utils.library import add_file
 
 ADMIN = "Administrator"
 USERS = {
@@ -225,7 +225,7 @@ def _share(album, user, write=0):
 
 
 def _people(sources, work, owner, today):
-    from photos import faces
+    from photos.smart import faces
 
     if not faces.available():
         print("Skipping people: turn on People in Photos settings first.")

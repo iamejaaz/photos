@@ -109,7 +109,7 @@ def import_picked(session_id: str):
 def run_import(session_id, user):
     import tempfile
 
-    from photos.library import add_file
+    from photos.utils.library import add_file
 
     frappe.set_user(user)
     token = _access_token(user)

@@ -3,7 +3,7 @@ import json
 import frappe
 from frappe.rate_limiter import rate_limit
 
-from photos.permissions import can_access
+from photos.utils.permissions import can_access
 
 SOURCE = "device:{}"
 
@@ -29,7 +29,7 @@ def missing(hashes: list[str] | str):
 
 @frappe.whitelist(methods=["POST"])
 def mark(file: str, sha1: str):
-    from photos.metadata import extract
+    from photos.utils.metadata import extract
 
     owner = frappe.db.get_value("File", file, "owner")
     if owner != frappe.session.user or not can_access(file, "write"):

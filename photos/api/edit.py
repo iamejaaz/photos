@@ -4,8 +4,8 @@ from datetime import timedelta
 import frappe
 from frappe.utils import get_datetime
 
-from photos import places
-from photos.permissions import can_access
+from photos.smart import places
+from photos.utils.permissions import can_access
 
 METADATA = "Photo Metadata"
 
@@ -62,7 +62,7 @@ def search_places(query: str):
 
 
 def _writable(files):
-    from photos.metadata import extract
+    from photos.utils.metadata import extract
 
     names = json.loads(files) if isinstance(files, str) else files
     for name in names:
@@ -101,8 +101,8 @@ def build_trim(file, start, end, user, mute=0):
     from datetime import timedelta
     from pathlib import Path
 
-    from photos import formats
-    from photos.library import add_file
+    from photos.utils import formats
+    from photos.utils.library import add_file
 
     frappe.set_user(user)
     source = frappe.db.get_value("File", file, ["name", "file_name", "file_url", "folder"], as_dict=True)
@@ -127,9 +127,9 @@ def export_frame(file: str, at: float):
     from datetime import timedelta
     from pathlib import Path
 
-    from photos import formats
     from photos.api.albums import can_read
-    from photos.library import add_file
+    from photos.utils import formats
+    from photos.utils.library import add_file
 
     source = frappe.db.get_value(
         "File", file, ["name", "file_name", "file_url", "folder", "mime_type"], as_dict=True
@@ -155,9 +155,9 @@ def create_animation(files: list[str] | str, album: str | None = None):
 
     from PIL import Image
 
-    from photos import formats
     from photos.api.albums import can_read
-    from photos.library import add_file
+    from photos.utils import formats
+    from photos.utils.library import add_file
 
     names = json.loads(files) if isinstance(files, str) else files
     rows = frappe.get_all(

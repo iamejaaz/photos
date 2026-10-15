@@ -2,7 +2,7 @@ import json
 
 import frappe
 
-from photos.permissions import can_access
+from photos.utils.permissions import can_access
 
 IMPORT = "Photo Import"
 
@@ -19,7 +19,7 @@ def create_import(files: list[str] | str):
     doc = frappe.get_doc({"doctype": IMPORT, "status": "Reading", "files": json.dumps(files)}).insert(
         ignore_permissions=True
     )
-    _enqueue("photos.takeout.read_export", doc.name)
+    _enqueue("photos.utils.takeout.read_export", doc.name)
     return get_import(doc.name)
 
 
@@ -49,7 +49,7 @@ def start_import(name: str, options: dict | str):
     options = json.loads(options) if isinstance(options, str) else options
     doc.update({"status": "Importing", "options": json.dumps(options), "done": 0, "total": 0})
     doc.save(ignore_permissions=True)
-    _enqueue("photos.takeout.run_import", doc.name, timeout=12 * 60 * 60)
+    _enqueue("photos.utils.takeout.run_import", doc.name, timeout=12 * 60 * 60)
     return get_import(doc.name)
 
 

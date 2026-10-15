@@ -232,7 +232,7 @@ def _sidecar(sidecars, entry):
 
 
 def _add(item, favourites, user):
-    from photos.library import add_file
+    from photos.utils.library import add_file
 
     entry, details, source, taken = item["entries"][0], item["details"], item["source"], item["taken"]
     with tempfile.TemporaryDirectory() as folder:
@@ -258,7 +258,7 @@ def _add(item, favourites, user):
     if frappe.db.exists("Photo Metadata", name):
         frappe.db.set_value("Photo Metadata", name, updates, update_modified=False)
         if "latitude" in updates:
-            from photos.scan import enrich
+            from photos.smart.scan import enrich
 
             enrich(name)
     if favourites and details.get("favorited"):

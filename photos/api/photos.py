@@ -11,9 +11,9 @@ from suite.drive.api.files import create_folder
 from suite.drive.api.list import get_query_data
 from suite.drive.utils import GENERAL_USER, STATUS_ACTIVE, STATUS_TRASHED, get_principals, get_user_folder
 
-from photos import clip
-from photos.metadata import HASH_SIZE, enqueue_missing, file_hash
-from photos.permissions import can_access, photo_access
+from photos.smart import clip
+from photos.utils.metadata import HASH_SIZE, enqueue_missing, file_hash
+from photos.utils.permissions import can_access, photo_access
 
 File = frappe.qb.DocType("File")
 Metadata = frappe.qb.DocType("Photo Metadata")
@@ -455,7 +455,7 @@ def save_to_library(files: list[str] | str, album: str | None = None):
     from suite.drive.utils.files import FileManager, storage_key
 
     from photos.api.albums import album_access, can_read
-    from photos.library import add_file
+    from photos.utils.library import add_file
 
     files = _as_list(files)
     user = frappe.session.user

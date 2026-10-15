@@ -49,7 +49,7 @@ def _enqueue(files, title, by_album=None):
     if not files:
         frappe.throw("There is nothing to export.")
     frappe.enqueue(
-        "photos.export.build_export",
+        "photos.utils.export.build_export",
         queue="long",
         timeout=6 * 60 * 60,
         user=frappe.session.user,

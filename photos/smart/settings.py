@@ -1,6 +1,6 @@
 import frappe
 
-from photos import assets
+from photos.smart import assets
 
 FEATURES = {
     "people": ("face_detector", "face_recognizer"),
@@ -17,7 +17,7 @@ def enabled(feature):
 
 
 def prepare(user=None):
-    from photos import scan
+    from photos.smart import scan
 
     keys = [key for feature, needed in FEATURES.items() if enabled(feature) for key in needed]
     try:

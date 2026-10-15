@@ -4,10 +4,10 @@ from io import BytesIO
 import frappe
 from werkzeug.wrappers import Response
 
-from photos import auto_albums
-from photos import faces as engine
 from photos.api.photos import Face, File, media_query, page
-from photos.permissions import can_access
+from photos.smart import faces as engine
+from photos.utils import auto_albums
+from photos.utils.permissions import can_access
 
 
 def _own(person):

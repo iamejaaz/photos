@@ -16,7 +16,7 @@ HASH_SIZE = 16
 
 
 def enqueue_extract(doc, method=None):
-    from photos.formats import is_raw, raw_mime
+    from photos.utils.formats import is_raw, raw_mime
 
     if not doc.is_folder and not doc.mime_type and is_raw(doc.file_name):
         doc.db_set({"mime_type": raw_mime(doc.file_name), "file_type": "Image"}, update_modified=False)
@@ -36,7 +36,7 @@ def enqueue_missing(names):
 def _enqueue(name, **kwargs):
     try:
         frappe.enqueue(
-            "photos.metadata.extract",
+            "photos.utils.metadata.extract",
             file_name=name,
             queue="short",
             deduplicate=True,
@@ -77,13 +77,13 @@ def extract(file_name):
         ignore_permissions=True, ignore_if_duplicate=True
     )
     _prepare_formats(file, path)
-    from photos.scan import enrich
+    from photos.smart.scan import enrich
 
     enrich(file_name)
 
 
 def _prepare_formats(file, path):
-    from photos import formats
+    from photos.utils import formats
 
     if not path.exists():
         return
@@ -105,7 +105,7 @@ LIVE_MAX_SECONDS = 5
 def pair_live_photo(file):
     from pathlib import PurePosixPath
 
-    from photos.formats import extension
+    from photos.utils.formats import extension
 
     ext = extension(file.file_name)
     if ext not in LIVE_IMAGES | LIVE_VIDEOS:
@@ -140,7 +140,7 @@ def pair_live_photo(file):
 def _image_metadata(path, file_name=None):
     from PIL import Image
 
-    from photos.formats import is_raw, open_image
+    from photos.utils.formats import is_raw, open_image
 
     if is_raw(file_name or path):
         image = open_image(path, file_name)

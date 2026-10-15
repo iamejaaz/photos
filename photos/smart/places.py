@@ -3,8 +3,8 @@ import math
 
 import frappe
 
-from photos import assets
-from photos.settings import enabled
+from photos.smart import assets
+from photos.smart.settings import enabled
 
 MAX_DISTANCE_KM = 60
 NEARBY_KM = 20

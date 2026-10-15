@@ -27,7 +27,7 @@ def build_export(user, files, title, by_album=None):
 
 
 def _build(user, files, title, by_album):
-    from photos.library import store_file
+    from photos.utils.library import store_file
 
     manager = FileManager()
     rows = frappe.db.sql(

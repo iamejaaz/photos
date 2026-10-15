@@ -52,8 +52,8 @@ def upload(album: str, name: str | None = None):
 
 
 def _store(content, file_name, album, owner):
-    from photos.library import store_file
-    from photos.metadata import extract
+    from photos.utils.library import store_file
+    from photos.utils.metadata import extract
 
     if frappe.session.user != owner:
         frappe.set_user(owner)

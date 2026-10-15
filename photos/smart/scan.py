@@ -1,7 +1,7 @@
 import frappe
 from suite.drive.utils.files import FileManager, storage_key
 
-from photos import clip, faces, places, text, things
+from photos.smart import clip, faces, places, text, things
 
 
 def enrich(file_name):

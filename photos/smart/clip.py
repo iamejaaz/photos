@@ -1,7 +1,7 @@
 import base64
 
-from photos import assets
-from photos.settings import enabled
+from photos.smart import assets
+from photos.smart.settings import enabled
 
 SIZE = 224
 MEAN = (0.48145466, 0.4578275, 0.40821073)

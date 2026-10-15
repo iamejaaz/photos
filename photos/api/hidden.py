@@ -5,7 +5,7 @@ from frappe.rate_limiter import rate_limit
 from frappe.utils.password import check_password
 
 from photos.api.photos import media_query, page
-from photos.permissions import can_access
+from photos.utils.permissions import can_access
 
 UNLOCK_SECONDS = 10 * 60
 

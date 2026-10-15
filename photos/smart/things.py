@@ -1,5 +1,5 @@
-from photos import assets
-from photos.settings import enabled
+from photos.smart import assets
+from photos.smart.settings import enabled
 
 MIN_CONFIDENCE = 0.2
 CATEGORY_CONFIDENCE = 0.15

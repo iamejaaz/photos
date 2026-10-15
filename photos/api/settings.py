@@ -1,7 +1,7 @@
 import frappe
 
-from photos import assets
-from photos.settings import FEATURES, SETTINGS
+from photos.smart import assets
+from photos.smart.settings import FEATURES, SETTINGS
 
 
 @frappe.whitelist()
@@ -48,7 +48,7 @@ def save_settings(
     settings.save()
     if turned_on:
         frappe.enqueue(
-            "photos.settings.prepare",
+            "photos.smart.settings.prepare",
             queue="long",
             timeout=3 * 60 * 60,
             job_id="photos-setup",

@@ -6,8 +6,8 @@ from suite.drive.api.files import get_upload_path
 from suite.drive.utils import create_drive_file, get_file_type, get_new_file_name, update_file_size
 from suite.drive.utils.files import FileManager
 
-from photos.formats import is_raw, raw_mime
-from photos.metadata import extract
+from photos.utils.formats import is_raw, raw_mime
+from photos.utils.metadata import extract
 
 
 def add_file(path, owner, taken, parent=None):

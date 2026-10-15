@@ -13,7 +13,7 @@ from suite.drive.overrides.file import File as DriveFile
 from suite.drive.utils import FILE_FIELDS, GENERAL_USER, get_principals
 
 from photos.api.photos import PAGE_SIZE, File, Hidden, media_query
-from photos.permissions import can_access, photo_access
+from photos.utils.permissions import can_access, photo_access
 
 ALBUM = "Photo Album"
 AlbumItem = frappe.qb.DocType("Photo Album Item")
@@ -249,7 +249,7 @@ def albums():
 
 @frappe.whitelist()
 def set_auto_people(album: str, people: list[str] | str):
-    from photos import auto_albums
+    from photos.utils import auto_albums
 
     _require(album, "owner")
     people = _as_list(people) or []

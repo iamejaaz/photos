@@ -3,8 +3,9 @@ import base64
 import frappe
 from suite.drive.utils.files import FileManager, storage_key
 
-from photos import assets, auto_albums
-from photos.settings import enabled
+from photos.smart import assets
+from photos.smart.settings import enabled
+from photos.utils import auto_albums
 
 DETECT_SIDE = 1280
 MIN_FACE = 48

@@ -352,7 +352,7 @@ export const startImport = (name: string, options: ImportOptions) =>
 export const cancelImport = (name: string) => call(`${TAKEOUT}.cancel_import`, { name })
 
 export const createMovie = (files: string[], title: string, seconds: number, album?: string) =>
-  call('photos.movies.create_movie', { files, title, seconds, album })
+  call('photos.api.movies.create_movie', { files, title, seconds, album })
 
 export const setFavourite = (names: string[], value: boolean) =>
   call(`${DRIVE}.set_favourite`, {

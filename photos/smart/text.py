@@ -1,5 +1,5 @@
-from photos import assets
-from photos.settings import enabled
+from photos.smart import assets
+from photos.smart.settings import enabled
 
 VOCABULARY = list("0123456789abcdefghijklmnopqrstuvwxyz")
 SIDE = 736

@@ -102,7 +102,7 @@ def display_video(name):
 def enqueue_display_video(name):
     try:
         frappe.enqueue(
-            "photos.formats.build_display_video",
+            "photos.utils.formats.build_display_video",
             name=name,
             queue="long",
             timeout=60 * 60,

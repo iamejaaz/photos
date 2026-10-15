@@ -8,9 +8,9 @@ from werkzeug.utils import send_file
 from werkzeug.wrappers import Response
 from werkzeug.wsgi import wrap_file
 
-from photos import formats
 from photos.api.albums import album_access, can_read
-from photos.permissions import can_access
+from photos.utils import formats
+from photos.utils.permissions import can_access
 
 
 def _file(entity_name, album):
