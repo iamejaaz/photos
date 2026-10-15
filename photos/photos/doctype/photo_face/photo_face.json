@@ -14,6 +14,7 @@
   "timestamp",
   "score",
   "embedding",
+  "embedder",
   "not_a_face"
  ],
  "fields": [
@@ -77,6 +78,12 @@
    "hidden": 1
   },
   {
+   "fieldname": "embedder",
+   "fieldtype": "Data",
+   "label": "Embedder",
+   "read_only": 1
+  },
+  {
    "default": "0",
    "fieldname": "not_a_face",
    "fieldtype": "Check",
@@ -84,7 +91,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-15 00:00:00.000000",
+ "modified": "2026-10-15 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photo Face",

@@ -136,7 +136,7 @@ def rename_person(person: str, person_name: str, merge: bool = False, separate: 
     frappe.db.set_value("Photo Person", person, "person_name", person_name)
 
 
-SUGGEST_FROM = 0.4
+SUGGEST_FROM = 0.33
 UNDO_SECONDS = 60 * 60
 NOT_SAME = "photos_not_same_people"
 
@@ -161,6 +161,8 @@ def merge_suggestions(limit: int = 10):
             if "|".join(sorted([first.name, second.name])) in dismissed:
                 continue
             if first.person_name and second.person_name and first.person_name != second.person_name:
+                continue
+            if vectors[i].shape != vectors[j].shape:
                 continue
             score = float(np.dot(vectors[i], vectors[j]))
             if score >= SUGGEST_FROM:

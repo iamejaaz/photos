@@ -3,7 +3,7 @@ import frappe
 from photos.smart import assets
 
 FEATURES = {
-    "people": ("face_detector", "face_recognizer"),
+    "people": ("face_detector", "face_recognizer", "face_embedder"),
     "places": ("cities",),
     "things": ("classifier", "classifier_labels"),
     "text": ("text_detector", "text_recognizer"),
@@ -18,7 +18,20 @@ def enabled(feature):
 
 def ensure_models():
     keys = [key for feature, needed in FEATURES.items() if enabled(feature) for key in needed]
-    if not keys or assets.ready(*keys):
+    if not keys:
+        return
+    if assets.ready(*keys):
+        from photos.smart import faces
+
+        if enabled("people") and frappe.db.exists("Photo Face", {"embedder": ["!=", faces.EMBEDDER]}):
+            frappe.enqueue(
+                "photos.smart.faces.upgrade",
+                queue="long",
+                timeout=6 * 60 * 60,
+                job_id="photos-faces-upgrade",
+                deduplicate=True,
+                enqueue_after_commit=True,
+            )
         return
     frappe.enqueue(
         "photos.smart.settings.prepare",
@@ -31,13 +44,14 @@ def ensure_models():
 
 
 def prepare(user=None):
-    from photos.smart import scan
+    from photos.smart import faces, scan
 
     keys = [key for feature, needed in FEATURES.items() if enabled(feature) for key in needed]
     try:
         _status("Downloading", user=user)
         assets.setup(keys)
         _status("Scanning", user=user)
+        faces.upgrade()
         scan.run()
         _status("Ready", user=user)
     except Exception as error:

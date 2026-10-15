@@ -9,6 +9,7 @@ import requests
 
 ZOO = "https://github.com/opencv/opencv_zoo/raw/main/models"
 CLIP = "https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main"
+AURAFACE = "https://huggingface.co/fal/AuraFace-v1/resolve/main"
 ASSETS = {
     "face_detector": (
         "face_detection_yunet_2023mar.onnx",
@@ -19,6 +20,11 @@ ASSETS = {
         "face_recognition_sface_2021dec.onnx",
         f"{ZOO}/face_recognition_sface/face_recognition_sface_2021dec.onnx",
         "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
+    ),
+    "face_embedder": (
+        "face_recognition_auraface_v1.onnx",
+        f"{AURAFACE}/glintr100.onnx",
+        "a7933ea5330113b01c9b60351d8f4c33003f145d8470ac5f0e52ee2effe25c60",
     ),
     "classifier": (
         "image_classification_mobilenetv2_2022apr.onnx",

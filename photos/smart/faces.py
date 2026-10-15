@@ -11,15 +11,19 @@ DETECT_SIDE = 1280
 MIN_FACE = 48
 MIN_FACE_SHARE = 0.03
 MIN_SCORE = 0.85
-SAME_PERSON = 0.55
+SAME_PERSON = 0.4
+SAME_PEOPLE = 0.5
 VIDEO_SAMPLES = 12
+EMBEDDER = "auraface-v1"
 
 _engine = None
 
 
 def available():
     return (
-        enabled("people") and assets.opencv_installed() and assets.ready("face_detector", "face_recognizer")
+        enabled("people")
+        and assets.opencv_installed()
+        and assets.ready("face_detector", "face_recognizer", "face_embedder")
     )
 
 
@@ -32,7 +36,8 @@ def _models():
             str(assets.path("face_detector")), "", (320, 320), MIN_SCORE, 0.3, 50
         )
         recognizer = cv2.FaceRecognizerSF.create(str(assets.path("face_recognizer")), "")
-        _engine = (detector, recognizer)
+        embedder = cv2.dnn.readNet(str(assets.path("face_embedder")))
+        _engine = (detector, recognizer, embedder)
     return _engine
 
 
@@ -107,7 +112,7 @@ def _upright(frame):
     return image.rotate(rotation, expand=True) if rotation else image
 
 
-def _detect(rgb):
+def _rows(rgb):
     import cv2
     import numpy as np
 
@@ -115,21 +120,36 @@ def _detect(rgb):
     if scale < 1:
         rgb = rgb.resize((round(rgb.width * scale), round(rgb.height * scale)))
     frame = cv2.cvtColor(np.asarray(rgb), cv2.COLOR_RGB2BGR)
-    height, width = frame.shape[:2]
-
-    detector, recognizer = _models()
-    detector.setInputSize((width, height))
+    detector = _models()[0]
+    detector.setInputSize((frame.shape[1], frame.shape[0]))
     _, rows = detector.detect(frame)
+    return frame, scale, rows if rows is not None else []
+
+
+def _embed(frame, row):
+    import cv2
+    import numpy as np
+
+    _, recognizer, embedder = _models()
+    aligned = recognizer.alignCrop(frame, row)
+    embedder.setInput(
+        cv2.dnn.blobFromImage(aligned, 1 / 127.5, (112, 112), (127.5, 127.5, 127.5), swapRB=True)
+    )
+    feature = embedder.forward().flatten().astype("float32")
+    return feature / (np.linalg.norm(feature) or 1)
+
+
+def _detect(rgb):
+    frame, scale, rows = _rows(rgb)
+    height, width = frame.shape[:2]
     faces = []
-    for row in rows if rows is not None else []:
+    for row in rows:
         x, y, w, h = (float(v) for v in row[:4])
         if min(w, h) < MIN_FACE * scale or row[14] < MIN_SCORE:
             continue
         if w / width < MIN_FACE_SHARE or h / height < MIN_FACE_SHARE:
             continue
-        aligned = recognizer.alignCrop(frame, row)
-        feature = recognizer.feature(aligned).flatten().astype("float32")
-        feature /= np.linalg.norm(feature) or 1
+        feature = _embed(frame, row)
         faces.append(
             {
                 "x": max(0.0, x / width),
@@ -138,6 +158,7 @@ def _detect(rgb):
                 "height": min(1.0, h / height),
                 "score": float(row[14]),
                 "embedding": _encode(feature),
+                "embedder": EMBEDDER,
             }
         )
     return faces
@@ -151,7 +172,10 @@ def _assign(face, owner):
     for person in frappe.get_all(
         "Photo Person", filters={"owner": owner}, fields=["name", "centroid", "face_count"]
     ):
-        score = float(np.dot(vector, _decode(person.centroid)))
+        centroid = _decode(person.centroid)
+        if centroid.shape != vector.shape:
+            continue
+        score = float(np.dot(vector, centroid))
         if score > best_score:
             best, best_score = person, score
 
@@ -243,3 +267,141 @@ def _decode(value):
     import numpy as np
 
     return np.frombuffer(base64.b64decode(value), dtype="float32")
+
+
+def upgrade():
+    if not available():
+        return
+    stale = frappe.get_all(
+        "Photo Face",
+        filters={"embedder": ["!=", EMBEDDER]},
+        fields=["name", "file", "person", "x", "y", "width", "height", "timestamp"],
+    )
+    if not stale:
+        return
+    by_frame = {}
+    for face in stale:
+        by_frame.setdefault((face.file, face.timestamp or 0), []).append(face)
+    for index, ((file_name, timestamp), faces) in enumerate(by_frame.items(), 1):
+        _reembed(file_name, timestamp, faces)
+        if index % 20 == 0:
+            frappe.db.commit()
+    owners = frappe.get_all(
+        "Photo Person",
+        filters={"name": ["in", list({face.person for face in stale if face.person}) or [""]]},
+        pluck="owner",
+        distinct=True,
+    )
+    for owner in owners:
+        regroup(owner)
+        frappe.db.commit()
+
+
+def _reembed(file_name, timestamp, faces):
+    try:
+        image = _frame(file_name, timestamp)
+        frame, _, rows = _rows(image)
+    except Exception:
+        frame, rows = None, []
+    height, width = frame.shape[:2] if frame is not None else (1, 1)
+    for face in faces:
+        row = min(
+            rows,
+            key=lambda row: abs(row[0] / width - face.x) + abs(row[1] / height - face.y),
+            default=None,
+        )
+        if row is None or abs(row[0] / width - face.x) + abs(row[1] / height - face.y) > 0.05:
+            frappe.delete_doc("Photo Face", face.name, ignore_permissions=True, force=True)
+            continue
+        frappe.db.set_value(
+            "Photo Face",
+            face.name,
+            {"embedding": _encode(_embed(frame, row)), "embedder": EMBEDDER},
+            update_modified=False,
+        )
+
+
+def _frame(file_name, timestamp):
+    import av
+    from PIL import Image, ImageOps
+
+    file = frappe.get_doc("File", file_name)
+    manager = FileManager()
+    path = manager.site_folder / (
+        manager.get_trash_path(file) if file.status == "Trashed" else storage_key(file.file_url or "")
+    )
+    if (file.mime_type or "").startswith("video/"):
+        with av.open(str(path)) as container:
+            stream = container.streams.video[0]
+            return _upright(_frame_at(container, stream, timestamp)).convert("RGB")
+    with Image.open(path) as image:
+        return ImageOps.exif_transpose(image).convert("RGB")
+
+
+def regroup(owner):
+    import json
+
+    import numpy as np
+
+    people = frappe.get_all("Photo Person", filters={"owner": owner}, pluck="name")
+    for person in people:
+        recompute(person)
+    dismissed = set(json.loads(frappe.defaults.get_user_default("photos_not_same_people", owner) or "[]"))
+    while True:
+        rows = frappe.get_all(
+            "Photo Person",
+            filters={"owner": owner},
+            fields=["name", "person_name", "centroid", "face_count", "cover_face"],
+        )
+        vectors = np.stack([_decode(row.centroid) for row in rows]) if rows else None
+        if vectors is None or vectors.ndim != 2:
+            return
+        scores = vectors @ vectors.T
+        np.fill_diagonal(scores, 0)
+        pairs = sorted(
+            zip(*np.where(np.triu(scores) >= SAME_PEOPLE), strict=True), key=lambda pair: -scores[pair]
+        )
+        pair = next(
+            (
+                (rows[a], rows[b])
+                for a, b in pairs
+                if "|".join(sorted([rows[a].name, rows[b].name])) not in dismissed
+                and not (
+                    rows[a].person_name and rows[b].person_name and rows[a].person_name != rows[b].person_name
+                )
+            ),
+            None,
+        )
+        if not pair:
+            break
+        keep, drop = sorted(pair, key=lambda row: -(row.face_count or 0))
+        _absorb(keep, drop)
+    for row in frappe.get_all(
+        "Photo Person",
+        filters={"owner": owner, "face_count": 1, "person_name": ["is", "not set"]},
+        fields=["name"],
+    ):
+        face = frappe.db.get_value("Photo Face", {"person": row.name}, ["name", "embedding"], as_dict=True)
+        if not face:
+            continue
+        vector = _decode(face.embedding)
+        best, best_score = None, SAME_PERSON
+        for other in frappe.get_all(
+            "Photo Person",
+            filters={"owner": owner, "name": ["!=", row.name], "face_count": [">", 1]},
+            fields=["name", "person_name", "centroid", "face_count", "cover_face"],
+        ):
+            score = float(np.dot(vector, _decode(other.centroid)))
+            if score > best_score and "|".join(sorted([row.name, other.name])) not in dismissed:
+                best, best_score = other, score
+        if best:
+            _absorb(best, frappe._dict(name=row.name, cover_face=face.name, face_count=1))
+
+
+def _absorb(keep, drop):
+    frappe.db.set_value("Photo Face", {"person": drop.name}, "person", keep.name, update_modified=False)
+    auto_albums.replace_person(drop.name, keep.name)
+    frappe.delete_doc("Photo Person", drop.name, ignore_permissions=True, force=True)
+    recompute(keep.name)
+    if drop.get("person_name") and not keep.person_name:
+        frappe.db.set_value("Photo Person", keep.name, "person_name", drop.person_name, update_modified=False)
