@@ -14,34 +14,16 @@
   >
     <LucideLock class="size-6 text-ink-gray-6" />
     <div class="text-lg font-medium text-ink-gray-8">{{ __('Hidden photos are locked') }}</div>
-    <template v-if="device.saved">
-      <div class="text-base text-ink-gray-5">
-        {{ __('Use your fingerprint or screen lock to see them.') }}
-      </div>
-      <Button variant="solid" class="w-full" :loading="unlocking" @click="deviceUnlock">
-        <template #prefix><LucideFingerprint class="size-4" /></template>
-        {{ __('Unlock with screen lock') }}
-      </Button>
-      <div class="mt-4 text-sm text-ink-gray-5">{{ __('Or use your password') }}</div>
-    </template>
-    <div v-else class="text-base text-ink-gray-5">{{ __('Enter your account password to see them.') }}</div>
-    <Password v-model="password" class="w-full" :autofocus="!device.saved" />
+    <div class="text-base text-ink-gray-5">{{ __('Enter your account password to see them.') }}</div>
+    <Password v-model="password" class="w-full" :autofocus="!screenLock" />
     <ErrorMessage :message="passwordError" />
-    <Button :variant="device.saved ? 'subtle' : 'solid'" class="w-full" type="submit" :loading="unlocking">
-      {{ __('Unlock') }}
+    <Button variant="solid" class="w-full" type="submit" :loading="unlocking">{{ __('Unlock') }}</Button>
+    <Button v-if="screenLock" variant="ghost" class="w-full" :loading="unlocking" @click="screenUnlock">
+      <template #prefix><LucideFingerprint class="size-4" /></template>
+      {{ __('Use screen lock') }}
     </Button>
   </form>
   <template v-else-if="unlocked">
-    <div
-      v-if="device.available && !device.saved"
-      class="mx-3 mt-3 flex items-center gap-3 rounded-xl bg-surface-gray-2 p-3 sm:mx-5"
-    >
-      <LucideFingerprint class="size-5 shrink-0 text-ink-gray-7" />
-      <div class="flex-1 text-base text-ink-gray-7">
-        {{ __('Unlock with your fingerprint or screen lock next time') }}
-      </div>
-      <Button size="sm" :loading="enabling" @click="turnOnDeviceUnlock">{{ __('Turn on') }}</Button>
-    </div>
     <div class="px-3 pt-3 text-base text-ink-gray-5 sm:px-5">
       {{
         __(
@@ -59,8 +41,8 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, reactive, ref } from 'vue'
-import { Button, ErrorMessage, Password, toast, usePageMeta } from 'frappe-ui'
+import { onBeforeUnmount, ref } from 'vue'
+import { Button, ErrorMessage, Password, usePageMeta } from 'frappe-ui'
 import LucideEyeOff from '~icons/lucide/eye-off'
 import LucideFingerprint from '~icons/lucide/fingerprint'
 import LucideLock from '~icons/lucide/lock'
@@ -77,40 +59,25 @@ const passwordError = ref('')
 const unlocking = ref(false)
 const handle = createFeed(HIDDEN_PHOTOS)
 
-const device = reactive({ available: false, saved: false })
-const enabling = ref(false)
-const nativeUnlock = () => import('../native/deviceUnlock')
+const screenLock = ref(false)
 
 hiddenState().then(async (state) => {
   unlocked.value = state.unlocked
   if (!import.meta.env.VITE_NATIVE) return
-  Object.assign(device, await (await nativeUnlock()).deviceUnlockStatus())
-  if (!state.unlocked && device.saved) deviceUnlock()
+  screenLock.value = await (await import('../native/deviceUnlock')).screenLockAvailable()
+  if (!state.unlocked && screenLock.value) screenUnlock()
 })
 
-async function deviceUnlock() {
+async function screenUnlock() {
   unlocking.value = true
   passwordError.value = ''
   try {
-    if (await (await nativeUnlock()).unlockWithDevice(__('Unlock hidden photos'))) unlocked.value = true
+    const { unlockWithScreenLock } = await import('../native/deviceUnlock')
+    if (await unlockWithScreenLock(__('Unlock hidden photos'))) unlocked.value = true
   } catch (error) {
-    device.saved = false
     passwordError.value = (error as { messages?: string[] }).messages?.[0] ?? __('Enter your password.')
   } finally {
     unlocking.value = false
-  }
-}
-
-async function turnOnDeviceUnlock() {
-  enabling.value = true
-  try {
-    await (await nativeUnlock()).enableDeviceUnlock()
-    device.saved = true
-    toast.success(__('You can now unlock with your screen lock'))
-  } catch (error) {
-    toast.error((error as Error).message || __('Could not turn this on'))
-  } finally {
-    enabling.value = false
   }
 }
 const timer = setInterval(

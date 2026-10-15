@@ -1,32 +1,15 @@
 import { call } from 'frappe-ui'
 
-import { getSessionUser } from '@/boot/session'
 import { photosShell } from './shell'
-import { siteOrigin } from './site'
 
-const HIDDEN = 'photos.api.hidden'
-const key = () => `${siteOrigin()}|${getSessionUser()}`
-
-export async function deviceUnlockStatus() {
+export async function screenLockAvailable() {
   const { plugin } = await photosShell()
-  return plugin.deviceUnlockStatus({ key: key() }).catch(() => ({ available: false, saved: false }))
+  return (await plugin.screenLockAvailable().catch(() => ({ available: false }))).available
 }
 
-export async function enableDeviceUnlock() {
-  const secret = (await call(`${HIDDEN}.enable_device_unlock`)) as string
+export async function unlockWithScreenLock(title: string) {
   const { plugin } = await photosShell()
-  await plugin.saveUnlockSecret({ key: key(), secret })
-}
-
-export async function unlockWithDevice(title: string) {
-  const { plugin } = await photosShell()
-  const result = await plugin.readUnlockSecret({ key: key(), title })
-  if (!result.secret) return false
-  try {
-    await call(`${HIDDEN}.unlock_with_device`, { secret: result.secret })
-    return true
-  } catch (error) {
-    await plugin.forgetUnlockSecret({ key: key() })
-    throw error
-  }
+  if (!(await plugin.confirmScreenLock({ title })).confirmed) return false
+  await call('photos.api.hidden.unlock_in_app')
+  return true
 }
