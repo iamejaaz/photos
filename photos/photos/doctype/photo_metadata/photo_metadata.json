@@ -29,7 +29,8 @@
   "live_video",
   "live_of",
   "motion_photo",
-  "description"
+  "description",
+  "edited_from"
  ],
  "fields": [
   {
@@ -179,6 +180,12 @@
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Caption"
+  },
+  {
+   "fieldname": "edited_from",
+   "fieldtype": "Link",
+   "options": "File",
+   "label": "Edited From"
   }
  ],
  "links": [],

@@ -525,6 +525,15 @@ def get_details(name: str, album: str | None = None):
         pluck="album",
     )
     file.archived = frappe.db.exists("Photo Archive", {"user": frappe.session.user, "file": name})
+    original = frappe.db.get_value("Photo Metadata", name, "edited_from")
+    if (
+        original
+        and frappe.db.get_value("File", original, "status") == STATUS_ACTIVE
+        and can_read(original, None)
+    ):
+        file.original = (
+            page(media_query(archived=None).where(File.name == original), 0, 1)["rows"] or [None]
+        )[0]
     return file
 
 

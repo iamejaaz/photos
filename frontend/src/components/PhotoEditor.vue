@@ -120,7 +120,7 @@ import LucideFlipHorizontal2 from '~icons/lucide/flip-horizontal-2'
 import LucideRotateCw from '~icons/lucide/rotate-cw'
 import LucideX from '~icons/lucide/x'
 
-import { type Photo, contentUrl, getUploadFolder, thumbnailUrl, uploadFile } from '../api'
+import { type Photo, contentUrl, getUploadFolder, markEdited, thumbnailUrl, uploadFile } from '../api'
 import { useBackClose } from '../composables/useBackClose'
 
 const props = defineProps<{ photo: Photo | null; folder?: string | null }>()
@@ -351,12 +351,14 @@ async function save() {
       type: 'image/jpeg',
       lastModified: new Date(props.photo.taken).getTime(),
     })
+    let saved: string | null
     try {
       if (!props.folder) throw new Error()
-      await uploadFile(file, props.folder, () => {})
+      saved = await uploadFile(file, props.folder, () => {})
     } catch {
-      await uploadFile(file, await getUploadFolder(), () => {})
+      saved = await uploadFile(file, await getUploadFolder(), () => {})
     }
+    if (saved) await markEdited(saved, props.photo.name).catch(() => {})
     toast.success(__('Saved a copy next to the original'))
     emit('saved')
     emit('close')

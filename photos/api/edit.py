@@ -196,3 +196,13 @@ def create_animation(files: list[str] | str, album: str | None = None):
             (get_datetime(value) for value in taken.values() if value), default=frappe.utils.now_datetime()
         )
         return add_file(target, frappe.session.user, latest)
+
+
+@frappe.whitelist(methods=["POST"])
+def mark_edited(file: str, original: str):
+    from photos.api.albums import can_read
+
+    _writable([file])
+    if not can_read(original, None):
+        frappe.throw("You don't have access to the original.", frappe.PermissionError)
+    frappe.db.set_value(METADATA, file, "edited_from", original, update_modified=False)

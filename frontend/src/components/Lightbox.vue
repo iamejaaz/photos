@@ -328,6 +328,22 @@
               </div>
             </div>
           </section>
+          <section v-if="details.original">
+            <div class="mb-2 text-sm font-medium text-ink-gray-5">
+              {{ __('Edited copy') }}
+            </div>
+            <dl class="flex flex-col gap-3">
+              <InfoRow
+                :icon="LucideImage"
+                :title="details.original.file_name"
+                :subtitle="__('The original is kept unchanged')"
+              >
+                <template #action>
+                  <Button size="sm" @click="openOriginal">{{ __('Open original') }}</Button>
+                </template>
+              </InfoRow>
+            </dl>
+          </section>
           <section v-if="details.folder">
             <div class="mb-2 text-sm font-medium text-ink-gray-5">
               {{ __('In Drive') }}
@@ -431,8 +447,10 @@ import {
   activeFeed,
   albums,
   archive,
+  createStaticFeed,
   download,
   editMetadata,
+  openLightbox,
   openShare,
   editing as metadataEdits,
   lightbox,
@@ -710,6 +728,11 @@ async function go(step: number) {
     if (next >= rows.value.length) return
   }
   lightbox.index = next
+}
+
+function openOriginal() {
+  if (!details.value?.original) return
+  openLightbox(createStaticFeed([details.value.original]), details.value.original.name)
 }
 
 function openInDrive() {
