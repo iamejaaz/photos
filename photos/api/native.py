@@ -61,6 +61,9 @@ def _app_name():
     return name if name and name != "Frappe" else "Photos"
 
 
+APP_ROLES = ("Suite User", "Desk User")
+
+
 def ensure_oauth_client():
     name = frappe.db.get_single_value(SETTINGS, "oauth_client")
     client = frappe.get_doc("OAuth Client", name) if name and frappe.db.exists("OAuth Client", name) else None
@@ -77,7 +80,7 @@ def ensure_oauth_client():
     if frappe.get_meta("OAuth Client").has_field("token_endpoint_auth_method"):
         client.token_endpoint_auth_method = "None"
     if frappe.get_meta("OAuth Client").has_field("allowed_roles"):
-        client.set("allowed_roles", [{"role": "All"}])
+        client.set("allowed_roles", [{"role": role} for role in APP_ROLES])
     client.save(ignore_permissions=True)
     frappe.db.set_single_value(SETTINGS, "oauth_client", client.name)
 
@@ -88,8 +91,8 @@ def _usable_client(name):
     client = frappe.db.get_value("OAuth Client", name, ["redirect_uris"], as_dict=True)
     if not client or REDIRECT_URI not in (client.redirect_uris or "").split():
         return None
-    if frappe.get_meta("OAuth Client").has_field("allowed_roles") and not frappe.db.exists(
-        "OAuth Client Role", {"parent": name, "role": "All"}
-    ):
+    if frappe.get_meta("OAuth Client").has_field("allowed_roles") and set(
+        frappe.get_all("OAuth Client Role", filters={"parent": name}, pluck="role")
+    ) != set(APP_ROLES):
         return None
     return name
