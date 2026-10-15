@@ -149,7 +149,7 @@ public class BackupWorker extends Worker {
                         skipped = item.name + ": " + e.getMessage();
                         continue;
                     } catch (BackupClient.Dropped e) {
-                        if (++dropsInRow >= MAX_DROPS_IN_ROW) throw e;
+                        if (BackupClient.siteDown(e) || ++dropsInRow >= MAX_DROPS_IN_ROW) throw e;
                         skipped = e.getMessage();
                         continue;
                     }

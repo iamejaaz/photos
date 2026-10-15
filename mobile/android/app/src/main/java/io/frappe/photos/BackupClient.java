@@ -4,8 +4,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -28,7 +31,25 @@ final class BackupClient {
     }
 
     static final class Dropped extends IOException {
-        Dropped(IOException cause) { super("The connection to the site dropped. Backup tries again by itself.", cause); }
+        Dropped(IOException cause, String host) { super(reason(cause, host), cause); }
+    }
+
+    static final class ServerError extends IOException {
+        final int status;
+        ServerError(int status) { super("The site answered " + status); this.status = status; }
+    }
+
+    static String reason(IOException cause, String host) {
+        if (cause instanceof ServerError) {
+            int status = ((ServerError) cause).status;
+            if (status == 503) return host + " is being updated. Backup continues when it is back.";
+            if (status == 502 || status == 504) return host + " is not responding. Backup tries again in a minute.";
+            return host + " ran into an error (" + status + "). Backup tries again in a minute.";
+        }
+        if (cause instanceof UnknownHostException) return "Can't find " + host + ". Check your internet connection.";
+        if (cause instanceof SocketTimeoutException) return host + " took too long to answer. Backup tries again in a minute.";
+        if (cause instanceof ConnectException) return "Can't connect to " + host + ". Backup tries again in a minute.";
+        return "The connection to " + host + " dropped. Backup tries again in a minute.";
     }
 
     private static final int ATTEMPTS = 3;
@@ -36,30 +57,47 @@ final class BackupClient {
 
     interface Attempt<T> { T run(int tried) throws IOException; }
 
-    static <T> T retrying(Attempt<T> attempt) throws IOException {
+    <T> T retrying(Attempt<T> attempt) throws IOException {
         IOException last = null;
         for (int tried = 0; tried < ATTEMPTS; tried++) {
             try {
                 return attempt.run(tried);
             } catch (SignedOut | Rejected | Refused e) {
                 throw e;
-            } catch (IOException e) {
+            } catch (ServerError e) {
+                if (e.status == 503) throw new Dropped(e, host());
                 last = e;
-                try {
-                    Thread.sleep(FIRST_PAUSE_MS << tried);
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+                pause(tried);
+            } catch (IOException e) {
+                if (siteDown(e)) throw e;
+                last = e;
+                pause(tried);
             }
+            if (Thread.currentThread().isInterrupted()) break;
         }
-        throw new Dropped(last);
+        throw new Dropped(last, host());
+    }
+
+    private static void pause(int tried) {
+        try {
+            Thread.sleep(FIRST_PAUSE_MS << tried);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    static boolean siteDown(IOException e) {
+        return e.getCause() instanceof ServerError && ((ServerError) e.getCause()).status == 503;
     }
 
     private static final String TOKEN = "/api/method/frappe.integrations.oauth2.get_token";
     private final BackupStore store;
 
     BackupClient(BackupStore store) { this.store = store; }
+
+    private String host() {
+        try { return new URL(store.site()).getHost(); } catch (IOException e) { return "The site"; }
+    }
 
     String uploadFolder() throws IOException {
         String folder = retrying(tried -> call("POST", "/api/method/photos.api.backup.upload_folder", "{}", "application/json")).optString("message", "");
@@ -122,7 +160,7 @@ final class BackupClient {
             response = send(method, path, body, contentType);
         }
         if (response.status == 400 || response.status == 413 || response.status == 415 || response.status == 417) throw new Rejected(serverMessage(response));
-        if (response.status >= 500) throw new IOException("The site answered " + response.status);
+        if (response.status >= 500) throw new ServerError(response.status);
         if (response.status >= 400) throw new Refused(serverMessage(response));
         try { return new JSONObject(response.body.isEmpty() ? "{}" : response.body); } catch (JSONException e) { throw new IOException(e); }
     }
@@ -160,7 +198,7 @@ final class BackupClient {
         connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
         try (OutputStream out = connection.getOutputStream()) { out.write(form.getBytes(StandardCharsets.UTF_8)); }
         Response response = Response.read(connection);
-        if (response.status >= 500) throw new IOException("The site is not answering");
+        if (response.status >= 500) throw new ServerError(response.status);
         try {
             JSONObject data = new JSONObject(response.body);
             if (response.status == 429) throw new IOException("The site is busy");
