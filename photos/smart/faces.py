@@ -9,6 +9,7 @@ from photos.utils import auto_albums
 
 DETECT_SIDE = 1280
 MIN_FACE = 48
+MIN_FACE_SHARE = 0.03
 MIN_SCORE = 0.85
 SAME_PERSON = 0.55
 VIDEO_SAMPLES = 12
@@ -123,6 +124,8 @@ def _detect(rgb):
     for row in rows if rows is not None else []:
         x, y, w, h = (float(v) for v in row[:4])
         if min(w, h) < MIN_FACE * scale or row[14] < MIN_SCORE:
+            continue
+        if w / width < MIN_FACE_SHARE or h / height < MIN_FACE_SHARE:
             continue
         aligned = recognizer.alignCrop(frame, row)
         feature = recognizer.feature(aligned).flatten().astype("float32")
