@@ -25,8 +25,15 @@ def delete_library():
 @frappe.whitelist(methods=["POST"])
 def delete_account():
     user = _own_account()
-    if not frappe.db.exists(DELETION_REQUEST, {"email": user, "status": ["in", OPEN_REQUEST]}):
+    if frappe.db.exists(DELETION_REQUEST, {"email": user, "status": ["in", OPEN_REQUEST]}):
+        return
+    try:
         frappe.get_doc({"doctype": DELETION_REQUEST, "email": user}).insert(ignore_permissions=True)
+    except frappe.OutgoingEmailError:
+        frappe.clear_messages()
+        frappe.throw(
+            _("This site can't send the confirmation email yet. Ask your administrator to set up email.")
+        )
 
 
 @frappe.whitelist()
