@@ -17,13 +17,21 @@
     <DesktopShell v-else-if="isDesktop" class="isolate">
       <template #sidebar><PhotosSidebar /></template>
       <div class="relative flex min-h-full flex-col bg-surface-base" @dragover.prevent="onDragOver">
-        <router-view :key="$route.fullPath" />
+        <router-view v-slot="{ Component, route: current }">
+          <KeepAlive :include="KEEP_ALIVE">
+            <component :is="Component" :key="current.fullPath" />
+          </KeepAlive>
+        </router-view>
       </div>
     </DesktopShell>
     <MobileShell v-else class="isolate">
       <div class="relative flex min-h-full flex-col bg-surface-base pb-20">
         <PullToRefresh />
-        <router-view :key="$route.fullPath" />
+        <router-view v-slot="{ Component, route: current }">
+          <KeepAlive :include="KEEP_ALIVE">
+            <component :is="Component" :key="current.fullPath" />
+          </KeepAlive>
+        </router-view>
       </div>
       <template #nav>
         <nav class="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-3">
@@ -99,6 +107,8 @@ import LucideImages from '~icons/lucide/images'
 import LucideCompass from '~icons/lucide/compass'
 import LucideUsers from '~icons/lucide/users'
 import LucideUpload from '~icons/lucide/upload'
+
+const KEEP_ALIVE = ['Timeline']
 
 import { initSocket } from '@/apps/drive/socket'
 import photosLogo from '../assets/photos.svg'

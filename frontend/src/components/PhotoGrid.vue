@@ -141,9 +141,20 @@
 </template>
 
 <script setup lang="ts">
-import { type Component, computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import {
+  type Component,
+  computed,
+  nextTick,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue'
 import { useResizeObserver } from '@vueuse/core'
-import { Checkbox, ErrorMessage, LoadingIndicator } from 'frappe-ui'
+import { Checkbox, ErrorMessage, LoadingIndicator, shellScrollContainer } from 'frappe-ui'
 import dayjs from 'dayjs'
 import LucideCheck from '~icons/lucide/check'
 import LucidePlay from '~icons/lucide/play'
@@ -198,7 +209,7 @@ let lastClicked: string | null = null
 
 useResizeObserver(container, (entries) => {
   const next = Math.floor(entries[0].contentRect.width)
-  requestAnimationFrame(() => (width.value = next))
+  if (next) requestAnimationFrame(() => (width.value = next))
 })
 
 const targetHeight = computed(() => (width.value < 1100 ? 180 : 220) * zoom.value)
@@ -387,6 +398,8 @@ const measured = new Map<string, number>()
 const measuredVersion = ref(0)
 const view = reactive({ top: 0, height: window.innerHeight })
 let measureFrame = 0
+let savedScroll = 0
+let lastScroll = 0
 
 function estimate(line: Line) {
   let height = line.month ? MONTH_HEADER : 0
@@ -478,6 +491,7 @@ function updateView() {
 }
 
 function onScroll() {
+  lastScroll = shellScrollContainer.value?.scrollTop ?? lastScroll
   if (!measureFrame) measureFrame = requestAnimationFrame(updateView)
 }
 
@@ -537,6 +551,22 @@ onBeforeUnmount(() => {
   if (gridNav.jump === jumpToMonth) gridNav.jump = null
 })
 watch(() => lines.value.length, onScroll)
+
+onDeactivated(() => {
+  document.removeEventListener('scroll', onScroll, { capture: true })
+  cancelAnimationFrame(measureFrame)
+  measureFrame = 0
+  savedScroll = lastScroll
+  shellScrollContainer.value?.scrollTo({ top: 0 })
+})
+onActivated(async () => {
+  activeFeed.value = props.handle
+  gridNav.jump = jumpToMonth
+  document.addEventListener('scroll', onScroll, { capture: true, passive: true })
+  await nextTick()
+  if (savedScroll) shellScrollContainer.value?.scrollTo({ top: savedScroll })
+  updateView()
+})
 
 watch(
   () => props.handle.feed.loading,

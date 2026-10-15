@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount } from 'vue'
+import { onActivated, onBeforeUnmount } from 'vue'
 import { Button, usePageMeta } from 'frappe-ui'
 import LucideCloudUpload from '~icons/lucide/cloud-upload'
 import LucideHardDriveDownload from '~icons/lucide/hard-drive-download'
@@ -70,4 +70,8 @@ const handle = createFeed('timeline')
 onBeforeUnmount(onUploaded(() => handle.reload()))
 
 usePageMeta(() => appPageMeta(undefined, 'Photos'))
+onActivated(() => {
+  const title = appPageMeta(undefined, 'Photos').title
+  if (title) document.title = title
+})
 </script>
