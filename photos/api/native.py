@@ -76,6 +76,8 @@ def ensure_oauth_client():
     client.skip_authorization = 1
     if frappe.get_meta("OAuth Client").has_field("token_endpoint_auth_method"):
         client.token_endpoint_auth_method = "None"
+    if frappe.get_meta("OAuth Client").has_field("allowed_roles"):
+        client.set("allowed_roles", [{"role": "All"}])
     client.save(ignore_permissions=True)
     frappe.db.set_single_value(SETTINGS, "oauth_client", client.name)
 
@@ -85,5 +87,9 @@ def _usable_client(name):
         return None
     client = frappe.db.get_value("OAuth Client", name, ["redirect_uris"], as_dict=True)
     if not client or REDIRECT_URI not in (client.redirect_uris or "").split():
+        return None
+    if frappe.get_meta("OAuth Client").has_field("allowed_roles") and not frappe.db.exists(
+        "OAuth Client Role", {"parent": name, "role": "All"}
+    ):
         return None
     return name
