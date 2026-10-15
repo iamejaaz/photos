@@ -28,6 +28,9 @@ doc_events = {
         "on_update": "suite.drive.overrides.file.sync_content_file",
         "on_trash": "suite.drive.overrides.file.sync_content_file",
     },
+    "Personal Data Deletion Request": {
+        "on_change": "photos.api.account.after_account_deletion",
+    },
 }
 
 before_request = ["photos.api.native.set_cors"]
