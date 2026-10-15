@@ -30,6 +30,19 @@
           <span
             >{{ clock(range.start) }} – {{ clock(range.end) }} · {{ clock(range.end - range.start) }}</span
           >
+          <div class="flex items-center gap-1">
+            <button
+              class="trim-button"
+              :aria-label="muted ? __('Keep sound') : __('Remove sound')"
+              :class="{ 'bg-white/15': muted }"
+              @click="muted = !muted"
+            >
+              <component :is="muted ? LucideVolumeX : LucideVolume2" class="size-5" />
+            </button>
+            <button class="trim-button" :aria-label="__('Save this frame as a photo')" @click="saveFrame">
+              <LucideImageDown class="size-5" />
+            </button>
+          </div>
         </div>
         <div ref="track" class="relative h-12 select-none rounded-md bg-white/10" @pointerdown="seekTo">
           <div
@@ -55,10 +68,14 @@
 import { reactive, ref, watch } from 'vue'
 import { Button, toast } from 'frappe-ui'
 import LucidePause from '~icons/lucide/pause'
+import LucideImageDown from '~icons/lucide/image-down'
 import LucidePlay from '~icons/lucide/play'
+import LucideVolume2 from '~icons/lucide/volume-2'
+import LucideVolumeX from '~icons/lucide/volume-x'
 import LucideX from '~icons/lucide/x'
 
-import { type Photo, streamUrl, trimVideo } from '../api'
+import { type Photo, exportFrame, streamUrl, trimVideo } from '../api'
+import { notifyUploaded } from '../store'
 import { useBackClose } from '../composables/useBackClose'
 
 const props = defineProps<{ photo: Photo | null }>()
@@ -73,6 +90,7 @@ const duration = ref(0)
 const current = ref(0)
 const playing = ref(false)
 const saving = ref(false)
+const muted = ref(false)
 const range = reactive({ start: 0, end: 0 })
 useBackClose(
   () => Boolean(props.photo),
@@ -152,11 +170,24 @@ function drag(event: PointerEvent, edge: 'start' | 'end') {
   window.addEventListener('pointerup', stop)
 }
 
+async function saveFrame() {
+  if (!props.photo || !video.value) return
+  video.value.pause()
+  playing.value = false
+  try {
+    await exportFrame(props.photo.name, video.value.currentTime)
+    notifyUploaded()
+    toast.success(__('Frame saved as a photo'))
+  } catch (error) {
+    toast.error((error as Error).message || __('Could not save this frame'))
+  }
+}
+
 async function save() {
   if (!props.photo) return
   saving.value = true
   try {
-    await trimVideo(props.photo.name, range.start, range.end)
+    await trimVideo(props.photo.name, range.start, range.end, muted.value)
     toast.success(__('Trimming. The new copy will appear in Photos when it is ready.'))
     emit('close')
   } catch (error) {

@@ -124,12 +124,12 @@ def build_display_video(name):
     partial.rename(target)
 
 
-def transcode(source_file, target_file, start=None, end=None, max_height=None):
+def transcode(source_file, target_file, start=None, end=None, max_height=None, mute=False):
     import av
 
     with av.open(str(source_file)) as source, av.open(str(target_file), "w") as output:
         video = source.streams.video[0]
-        audio = next(iter(source.streams.audio), None)
+        audio = None if mute else next(iter(source.streams.audio), None)
         rotation = _rotation(video)
         source_height = video.codec_context.height or VIDEO_HEIGHT
         height = min(max_height or source_height, source_height) // 2 * 2
@@ -194,3 +194,22 @@ def extract_motion_clip(file):
         return False
     derived_path(file.name, ".motion.mp4").write_bytes(data[marker - 4 :])
     return True
+
+
+def video_frame(source_file, at):
+    import av
+
+    with av.open(str(source_file)) as source:
+        video = source.streams.video[0]
+        rotation = _rotation(video)
+        source.seek(int(max(0.0, at) / video.time_base), stream=video, backward=True)
+        chosen = None
+        for frame in source.decode(video):
+            chosen = frame
+            if frame.time is not None and frame.time >= at:
+                break
+        if chosen is None:
+            return None
+        if rotation:
+            chosen = _rotate(chosen, rotation)
+        return chosen.to_image()

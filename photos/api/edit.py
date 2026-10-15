@@ -74,7 +74,7 @@ def _writable(files):
 
 
 @frappe.whitelist(methods=["POST"])
-def trim_video(file: str, start: float, end: float):
+def trim_video(file: str, start: float, end: float, mute: int = 0):
     from photos.api.albums import can_read
 
     start, end = max(0.0, float(start)), float(end)
@@ -91,11 +91,12 @@ def trim_video(file: str, start: float, end: float):
         file=file,
         start=start,
         end=end,
+        mute=int(mute or 0),
         user=frappe.session.user,
     )
 
 
-def build_trim(file, start, end, user):
+def build_trim(file, start, end, user, mute=0):
     import tempfile
     from datetime import timedelta
     from pathlib import Path
@@ -111,10 +112,37 @@ def build_trim(file, start, end, user):
     try:
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / f"{stem}-trimmed.mp4"
-            formats.transcode(formats.source_path(source), target, start=start, end=end)
+            formats.transcode(formats.source_path(source), target, start=start, end=end, mute=bool(mute))
             name = add_file(target, user, get_datetime(taken) + timedelta(seconds=start), parent)
         frappe.db.commit()
         frappe.publish_realtime("photos-trim-ready", {"name": name}, user=user)
     except Exception:
         frappe.log_error("Photos video trim failed")
         frappe.publish_realtime("photos-trim-failed", {"name": file}, user=user)
+
+
+@frappe.whitelist(methods=["POST"])
+def export_frame(file: str, at: float):
+    import tempfile
+    from datetime import timedelta
+    from pathlib import Path
+
+    from photos import formats
+    from photos.api.albums import can_read
+    from photos.library import add_file
+
+    source = frappe.db.get_value(
+        "File", file, ["name", "file_name", "file_url", "folder", "mime_type"], as_dict=True
+    )
+    if not source or not can_read(file, None) or not (source.mime_type or "").startswith("video/"):
+        frappe.throw("You can only save frames from videos you can see.", frappe.PermissionError)
+    at = max(0.0, float(at))
+    image = formats.video_frame(formats.source_path(source), at)
+    if image is None:
+        frappe.throw("Could not read that frame.")
+    taken = frappe.db.get_value(METADATA, file, "taken_on") or frappe.utils.now_datetime()
+    parent = source.folder if user_has_permission(source.folder, "upload") else None
+    with tempfile.TemporaryDirectory() as folder:
+        target = Path(folder) / f"{Path(source.file_name).stem}-frame.jpg"
+        image.convert("RGB").save(target, "JPEG", quality=92)
+        return add_file(target, frappe.session.user, get_datetime(taken) + timedelta(seconds=at), parent)
