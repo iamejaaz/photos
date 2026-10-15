@@ -10,6 +10,7 @@
       <Memories />
       <PhotoGrid
         :handle="handle"
+        month-headers
         :empty-icon="LucideImages"
         :empty-title="__('Welcome to Photos')"
         :empty-text="

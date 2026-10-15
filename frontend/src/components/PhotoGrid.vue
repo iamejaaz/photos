@@ -163,6 +163,7 @@ const props = defineProps<{
   emptyText: string
   emptyIcon: Component
   groupBy?: 'taken' | 'added'
+  monthHeaders?: boolean
   badge?: (photo: Photo) => string | undefined
 }>()
 
@@ -216,7 +217,7 @@ const groups = computed(() => {
       group = {
         key,
         label: dayLabel(taken),
-        month: month !== previousMonth && !isRecent(taken) ? month : null,
+        month: props.monthHeaders && month !== previousMonth && !isRecent(taken) ? month : null,
         photos: [],
       }
       previousMonth = month
