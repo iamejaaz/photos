@@ -32,9 +32,11 @@ import LucideCloudUpload from '~icons/lucide/cloud-upload'
 import LucideFileArchive from '~icons/lucide/file-archive'
 import LucideHardDriveDownload from '~icons/lucide/hard-drive-download'
 import LucideHistory from '~icons/lucide/history'
+import LucideShield from '~icons/lucide/shield'
 import LucideSparkles from '~icons/lucide/sparkles'
 
 import { appPageMeta } from '@/utils/documentTitle'
+import { getSessionUser } from '@/boot/session'
 import ListRow from '../components/ListRow.vue'
 import { loadSettings, settings } from '../data/dialogs'
 
@@ -80,6 +82,14 @@ const sections = computed(() => {
       panel: panel(() => import('../components/settings/ExportPanel.vue')),
     },
   )
+  if ((getSessionUser() ?? 'Administrator') !== 'Administrator')
+    list.push({
+      key: 'data',
+      label: __('Your data'),
+      description: __('Download or delete your photos and account'),
+      icon: LucideShield,
+      panel: panel(() => import('../components/settings/DataPanel.vue')),
+    })
   if (settings.data?.can_manage)
     list.push({
       key: 'features',

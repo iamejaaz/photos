@@ -28,6 +28,10 @@
           <template #prefix><span class="lucide-file-archive size-4 shrink-0 text-ink-gray-6" /></template>
           {{ __('Export') }}
         </SettingsNavItem>
+        <SettingsNavItem v-if="canDelete" value="data">
+          <template #prefix><span class="lucide-shield size-4 shrink-0 text-ink-gray-6" /></template>
+          {{ __('Your data') }}
+        </SettingsNavItem>
       </SettingsNavGroup>
       <SettingsNavGroup v-if="settings.data?.can_manage" :label="__('Administration')">
         <SettingsNavItem value="features">
@@ -43,6 +47,7 @@
       <SettingsPanel value="memories"><MemoriesPanel /></SettingsPanel>
       <SettingsPanel value="import"><ImportPanel /></SettingsPanel>
       <SettingsPanel value="export"><ExportPanel /></SettingsPanel>
+      <SettingsPanel v-if="canDelete" value="data"><DataPanel /></SettingsPanel>
       <SettingsPanel v-if="settings.data?.can_manage" value="features"><FeaturesPanel /></SettingsPanel>
     </SettingsContent>
   </SettingsDialog>
@@ -68,6 +73,10 @@ import { defineAsyncComponent } from 'vue'
 import ExportPanel from './ExportPanel.vue'
 import ImportPanel from './ImportPanel.vue'
 import MemoriesPanel from './MemoriesPanel.vue'
+import { getSessionUser } from '@/boot/session'
+
+const DataPanel = defineAsyncComponent(() => import('./DataPanel.vue'))
+const canDelete = (getSessionUser() ?? 'Administrator') !== 'Administrator'
 
 const native = Boolean(import.meta.env.VITE_NATIVE)
 const BackupPanel = import.meta.env.VITE_NATIVE
