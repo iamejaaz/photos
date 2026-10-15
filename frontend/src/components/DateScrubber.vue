@@ -105,6 +105,12 @@ function hoverAt(event: MouseEvent) {
 }
 
 function jumpTo(mark: Mark | null) {
-  if (mark) gridNav.jump?.(key(mark.year, mark.month))
+  if (!mark) return
+  const target = key(mark.year, mark.month)
+  const upto = months.value.reduce(
+    (sum, row) => sum + (key(row.year, row.month) >= target ? row.count : 0),
+    0,
+  )
+  gridNav.jump?.(target, upto)
 }
 </script>

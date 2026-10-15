@@ -456,7 +456,7 @@ function scrollParent(element: HTMLElement | undefined) {
   return document.scrollingElement as HTMLElement
 }
 
-async function jumpToMonth(month: string) {
+async function jumpToMonth(month: string, upto = 0) {
   for (;;) {
     const index = lines.value.findIndex((line) => line.monthKey <= month)
     if (index > -1 && (lines.value[index].monthKey === month || !props.handle.feed.hasNext)) {
@@ -467,7 +467,8 @@ async function jumpToMonth(month: string) {
       return
     }
     if (!props.handle.feed.hasNext || props.handle.feed.error) return
-    await props.handle.loadMore()
+    const missing = upto - props.handle.feed.rows.length
+    await props.handle.loadMore(missing > 0 ? Math.min(missing + 120, 5000) : undefined)
   }
 }
 

@@ -5,26 +5,27 @@
       <h1 class="truncate text-lg font-semibold text-ink-gray-9 max-sm:hidden">{{ __('Photos') }}</h1>
     </template>
   </PhotosHeader>
-  <Memories />
   <div class="flex">
-    <PhotoGrid
-      class="min-w-0 flex-1"
-      :handle="handle"
-      :empty-icon="LucideImages"
-      :empty-title="__('Your photos will show up here')"
-      :empty-text="
-        __(
-          'Upload photos and videos, or add them in Drive. Every image you can see in Drive appears here, newest first.',
-        )
-      "
-    >
-      <template #empty-action>
-        <Button @click="openSettings('import')">
-          <template #prefix><LucideHardDriveDownload class="size-4" /></template>
-          {{ __('Import from Google Photos') }}
-        </Button>
-      </template>
-    </PhotoGrid>
+    <div class="min-w-0 flex-1">
+      <Memories />
+      <PhotoGrid
+        :handle="handle"
+        :empty-icon="LucideImages"
+        :empty-title="__('Your photos will show up here')"
+        :empty-text="
+          __(
+            'Upload photos and videos, or add them in Drive. Every image you can see in Drive appears here, newest first.',
+          )
+        "
+      >
+        <template #empty-action>
+          <Button @click="openSettings('import')">
+            <template #prefix><LucideHardDriveDownload class="size-4" /></template>
+            {{ __('Import from Google Photos') }}
+          </Button>
+        </template>
+      </PhotoGrid>
+    </div>
     <DateScrubber />
   </div>
 </template>

@@ -23,13 +23,22 @@ export function createFeed(method: string, params: Record<string, unknown> = {})
     error: null,
   })
 
-  async function loadMore() {
-    if (feed.loading || !feed.hasNext) return
+  let pending: Promise<void> | null = null
+
+  function loadMore(limit?: number) {
+    if (pending) return pending
+    if (!feed.hasNext) return Promise.resolve()
+    pending = fetchMore(limit).finally(() => (pending = null))
+    return pending
+  }
+
+  async function fetchMore(limit?: number) {
     feed.loading = true
     try {
       const page = await fetchPage(feed.method, {
         ...feed.params,
         start: feed.nextStart,
+        ...(limit ? { limit } : {}),
       })
       const known = new Set(feed.rows.map((row) => row.name))
       feed.rows.push(...page.rows.filter((row) => !known.has(row.name)))
@@ -66,7 +75,10 @@ export function createStaticFeed(rows: Photo[]) {
 }
 export type FeedHandle = ReturnType<typeof createFeed>
 export const activeFeed = shallowRef<FeedHandle | null>(null)
-export const gridNav = reactive<{ month: string; jump: ((month: string) => Promise<void>) | null }>({
+export const gridNav = reactive<{
+  month: string
+  jump: ((month: string, upto: number) => Promise<void>) | null
+}>({
   month: '',
   jump: null,
 })

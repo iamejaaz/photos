@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 
 import frappe
+from frappe.utils import cint
 from pypika import Criterion, CustomFunction, Order
 from pypika import functions as fn
 from suite.drive.api.files import create_folder
@@ -27,6 +28,7 @@ DayOfYear = CustomFunction("DAYOFYEAR", ["date"])
 
 UPLOAD_FOLDER = "Photos"
 PAGE_SIZE = 120
+MAX_PAGE_SIZE = 5000
 MONTHS = [
     "january",
     "february",
@@ -186,7 +188,7 @@ def page(query, start, limit, favourites_only=False):
         order_by="creation",
         ascending=False,
         start=start,
-        limit=limit or PAGE_SIZE,
+        limit=min(cint(limit) or PAGE_SIZE, MAX_PAGE_SIZE),
         paginated=True,
     )
     missing = [row["name"] for row in result["rows"] if not row.get("metadata")]
