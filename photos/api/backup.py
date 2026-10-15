@@ -1,12 +1,38 @@
 import hashlib
 import json
+from contextlib import contextmanager
 
 import frappe
 from frappe.rate_limiter import rate_limit
+from frappe.utils import cint
 
 from photos.utils.permissions import can_access
 
 SOURCE = "device:{}"
+SAVE_LOCK_SECONDS = 300
+
+
+@frappe.whitelist(methods=["POST"])
+def upload(total_file_size: int = 0, file_modified: int | None = None, parent: str | None = None):
+    from suite.drive.api.files import upload_file
+
+    form = frappe.form_dict
+    if cint(form.chunk_index) + 1 < cint(form.total_chunk_count or 1):
+        return upload_file(total_file_size=total_file_size, file_modified=file_modified, parent=parent)
+    with _saving():
+        return upload_file(total_file_size=total_file_size, file_modified=file_modified, parent=parent)
+
+
+@contextmanager
+def _saving():
+    with frappe.cache.lock(
+        f"photos:backup-save:{frappe.local.site}",
+        timeout=SAVE_LOCK_SECONDS,
+        blocking_timeout=SAVE_LOCK_SECONDS,
+    ):
+        frappe.db.commit()
+        yield
+        frappe.db.commit()
 
 
 @frappe.whitelist(methods=["POST"])
@@ -63,11 +89,19 @@ def _fingerprint_recent_uploads(user):
         with path.open("rb") as stream:
             for block in iter(lambda: stream.read(1 << 20), b""):
                 digest.update(block)
-        if not row.metadata:
-            extract(row.name)
-        frappe.db.set_value(
-            "Photo Metadata", row.name, "source", SOURCE.format(digest.hexdigest()), update_modified=False
-        )
+        try:
+            with _saving():
+                if not row.metadata:
+                    extract(row.name)
+                frappe.db.set_value(
+                    "Photo Metadata",
+                    row.name,
+                    "source",
+                    SOURCE.format(digest.hexdigest()),
+                    update_modified=False,
+                )
+        except frappe.QueryDeadlockError, frappe.DuplicateEntryError:
+            frappe.db.rollback()
 
 
 @frappe.whitelist(methods=["POST"])
@@ -77,9 +111,15 @@ def mark(file: str, sha1: str):
     owner = frappe.db.get_value("File", file, "owner")
     if owner != frappe.session.user or not can_access(file, "write"):
         frappe.throw("You can only mark your own uploads.", frappe.PermissionError)
-    if not frappe.db.exists("Photo Metadata", file):
-        extract(file)
-    frappe.db.set_value("Photo Metadata", file, "source", SOURCE.format(sha1.lower()), update_modified=False)
+    with _saving():
+        try:
+            if not frappe.db.exists("Photo Metadata", file):
+                extract(file)
+        except frappe.QueryDeadlockError, frappe.DuplicateEntryError:
+            frappe.db.rollback()
+        frappe.db.set_value(
+            "Photo Metadata", file, "source", SOURCE.format(sha1.lower()), update_modified=False
+        )
 
 
 @frappe.whitelist(methods=["POST"])
