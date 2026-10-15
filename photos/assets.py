@@ -29,6 +29,16 @@ ASSETS = {
         "https://raw.githubusercontent.com/opencv/opencv_zoo/main/models/image_classification_mobilenet/mobilenet.py",
         "0df974a6fdfba8f5bbb7510f1794a7865206e887f0730a498f548fe48b28f933",
     ),
+    "text_detector": (
+        "text_detection_en_ppocrv3_2023may.onnx",
+        f"{ZOO}/text_detection_ppocr/text_detection_en_ppocrv3_2023may.onnx",
+        "03f550c6b406fda8bf54bd8327815f6c7e2edd98cea02348c93d879254366587",
+    ),
+    "text_recognizer": (
+        "text_recognition_CRNN_EN_2021sep.onnx",
+        f"{ZOO}/text_recognition_crnn/text_recognition_CRNN_EN_2021sep.onnx",
+        "a84b1f6e11a65c2d733cb0cc1f014aae3f99051e3f11447dc282faa678eee544",
+    ),
     "cities": (
         "cities15000.txt",
         "https://download.geonames.org/export/dump/cities15000.zip",

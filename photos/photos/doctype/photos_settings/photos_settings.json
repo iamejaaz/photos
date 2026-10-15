@@ -8,6 +8,7 @@
   "people",
   "places",
   "things",
+  "text",
   "setup_status",
   "setup_error",
   "oauth_client"
@@ -30,6 +31,12 @@
    "fieldname": "things",
    "fieldtype": "Check",
    "label": "Things"
+  },
+  {
+   "default": "0",
+   "fieldname": "text",
+   "fieldtype": "Check",
+   "label": "Text in photos"
   },
   {
    "fieldname": "setup_status",

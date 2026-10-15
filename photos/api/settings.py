@@ -16,11 +16,13 @@ def get_settings():
 
 
 @frappe.whitelist()
-def save_settings(people: bool = False, places: bool = False, things: bool = False):
+def save_settings(people: bool = False, places: bool = False, things: bool = False, text: bool = False):
     frappe.only_for("System Manager")
-    values = {"people": int(people), "places": int(places), "things": int(things)}
-    if (values["people"] or values["things"]) and not assets.opencv_installed():
-        frappe.throw("People and things need OpenCV on the server: bench pip install opencv-python-headless")
+    values = {"people": int(people), "places": int(places), "things": int(things), "text": int(text)}
+    if (values["people"] or values["things"] or values["text"]) and not assets.opencv_installed():
+        frappe.throw(
+            "People, things and text need OpenCV on the server: bench pip install opencv-python-headless"
+        )
     settings = frappe.get_doc(SETTINGS)
     turned_on = any(values[feature] and not settings.get(feature) for feature in FEATURES)
     settings.update(values)

@@ -154,6 +154,7 @@ def _apply_search(query, search):
                 | Metadata.labels.like(like)
                 | Metadata.things.like(like)
                 | Metadata.description.like(like)
+                | Metadata.text.like(like)
             )
     return query
 

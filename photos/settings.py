@@ -6,6 +6,7 @@ FEATURES = {
     "people": ("face_detector", "face_recognizer"),
     "places": ("cities",),
     "things": ("classifier", "classifier_labels"),
+    "text": ("text_detector", "text_recognizer"),
 }
 SETTINGS = "Photos Settings"
 

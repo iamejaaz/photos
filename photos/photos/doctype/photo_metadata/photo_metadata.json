@@ -21,6 +21,8 @@
   "labels",
   "things",
   "things_scanned",
+  "text",
+  "text_scanned",
   "source",
   "live_video",
   "live_of",
@@ -121,6 +123,17 @@
    "fieldname": "things_scanned",
    "fieldtype": "Check",
    "label": "Things Scanned"
+  },
+  {
+   "fieldname": "text",
+   "fieldtype": "Small Text",
+   "label": "Text"
+  },
+  {
+   "default": "0",
+   "fieldname": "text_scanned",
+   "fieldtype": "Check",
+   "label": "Text Scanned"
   },
   {
    "fieldname": "source",

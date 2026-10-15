@@ -1,6 +1,6 @@
 <template>
   <SettingsHeader
-    :title="__('People, places and things')"
+    :title="__('People, places, things and text')"
     :description="__('Everything runs on this server. Photos are never sent anywhere.')"
   />
   <SettingsBody>
@@ -57,9 +57,14 @@ const features: { key: Feature; label: string; description: string }[] = [
     label: __('Things'),
     description: __('Sort photos into beaches, food, mountains and more'),
   },
+  {
+    key: 'text',
+    label: __('Text in photos'),
+    description: __('Find receipts, signs and screenshots by the words in them'),
+  },
 ]
 
-const form = reactive<Record<Feature, boolean>>({ people: false, places: false, things: false })
+const form = reactive<Record<Feature, boolean>>({ people: false, places: false, things: false, text: false })
 const saving = ref(false)
 watchEffect(() => {
   if (settings.data) features.forEach(({ key }) => (form[key] = settings.data![key]))

@@ -205,7 +205,7 @@ export const mergePeople = (target: string, sources: string[]) =>
 export const removePhotosFromPerson = (person: string, files: string[]) =>
   call(`${PEOPLE}.remove_photos`, { person, files })
 
-export type Feature = 'people' | 'places' | 'things'
+export type Feature = 'people' | 'places' | 'things' | 'text'
 export interface Settings extends Record<Feature, boolean> {
   status: string | null
   error: string | null
