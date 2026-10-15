@@ -42,3 +42,5 @@ export async function errorMessage(response: Response) {
     return response.statusText
   }
 }
+export const errorText = (error: unknown) =>
+  (error as { messages?: string[] }).messages?.find(Boolean) || (error as Error).message

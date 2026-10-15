@@ -77,7 +77,7 @@ import { Button, Dialog, LoadingIndicator, toast } from 'frappe-ui'
 
 import { contentUrl } from '../resources/media'
 import { getUploadFolder } from '../resources/photos'
-import { uploadFile } from '../resources/drive'
+import { uploadFile, errorText } from '../resources/drive'
 import { clearSelection } from '../data/selection'
 import { collage } from '../data/dialogs'
 import { notifyUploaded } from '../data/uploads'
@@ -236,7 +236,7 @@ async function save() {
     clearSelection()
     notifyUploaded()
   } catch (error) {
-    toast.error((error as Error).message || __('Could not save'))
+    toast.error(errorText(error) || __('Could not save'))
   } finally {
     saving.value = false
   }

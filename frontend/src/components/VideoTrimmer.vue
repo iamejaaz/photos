@@ -79,6 +79,7 @@ import { exportFrame, trimVideo } from '../resources/edit'
 import { streamUrl } from '../resources/media'
 import { notifyUploaded } from '../data/uploads'
 import { useBackClose } from '../composables/useBackClose'
+import { errorText } from '../resources/drive'
 
 const props = defineProps<{ photo: Photo | null }>()
 const emit = defineEmits<{ close: [] }>()
@@ -181,7 +182,7 @@ async function saveFrame() {
     notifyUploaded()
     toast.success(__('Frame saved as a photo'))
   } catch (error) {
-    toast.error((error as Error).message || __('Could not save this frame'))
+    toast.error(errorText(error) || __('Could not save this frame'))
   }
 }
 
@@ -193,7 +194,7 @@ async function save() {
     toast.success(__('Trimming. The new copy will appear in Photos when it is ready.'))
     emit('close')
   } catch (error) {
-    toast.error((error as Error).message || __('Could not trim this video'))
+    toast.error(errorText(error) || __('Could not trim this video'))
   } finally {
     saving.value = false
   }

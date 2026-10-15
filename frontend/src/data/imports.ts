@@ -9,7 +9,7 @@ import {
   startImport,
 } from '../resources/takeout'
 import { getUploadFolder } from '../resources/photos'
-import { uploadFile } from '../resources/drive'
+import { uploadFile, errorText } from '../resources/drive'
 import { notifyUploaded } from './uploads'
 import { loadAlbums } from './albums'
 
@@ -71,7 +71,7 @@ export async function startTakeout(files: File[]) {
     }
     takeout.job = await createImport(names)
   } catch (error) {
-    takeout.error = (error as { messages?: string[] }).messages?.[0] ?? (error as Error).message
+    takeout.error = errorText(error)
   } finally {
     takeout.uploading = false
   }

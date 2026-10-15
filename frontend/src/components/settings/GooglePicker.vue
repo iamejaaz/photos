@@ -56,6 +56,7 @@ import {
   startGooglePicking,
 } from '../../resources/google'
 import { googleImport } from '../../data/imports'
+import { errorText } from '../../resources/drive'
 
 const status = ref<GoogleStatus | null>(null)
 const busy = ref(false)
@@ -72,7 +73,7 @@ async function connect() {
     window.location.assign(await connectGoogle())
   } catch (error) {
     busy.value = false
-    toast.error((error as Error).message || __('Could not connect to Google'))
+    toast.error(errorText(error) || __('Could not connect to Google'))
   }
 }
 
@@ -108,7 +109,7 @@ async function pick() {
   } catch (error) {
     picker?.close()
     googleImport.picking = false
-    toast.error((error as Error).message || __('Could not open Google Photos'))
+    toast.error(errorText(error) || __('Could not open Google Photos'))
   }
 }
 </script>

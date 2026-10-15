@@ -109,6 +109,7 @@ import { startExport } from '../data/imports'
 import { notifyUploaded, upload, uploadPhotos } from '../data/uploads'
 import { openLightbox } from '../data/viewer'
 import { pickAlbumFor } from '../data/albums'
+import { errorText } from '../resources/drive'
 
 type Mode = 'library' | 'album' | 'archive' | 'trash' | 'person' | 'hidden'
 interface Action {
@@ -265,7 +266,7 @@ const actions = computed<Action[]>(() => {
             },
           })
         } catch (error) {
-          toast.error((error as Error).message || __('Could not create the animation'))
+          toast.error(errorText(error) || __('Could not create the animation'))
         }
       },
     },

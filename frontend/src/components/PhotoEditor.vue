@@ -123,7 +123,7 @@ import LucideX from '~icons/lucide/x'
 import { type Photo, getUploadFolder } from '../resources/photos'
 import { contentUrl, thumbnailUrl } from '../resources/media'
 import { markEdited } from '../resources/edit'
-import { uploadFile } from '../resources/drive'
+import { uploadFile, errorText } from '../resources/drive'
 import { useBackClose } from '../composables/useBackClose'
 
 const props = defineProps<{ photo: Photo | null; folder?: string | null }>()
@@ -366,7 +366,7 @@ async function save() {
     emit('saved')
     emit('close')
   } catch (error) {
-    toast.error((error as Error).message || __('Could not save'))
+    toast.error(errorText(error) || __('Could not save'))
   } finally {
     saving.value = false
   }

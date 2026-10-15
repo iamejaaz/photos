@@ -1,5 +1,6 @@
 import { reactive, shallowRef } from 'vue'
 import { type Photo, fetchPage } from '../resources/photos'
+import { errorText } from '../resources/drive'
 
 export interface Feed {
   method: string
@@ -46,7 +47,7 @@ export function createFeed(method: string, params: Record<string, unknown> = {})
       feed.hasNext = page.has_next
       feed.error = null
     } catch (error) {
-      feed.error = (error as Error).message
+      feed.error = errorText(error)
       feed.hasNext = false
     } finally {
       feed.loading = false
