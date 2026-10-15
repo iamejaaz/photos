@@ -268,9 +268,14 @@ def face_thumbnail(face: str):
     )
     if not row or not can_access(row.file, "read"):
         frappe.throw("No permission", frappe.PermissionError)
-    buffer = BytesIO()
-    engine.face_crop(row).save(buffer, format="webp", quality=85)
-    response = Response(buffer.getvalue(), mimetype="image/webp")
+    from photos.utils.formats import derived_path
+
+    cached = derived_path(row.file, f".face.{row.name}.webp")
+    if not cached.exists():
+        buffer = BytesIO()
+        engine.face_crop(row).save(buffer, format="webp", quality=85)
+        cached.write_bytes(buffer.getvalue())
+    response = Response(cached.read_bytes(), mimetype="image/webp")
     response.headers.set("Cache-Control", "private, max-age=86400")
     return response
 
