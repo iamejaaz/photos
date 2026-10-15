@@ -12,6 +12,8 @@ from photos.api.albums import album_access, can_read
 from photos.utils import formats
 from photos.utils.permissions import can_access
 
+LARGE_THUMBNAIL = 1024
+
 
 def _file(entity_name, album):
     if not can_read(entity_name, album):
@@ -28,10 +30,12 @@ def _file(entity_name, album):
 
 
 @frappe.whitelist(allow_guest=True)
-def thumbnail(entity_name: str, album: str | None = None):
+def thumbnail(entity_name: str, album: str | None = None, large: int = 0):
     file = _file(entity_name, album)
     if file.file_type not in ("Image", "Video"):
         return ""
+    if int(large or 0) and file.file_type == "Image" and (path := _large_thumbnail(file)):
+        return _send(path, "image/webp")
     try:
         stream = FileManager().get_thumbnail(entity_name)
         data = BytesIO(stream.read())
@@ -93,6 +97,18 @@ def _send(path, mimetype):
     return send_file(
         str(path), mimetype=mimetype, conditional=True, max_age=3600, environ=frappe.request.environ
     )
+
+
+def _large_thumbnail(file):
+    target = formats.derived_path(file.name, ".thumb-large.webp")
+    if not target.exists():
+        try:
+            image = formats.open_image(formats.source_path(file), file.file_name)
+            image.thumbnail((LARGE_THUMBNAIL, LARGE_THUMBNAIL))
+            image.convert("RGB").save(target, "WEBP", quality=80)
+        except Exception:
+            return None
+    return target
 
 
 def _own_thumbnail(file):

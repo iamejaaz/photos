@@ -5,8 +5,8 @@ import { Photo } from './photos'
 const MEDIA = 'photos.api.media'
 const inAlbum = (album?: string) => (album ? `&album=${encodeURIComponent(album)}` : '')
 export const mediaUrl = (url: string) => (import.meta.env.VITE_NATIVE ? mediaSrc(url) : url)
-export const thumbnailUrl = (name: string, album?: string) =>
-  mediaUrl(`/api/method/${MEDIA}.thumbnail?entity_name=${name}${inAlbum(album)}`)
+export const thumbnailUrl = (name: string, album?: string, large = false) =>
+  mediaUrl(`/api/method/${MEDIA}.thumbnail?entity_name=${name}${inAlbum(album)}${large ? '&large=1' : ''}`)
 export const contentUrl = (name: string, album?: string) =>
   mediaUrl(`/api/method/${MEDIA}.content?entity_name=${name}&display=1${inAlbum(album)}`)
 export const originalUrl = (name: string, album?: string) =>

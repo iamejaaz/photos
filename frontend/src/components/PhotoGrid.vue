@@ -67,7 +67,7 @@
                 :class="selection.has(tile.photo.name) ? 'scale-[0.84] rounded-md' : ''"
               >
                 <img
-                  :src="thumbnailUrl(tile.photo.name, tile.photo.album)"
+                  :src="thumbnailUrl(tile.photo.name, tile.photo.album, needsLarge(tile))"
                   :alt="tile.photo.file_name"
                   loading="lazy"
                   decoding="async"
@@ -354,6 +354,15 @@ function onTileClick(event: MouseEvent, photo: Photo) {
   openLightbox(props.handle, photo.name)
 }
 
+const LARGE_FROM = 640
+const squareSize = computed(() => (width.value - 2 * (columns.value - 1)) / columns.value)
+
+function needsLarge(tile: Tile) {
+  if (isVideo(tile.photo)) return false
+  const size = square.value ? squareSize.value * (tile.span ?? 1) : Math.max(tile.width, tile.height)
+  return size * window.devicePixelRatio > LARGE_FROM
+}
+
 function onThumbLoad(event: Event, name: string) {
   loadedThumbs.add(name)
   ;(event.target as HTMLElement).classList.replace('opacity-0', 'opacity-100')
@@ -374,8 +383,7 @@ function estimate(line: Line) {
     let rows = DAY_HEADER
     if (square.value) {
       const cells = group.rows[0]?.reduce((sum, tile) => sum + (tile.span ?? 1) ** 2, 0) ?? 0
-      const size = (width.value - 2 * (columns.value - 1)) / columns.value
-      rows += Math.ceil(cells / columns.value) * (size + 2)
+      rows += Math.ceil(cells / columns.value) * (squareSize.value + 2)
     } else rows += group.rows.reduce((sum, row) => sum + (row[0]?.height ?? 0) + GAP, 0)
     tallest = Math.max(tallest, rows)
   }
