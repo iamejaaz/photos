@@ -8,6 +8,7 @@ interface Options {
   onPrevious: () => void
   onNext: () => void
   onClose: () => void
+  onDismiss?: () => void
   onInfo: () => void
   onTap: () => void
   zoomable: () => boolean
@@ -136,7 +137,10 @@ export function useViewerGestures(options: Options) {
         )
       } else animate(() => (state.dx = 0))
     } else if (mode === 'dismiss') {
-      if (y > height * 0.18 || y / elapsed > FLICK) {
+      if ((y > height * 0.18 || y / elapsed > FLICK) && options.onDismiss) {
+        animate(() => (state.dy = 0))
+        options.onDismiss()
+      } else if (y > height * 0.18 || y / elapsed > FLICK) {
         animate(
           () => (state.dy = height),
           () => {

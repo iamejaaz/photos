@@ -735,6 +735,7 @@ const gestures = useViewerGestures({
   onPrevious: () => go(-1),
   onNext: () => go(1),
   onClose: finishClose,
+  onDismiss: close,
   onInfo: () => (lightbox.showInfo = true),
   onTap: () => (chrome.value = !chrome.value),
   zoomable: () => Boolean(photo.value && !isVideo(photo.value)),
