@@ -84,7 +84,16 @@
     <div class="text-lg font-medium text-ink-gray-8">{{ __('This link has expired') }}</div>
     <div class="text-base text-ink-gray-5">{{ __('Ask the person who shared it for a new one.') }}</div>
   </div>
-  <ErrorMessage v-else-if="error" class="p-10 text-center" :message="error" />
+  <div v-else-if="error" class="flex flex-col items-center justify-center gap-3 px-6 py-24 text-center">
+    <div class="flex size-14 items-center justify-center rounded-full bg-surface-gray-2">
+      <LucideLock class="size-6 text-ink-gray-6" />
+    </div>
+    <div class="text-lg font-medium text-ink-gray-8">{{ __("You can't open this album") }}</div>
+    <div class="max-w-sm text-base text-ink-gray-5">{{ error }}</div>
+    <Button v-if="loggedIn" variant="subtle" size="md" class="mt-2" :route="{ name: 'photos-albums' }">
+      {{ __('Go to albums') }}
+    </Button>
+  </div>
   <div v-else class="flex min-h-full">
     <PhotoGrid
       class="min-w-0 flex-1"
@@ -223,7 +232,7 @@ async function refresh() {
       return
     }
     error.value = loggedIn.value
-      ? __("This album doesn't exist or isn't shared with you.")
+      ? __('It was deleted, or the owner has not shared it with you. Ask them to share it again.')
       : __('Sign in to see this album.')
   }
 }
