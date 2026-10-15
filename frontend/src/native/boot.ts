@@ -87,6 +87,7 @@ export async function startNative(): Promise<boolean> {
   )
   watchExternalLinks()
   import('./back').then(({ watchBackButton }) => watchBackButton())
+  import('./open').then(({ watchOpenLinks }) => watchOpenLinks())
   trimMediaCache()
   connectBackup(site, boot.user)
   return true

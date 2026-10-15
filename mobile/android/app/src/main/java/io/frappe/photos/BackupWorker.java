@@ -4,9 +4,11 @@ import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.database.Cursor;
@@ -240,6 +242,12 @@ public class BackupWorker extends Worker {
         return mime == null ? "application/octet-stream" : mime;
     }
 
+    static PendingIntent openBackup(Context context) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("io.frappe.photos://open/settings/backup"), context, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
     @NonNull
     @Override
     public ForegroundInfo getForegroundInfo() { return foregroundInfo(store.done(), store.total()); }
@@ -257,6 +265,7 @@ public class BackupWorker extends Worker {
             .setProgress(Math.max(total, 1), done, total == 0)
             .setOngoing(true)
             .setSilent(true)
+            .setContentIntent(openBackup(context))
             .build();
         if (Build.VERSION.SDK_INT >= 29) return new ForegroundInfo(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         return new ForegroundInfo(NOTIFICATION_ID, notification);
