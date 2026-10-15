@@ -36,21 +36,6 @@
               <div class="truncate text-sm text-ink-gray-5">{{ hostOf(status.site) }}</div>
             </div>
           </div>
-          <p v-if="elsewhere" class="text-p-sm text-ink-gray-6">
-            {{
-              __("You're looking at {0} on {1}. This phone still saves its photos to the account above.", [
-                currentUser,
-                hostOf(currentSite),
-              ])
-            }}
-            <button
-              class="font-medium text-ink-gray-9 underline underline-offset-2"
-              :disabled="moving"
-              @click="moveHere"
-            >
-              {{ moving ? __('Switching…') : __('Back up to {0} instead', [currentUser]) }}
-            </button>
-          </p>
         </div>
         <div class="divide-y divide-outline-gray-1">
           <SettingsRow :title="__('Back up this phone')" :description="summary">
@@ -67,7 +52,7 @@
           </SettingsRow>
         </div>
         <Progress v-if="status.running && status.total" :value="percent" size="sm" />
-        <ErrorMessage v-if="status.lastError" :message="status.lastError" />
+        <ErrorMessage v-if="status.lastError" :message="errorText(status.lastError)" />
         <div>
           <Button :loading="status.running" :disabled="!status.enabled" @click="runNow">{{
             __('Back up now')
@@ -120,8 +105,6 @@ import dayjs from 'dayjs'
 
 import { type BackupStatus, photosBackup } from '../../native/backup'
 import { formatBytes } from '../../format'
-import { siteOrigin } from '../../native/site'
-import { getSessionUser } from '@/boot/session'
 
 const status = ref<BackupStatus | null>(null)
 let stop: (() => void) | undefined
@@ -160,29 +143,10 @@ async function allow() {
 }
 
 const hostOf = (url: string) => (url ? new URL(url).host : '')
-const currentSite = siteOrigin()
-const currentUser = getSessionUser() ?? ''
-const elsewhere = computed(
-  () => status.value?.signedIn && (status.value.site !== currentSite || status.value.user !== currentUser),
-)
-const moving = ref(false)
-
-async function moveHere() {
-  moving.value = true
-  try {
-    const [{ moveBackupHere }, { savedSite }] = await Promise.all([
-      import('../../native/boot'),
-      import('../../native/sites'),
-    ])
-    const site = await savedSite()
-    if (site) await moveBackupHere(site, currentUser)
-    const { plugin } = await photosBackup()
-    status.value = await plugin.getStatus()
-  } finally {
-    moving.value = false
-  }
-}
-
+const errorText = (error: string) =>
+  /failed to connect|unable to resolve|timeout|timed out|unreachable/i.test(error)
+    ? __("Can't reach {0} right now. Backup tries again by itself.", [hostOf(status.value?.site ?? '')])
+    : error
 const checking = ref(false)
 const freeable = ref<{ count: number; bytes: number } | null>(null)
 

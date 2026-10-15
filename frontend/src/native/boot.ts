@@ -101,7 +101,7 @@ async function connectBackup(site: Site, user: string) {
   })
   const status = await plugin.getStatus().catch(() => null)
   if (!status) return
-  if (status.signedIn) return
+  if (status.signedIn && status.site === site.url && status.user === user) return
   await moveBackupHere(site, user)
 }
 
