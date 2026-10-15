@@ -52,7 +52,7 @@
           </SettingsRow>
         </div>
         <Progress v-if="status.running && status.total" :value="percent" size="sm" />
-        <ErrorMessage v-if="status.lastError" :message="errorText(status.lastError)" />
+        <ErrorMessage v-if="status.lastError && !status.running" :message="errorText(status.lastError)" />
         <div>
           <Button :loading="status.running" :disabled="!status.enabled" @click="runNow">{{
             __('Back up now')

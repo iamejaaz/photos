@@ -38,7 +38,8 @@ const label = computed(() => {
 })
 const icon = computed(() => {
   const value = status.value!
+  if (value.running) return LucideCloudUpload
   if (!value.enabled || value.lastError) return LucideCloudOff
-  return value.running ? LucideCloudUpload : LucideCloudCheck
+  return LucideCloudCheck
 })
 </script>
