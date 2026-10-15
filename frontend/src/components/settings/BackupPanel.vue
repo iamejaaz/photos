@@ -27,13 +27,30 @@
             )
           }}
         </div>
-        <div v-if="elsewhere" class="flex flex-col gap-2 rounded-lg bg-surface-gray-2 p-3">
-          <div class="text-base text-ink-gray-8">
-            {{ __('This phone backs up to {0} on {1}.', [status.user, hostOf(status.site)]) }}
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-3">
+            <Avatar size="xl" :label="status.user" />
+            <div class="min-w-0 flex-1">
+              <div class="text-sm text-ink-gray-5">{{ __('Backing up to') }}</div>
+              <div class="truncate text-base font-medium text-ink-gray-8">{{ status.user }}</div>
+              <div class="truncate text-sm text-ink-gray-5">{{ hostOf(status.site) }}</div>
+            </div>
           </div>
-          <div>
-            <Button :loading="moving" @click="moveHere">{{ __('Back up to this account instead') }}</Button>
-          </div>
+          <p v-if="elsewhere" class="text-p-sm text-ink-gray-6">
+            {{
+              __("You're looking at {0} on {1}. This phone still saves its photos to the account above.", [
+                currentUser,
+                hostOf(currentSite),
+              ])
+            }}
+            <button
+              class="font-medium text-ink-gray-9 underline underline-offset-2"
+              :disabled="moving"
+              @click="moveHere"
+            >
+              {{ moving ? __('Switching…') : __('Back up to {0} instead', [currentUser]) }}
+            </button>
+          </p>
         </div>
         <div class="divide-y divide-outline-gray-1">
           <SettingsRow :title="__('Back up this phone')" :description="summary">
@@ -89,6 +106,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 import {
+  Avatar,
   Button,
   ErrorMessage,
   toast,
