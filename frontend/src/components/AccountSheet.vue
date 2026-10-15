@@ -28,18 +28,26 @@
         </button>
       </div>
       <div class="border-t border-outline-gray-1 py-1">
-        <button v-if="native" class="sheet-row" @click="addSite">
-          <LucidePlus class="size-5 text-ink-gray-6" />
-          {{ __('Add another site') }}
-        </button>
-        <button class="sheet-row" @click="openPhotoSettings">
-          <LucideSettings class="size-5 text-ink-gray-6" />
-          {{ __('Photos settings') }}
-        </button>
-        <button class="sheet-row" :disabled="signingOut" @click="signOut">
-          <LucideLogOut class="size-5 text-ink-gray-6" />
-          {{ native ? __('Sign out of this site') : __('Sign out') }}
-        </button>
+        <ListRow
+          v-if="native"
+          class="px-5"
+          :icon="LucidePlus"
+          :label="__('Add another site')"
+          @click="addSite"
+        />
+        <ListRow
+          class="px-5"
+          :icon="LucideSettings"
+          :label="__('Photos settings')"
+          @click="openPhotoSettings"
+        />
+        <ListRow
+          class="px-5"
+          :icon="LucideLogOut"
+          :label="native ? __('Sign out of this site') : __('Sign out')"
+          :disabled="signingOut"
+          @click="signOut"
+        />
       </div>
     </div>
   </BottomSheet>
@@ -54,6 +62,7 @@ import LucideSettings from '~icons/lucide/settings'
 
 import { fullName, getSessionUser, imageURL, useSessionStore } from '@/boot/session'
 import { mediaUrl } from '../resources/media'
+import ListRow from './ListRow.vue'
 import { accountSheet, openSettings } from '../data/dialogs'
 import type { Account } from '../native/sites'
 
@@ -103,9 +112,3 @@ async function signOut() {
   window.location.href = '/login'
 }
 </script>
-
-<style scoped>
-.sheet-row {
-  @apply flex w-full items-center gap-3 px-5 py-3 text-left text-base text-ink-gray-8 active:bg-surface-gray-2;
-}
-</style>

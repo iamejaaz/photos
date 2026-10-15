@@ -8,19 +8,15 @@
     </div>
   </PageHeader>
   <nav v-if="!current" class="flex flex-col divide-y divide-outline-gray-1 px-4">
-    <router-link
+    <ListRow
       v-for="item in sections"
       :key="item.key"
       :to="{ name: 'photos-settings', params: { section: item.key } }"
-      class="flex items-center gap-4 py-4"
-    >
-      <component :is="item.icon" class="size-5 shrink-0 text-ink-gray-6" />
-      <div class="min-w-0 flex-1">
-        <div class="text-base font-medium text-ink-gray-8">{{ item.label }}</div>
-        <div class="text-sm text-ink-gray-5">{{ item.description }}</div>
-      </div>
-      <LucideChevronRight class="size-4 shrink-0 text-ink-gray-4" />
-    </router-link>
+      :icon="item.icon"
+      :label="item.label"
+      :description="item.description"
+      chevron
+    />
   </nav>
   <div v-else class="photos-settings settings-page flex flex-col">
     <component :is="current.panel" />
@@ -32,7 +28,6 @@ import { type Component, computed, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, PageHeader, usePageMeta } from 'frappe-ui'
 import LucideArrowLeft from '~icons/lucide/arrow-left'
-import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideCloudUpload from '~icons/lucide/cloud-upload'
 import LucideFileArchive from '~icons/lucide/file-archive'
 import LucideHardDriveDownload from '~icons/lucide/hard-drive-download'
@@ -40,6 +35,7 @@ import LucideHistory from '~icons/lucide/history'
 import LucideSparkles from '~icons/lucide/sparkles'
 
 import { appPageMeta } from '@/utils/documentTitle'
+import ListRow from '../components/ListRow.vue'
 import { loadSettings, settings } from '../data/dialogs'
 
 const props = defineProps<{ section?: string }>()

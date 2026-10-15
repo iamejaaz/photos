@@ -58,26 +58,23 @@
     </section>
 
     <nav class="flex flex-col divide-y divide-outline-gray-1">
-      <component
-        :is="action.route ? 'router-link' : 'button'"
+      <ListRow
         v-for="action in actions"
         :key="action.label"
         :to="action.route ? { name: action.route } : undefined"
-        class="flex items-center gap-3 py-3.5 text-left text-base text-ink-gray-8"
+        :icon="action.icon"
+        :label="action.label"
+        chevron
         @click="action.onClick?.()"
-      >
-        <component :is="action.icon" class="size-5 text-ink-gray-6" />
-        <span class="flex-1">{{ action.label }}</span>
-        <LucideChevronRight class="size-4 text-ink-gray-4" />
-      </component>
+      />
     </nav>
   </div>
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue'
 import { usePageMeta } from 'frappe-ui'
 import LucideArchive from '~icons/lucide/archive'
-import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideCloudUpload from '~icons/lucide/cloud-upload'
 import LucideCopy from '~icons/lucide/copy'
 import LucideEyeOff from '~icons/lucide/eye-off'
@@ -92,6 +89,7 @@ import LucideTrash2 from '~icons/lucide/trash-2'
 import LucideUsers from '~icons/lucide/users'
 
 import { appPageMeta } from '@/utils/documentTitle'
+import ListRow from '../components/ListRow.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { thumbnailUrl } from '../resources/media'
 import { albums, albumsLoaded, loadAlbums } from '../data/albums'
@@ -112,7 +110,7 @@ const shortcuts = [
   { label: __('Duplicates'), icon: LucideCopy, route: 'photos-duplicates' },
 ]
 
-const actions: { label: string; icon: unknown; route?: string; onClick?: () => void }[] = [
+const actions: { label: string; icon: Component; route?: string; onClick?: () => void }[] = [
   ...(native
     ? [
         { label: __('Back up this phone'), icon: LucideCloudUpload, onClick: () => openSettings('backup') },
