@@ -32,7 +32,10 @@
               :key="tile.photo.name"
               class="group/tile relative shrink-0 cursor-pointer overflow-hidden bg-surface-gray-2"
               :style="{ width: `${tile.width}px`, height: `${tile.height}px` }"
+              :data-photo="tile.photo.name"
               @click="onTileClick($event, tile.photo)"
+              @pointerdown="touchSelect.onPress($event, tile.photo.name)"
+              @contextmenu.prevent
             >
               <div
                 class="absolute overflow-hidden transition-all duration-200"
@@ -44,7 +47,7 @@
                   loading="lazy"
                   decoding="async"
                   draggable="false"
-                  class="size-full select-none object-cover transition-opacity duration-300"
+                  class="size-full select-none object-cover transition-opacity duration-300 [-webkit-touch-callout:none]"
                   :class="loadedThumbs.has(tile.photo.name) ? 'opacity-100' : 'opacity-0'"
                   @load="loadedThumbs.add(tile.photo.name)"
                 />
@@ -118,6 +121,7 @@ import LucidePlay from '~icons/lucide/play'
 import LucideStar from '~icons/lucide/star'
 
 import { type Photo, isVideo, thumbnailUrl } from '../api'
+import { useTouchSelect } from '../composables/useTouchSelect'
 import { type FeedHandle, activeFeed, changeZoom, openLightbox, selection, zoom } from '../store'
 
 const props = defineProps<{
@@ -216,6 +220,7 @@ function rowWidth(row: Tile[]) {
 }
 
 const flat = computed(() => props.handle.feed.rows)
+const touchSelect = useTouchSelect({ names: () => flat.value.map((row) => row.name), selection })
 
 function justify(photos: Photo[]): { rows: Tile[][]; open: boolean } {
   const available = width.value
@@ -286,6 +291,7 @@ function onWheel(event: WheelEvent) {
 }
 
 function onTileClick(event: MouseEvent, photo: Photo) {
+  if (touchSelect.takeClick()) return
   if (selection.size) return toggle(photo, event)
   openLightbox(props.handle, photo.name)
 }
