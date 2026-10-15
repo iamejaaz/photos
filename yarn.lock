@@ -89,6 +89,11 @@
   dependencies:
     tslib "^2.1.0"
 
+"@capacitor/ios@8.5.0":
+  version "8.5.0"
+  resolved "https://registry.yarnpkg.com/@capacitor/ios/-/ios-8.5.0.tgz#d21c99b50119e586ca08b25e7630396db6fcf91f"
+  integrity sha512-7k1TfohJu5BzRXc1F3g04Q8QQ0fyQgms6h1AvhnHb04VaNr9EdHOx03hL8O+OigEKMQnyJd1ZOjTPPNHCqL5Yw==
+
 "@capacitor/preferences@8.0.1":
   version "8.0.1"
   resolved "https://registry.yarnpkg.com/@capacitor/preferences/-/preferences-8.0.1.tgz#9924997d694242a5f378e9ddba9711ad1ca611dc"
