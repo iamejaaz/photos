@@ -11,7 +11,10 @@ from photos.utils.permissions import can_access
 
 
 def _own(person):
-    if frappe.db.get_value("Photo Person", person, "owner") != frappe.session.user:
+    owner = frappe.db.get_value("Photo Person", person, "owner")
+    if not owner:
+        frappe.throw("This person is no longer in your library.", frappe.DoesNotExistError)
+    if owner != frappe.session.user:
         frappe.throw("This person is not in your library.", frappe.PermissionError)
 
 

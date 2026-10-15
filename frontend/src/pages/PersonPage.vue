@@ -132,6 +132,7 @@ import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { clearSelection } from '../data/selection'
 import { createFeed } from '../data/feed'
+import { errorText } from '../resources/drive'
 
 const props = defineProps<{ person: string }>()
 const router = useRouter()
@@ -146,7 +147,12 @@ const others = ref<Person[]>([])
 const mergePicks = reactive(new Set<string>())
 
 async function refresh() {
-  info.value = await getPerson(props.person)
+  try {
+    info.value = await getPerson(props.person)
+  } catch (error) {
+    toast.info(errorText(error) || __('This person is no longer in your library.'))
+    router.replace({ name: 'photos-people' })
+  }
 }
 refresh()
 
