@@ -121,7 +121,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Button, Dialog, Dropdown, TextInput, toast, usePageMeta } from 'frappe-ui'
 import LucideArrowUpDown from '~icons/lucide/arrow-up-down'
 import LucideGlobe from '~icons/lucide/globe'
@@ -141,7 +141,7 @@ import { itemCount } from '../utils'
 
 const props = defineProps<{ shared?: boolean }>()
 const router = useRouter()
-const creating = ref(false)
+const creating = ref(Boolean(useRoute().query.new))
 const title = ref('')
 const sorts = {
   recent: {
