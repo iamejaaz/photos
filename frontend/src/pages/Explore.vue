@@ -1,6 +1,19 @@
 <template>
   <PhotosHeader :title="__('Explore')" searchable hide-upload />
-  <div class="flex flex-col gap-8 p-3 sm:p-5">
+  <div v-if="empty" class="flex flex-col items-center justify-center gap-3 px-6 py-24 text-center">
+    <div class="flex size-14 items-center justify-center rounded-full bg-surface-gray-2">
+      <LucideCompass class="size-6 text-ink-gray-6" />
+    </div>
+    <div class="text-lg font-medium text-ink-gray-8">{{ __('Explore your photos') }}</div>
+    <div class="max-w-sm text-base text-ink-gray-5">
+      {{ __('People, places and things show up here once your photos are added and looked at.') }}
+    </div>
+    <Button variant="solid" size="md" class="mt-2" @click="pickAndUpload()">
+      <template #prefix><LucideUpload class="size-4" /></template>
+      {{ __('Upload photos') }}
+    </Button>
+  </div>
+  <div v-else class="flex flex-col gap-8 p-3 sm:p-5">
     <section v-if="people.length">
       <div class="mb-3 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-ink-gray-9">{{ __('People') }}</h2>
@@ -125,10 +138,13 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { usePageMeta } from 'frappe-ui'
+import { Button, usePageMeta } from 'frappe-ui'
+import LucideCompass from '~icons/lucide/compass'
+import LucideUpload from '~icons/lucide/upload'
 import LucidePlay from '~icons/lucide/play'
 
 import { appPageMeta } from '@/utils/documentTitle'
+import { pickAndUpload } from '../data/uploads'
 import { type Person, getPeople } from '../resources/people'
 import { type Place, getExplore, getPlaces } from '../resources/photos'
 import { thumbnailUrl } from '../resources/media'
@@ -141,9 +157,22 @@ const data = ref<Awaited<ReturnType<typeof getExplore>>>()
 const allPlaces = ref<Place[]>([])
 getExplore().then((result) => (data.value = result))
 getPlaces().then((result) => (allPlaces.value = result))
+const empty = computed(
+  () =>
+    peopleLoaded.value &&
+    data.value &&
+    !people.value.length &&
+    !data.value.places.length &&
+    !data.value.things.length &&
+    !data.value.cameras.length &&
+    !data.value.videos.count,
+)
 const namedPlaces = computed(() => allPlaces.value.filter((place) => place.place).slice(0, 16))
 const people = ref<Person[]>([])
-getPeople().then((result) => (people.value = result.people))
+const peopleLoaded = ref(false)
+getPeople()
+  .then((result) => (people.value = result.people))
+  .finally(() => (peopleLoaded.value = true))
 
 usePageMeta(() => appPageMeta(__('Explore'), 'Photos'))
 </script>
