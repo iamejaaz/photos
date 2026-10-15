@@ -211,7 +211,8 @@ def timeline(
     if place:
         query = query.where(Metadata.place == place)
     if thing:
-        query = query.where(Metadata.things.like(f"%{thing}%"))
+        condition = _collections().get(thing)
+        query = query.where(condition if condition is not None else Metadata.things.like(f"%{thing}%"))
     return page(query, start, limit)
 
 
@@ -354,6 +355,13 @@ def places():
     return sorted(groups.values(), key=lambda g: -g["count"])
 
 
+def _collections():
+    return {
+        "Screenshots": File.file_name.like("%screenshot%") | File.file_name.like("%screen shot%"),
+        "Documents": fn.Length(Metadata.text) >= 20,
+    }
+
+
 def things_summary():
     rows = (
         media_base()
@@ -368,7 +376,17 @@ def things_summary():
         for thing in row.things.split(", "):
             entry = summary.setdefault(thing, {"thing": thing, "count": 0, "cover": row.name})
             entry["count"] += 1
-    return sorted(summary.values(), key=lambda entry: -entry["count"])
+    collections = []
+    for title, condition in _collections().items():
+        found = (
+            media_base()
+            .where(condition)
+            .select(fn.Count(File.name).as_("count"), fn.Max(File.name).as_("cover"))
+            .run(as_dict=True)[0]
+        )
+        if found["count"]:
+            collections.append({"thing": title, "count": found["count"], "cover": found["cover"]})
+    return collections + sorted(summary.values(), key=lambda entry: -entry["count"])
 
 
 @frappe.whitelist()
