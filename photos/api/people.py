@@ -2,12 +2,12 @@ import json
 from io import BytesIO
 
 import frappe
-from suite.drive.api.permissions import user_has_permission
 from werkzeug.wrappers import Response
 
 from photos import auto_albums
 from photos import faces as engine
 from photos.api.photos import Face, File, media_query, page
+from photos.permissions import can_access
 
 
 def _own(person):
@@ -253,7 +253,7 @@ def _own_face(face):
         frappe.throw("Face not found.", frappe.DoesNotExistError)
     if row.person:
         _own(row.person)
-    elif not user_has_permission(row.file, "write"):
+    elif not can_access(row.file, "write"):
         frappe.throw("You can't change this face.", frappe.PermissionError)
     return row.person
 
@@ -263,7 +263,7 @@ def face_thumbnail(face: str):
     row = frappe.db.get_value(
         "Photo Face", face, ["name", "file", "x", "y", "width", "height", "timestamp"], as_dict=True
     )
-    if not row or not user_has_permission(row.file, "read"):
+    if not row or not can_access(row.file, "read"):
         frappe.throw("No permission", frappe.PermissionError)
     buffer = BytesIO()
     engine.face_crop(row).save(buffer, format="webp", quality=85)

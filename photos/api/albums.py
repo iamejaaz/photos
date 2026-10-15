@@ -9,11 +9,11 @@ from frappe.utils import get_datetime, now_datetime
 from frappe.utils.password import delete_all_passwords_for, get_decrypted_password
 from pypika import Order
 from suite.drive.api.list import DriveFavourite
-from suite.drive.api.permissions import get_user_access_for_user, is_drive_admin, user_has_permission
 from suite.drive.overrides.file import File as DriveFile
 from suite.drive.utils import FILE_FIELDS, GENERAL_USER, get_principals
 
 from photos.api.photos import PAGE_SIZE, File, Hidden, media_query
+from photos.permissions import can_access, photo_access
 
 ALBUM = "Photo Album"
 AlbumItem = frappe.qb.DocType("Photo Album Item")
@@ -36,10 +36,8 @@ def album_access(album, user=None):
         return NO_ACCESS
     if user == doc.owner:
         return FULL_ACCESS | {"owner": 1}
-    if is_drive_admin(user):
-        return FULL_ACCESS
     file = album_file(album)
-    access = get_user_access_for_user(file, user) if file else {}
+    access = photo_access(file, user) if file else {}
     result = {key: int(bool(access.get(key))) for key in ("read", "write", "share")}
     result |= {"owner": 0, "download": result["read"], "upload": result["write"]}
     if result["read"] and not _shared_directly(album, user):
@@ -141,7 +139,7 @@ def save_link_settings(
 
 
 def can_read(file, album=None):
-    if user_has_permission(file, "read"):
+    if can_access(file, "read"):
         return True
     if not album:
         return False
@@ -162,7 +160,7 @@ def link_only(album, user=None):
     user = user or frappe.session.user
     if user == "Guest":
         return True
-    if user == frappe.db.get_value(ALBUM, album, "owner") or is_drive_admin(user):
+    if user == frappe.db.get_value(ALBUM, album, "owner"):
         return False
     return not _shared_directly(album, user)
 
@@ -275,7 +273,7 @@ def create_share_link(files: list[str] | str):
     if not files:
         frappe.throw("Pick at least one photo.")
     for file in files:
-        if not user_has_permission(file, "read"):
+        if not can_access(file, "read"):
             frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
     first = frappe.db.get_value("File", files[0], "file_name")
     title = first if len(files) == 1 else f"{len(files)} photos"
@@ -403,7 +401,7 @@ def add_to_album(album: str, files: list[str] | str):
     _require(album, "write")
     existing = set(frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file"))
     for file in _as_list(files):
-        if file in existing or not user_has_permission(file, "read"):
+        if file in existing or not can_access(file, "read"):
             continue
         frappe.get_doc({"doctype": "Photo Album Item", "album": album, "file": file}).insert(
             ignore_permissions=True

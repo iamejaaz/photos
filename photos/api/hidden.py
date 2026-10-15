@@ -3,9 +3,9 @@ import json
 import frappe
 from frappe.rate_limiter import rate_limit
 from frappe.utils.password import check_password
-from suite.drive.api.permissions import user_has_permission
 
 from photos.api.photos import media_query, page
+from photos.permissions import can_access
 
 UNLOCK_SECONDS = 10 * 60
 
@@ -17,7 +17,7 @@ def set_hidden(files: list[str] | str, hidden: bool = True):
     user = frappe.session.user
     if hidden:
         for file in files:
-            if not user_has_permission(file, "write"):
+            if not can_access(file, "write"):
                 frappe.throw("You can only hide your own photos.", frappe.PermissionError)
             if not frappe.db.exists("Photo Hidden", {"user": user, "file": file}):
                 frappe.get_doc({"doctype": "Photo Hidden", "user": user, "file": file}).insert(

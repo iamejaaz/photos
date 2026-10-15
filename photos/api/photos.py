@@ -9,11 +9,11 @@ from pypika import Criterion, CustomFunction, Order
 from pypika import functions as fn
 from suite.drive.api.files import create_folder
 from suite.drive.api.list import get_query_data
-from suite.drive.api.permissions import get_user_access, user_has_permission
 from suite.drive.utils import GENERAL_USER, STATUS_ACTIVE, STATUS_TRASHED, get_principals, get_user_folder
 
 from photos import clip
 from photos.metadata import HASH_SIZE, enqueue_missing, file_hash
+from photos.permissions import can_access, photo_access
 
 File = frappe.qb.DocType("File")
 Metadata = frappe.qb.DocType("Photo Metadata")
@@ -234,7 +234,7 @@ def folders():
     home = get_user_folder().name
     result = []
     for row in rows:
-        if not row.folder or not user_has_permission(row.folder, "read"):
+        if not row.folder or not can_access(row.folder, "read"):
             continue
         folder = frappe.db.get_value("File", row.folder, ["file_name", "folder", "owner"], as_dict=True)
         cover = (
@@ -259,7 +259,7 @@ def folders():
 
 @frappe.whitelist()
 def folder_photos(folder: str, start: int = 0, limit: int | None = None):
-    if not user_has_permission(folder, "read"):
+    if not can_access(folder, "read"):
         frappe.throw("You don't have access.", frappe.PermissionError)
     return page(media_query(archived=None).where(File.folder == folder), start, limit)
 
@@ -292,7 +292,7 @@ def set_archived(files: list[str] | str, archived: bool = True):
     frappe.db.delete("Photo Archive", {"user": user, "file": ["in", files]})
     if archived:
         for file in files:
-            if user_has_permission(file, "read"):
+            if can_access(file, "read"):
                 frappe.get_doc({"doctype": "Photo Archive", "user": user, "file": file}).insert(
                     ignore_permissions=True
                 )
@@ -463,7 +463,7 @@ def save_to_library(files: list[str] | str, album: str | None = None):
     for name in files:
         if not can_read(name, album):
             frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
-        if not user_has_permission(name, "read") and not (album and album_access(album)["download"]):
+        if not can_access(name, "read") and not (album and album_access(album)["download"]):
             frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
         file = frappe.db.get_value(
             "File", name, ["file_name", "file_url", "owner", "is_folder"], as_dict=True
@@ -510,7 +510,7 @@ def get_details(name: str, album: str | None = None):
         ],
         as_dict=True,
     )
-    if frappe.session.user == "Guest" or not get_user_access(name).get("read"):
+    if frappe.session.user == "Guest" or not photo_access(name).get("read"):
         file.update(folder=None, owner=None, albums=[])
         if file.metadata:
             file.metadata.update(latitude=None, longitude=None, place=None)

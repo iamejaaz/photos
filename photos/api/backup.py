@@ -2,7 +2,8 @@ import json
 
 import frappe
 from frappe.rate_limiter import rate_limit
-from suite.drive.api.permissions import user_has_permission
+
+from photos.permissions import can_access
 
 SOURCE = "device:{}"
 
@@ -31,7 +32,7 @@ def mark(file: str, sha1: str):
     from photos.metadata import extract
 
     owner = frappe.db.get_value("File", file, "owner")
-    if owner != frappe.session.user or not user_has_permission(file, "write"):
+    if owner != frappe.session.user or not can_access(file, "write"):
         frappe.throw("You can only mark your own uploads.", frappe.PermissionError)
     if not frappe.db.exists("Photo Metadata", file):
         extract(file)

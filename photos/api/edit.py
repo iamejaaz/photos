@@ -3,9 +3,9 @@ from datetime import timedelta
 
 import frappe
 from frappe.utils import get_datetime
-from suite.drive.api.permissions import user_has_permission
 
 from photos import places
+from photos.permissions import can_access
 
 METADATA = "Photo Metadata"
 
@@ -66,7 +66,7 @@ def _writable(files):
 
     names = json.loads(files) if isinstance(files, str) else files
     for name in names:
-        if not user_has_permission(name, "write"):
+        if not can_access(name, "write"):
             frappe.throw("You can only edit your own photos.", frappe.PermissionError)
         if not frappe.db.exists(METADATA, name):
             extract(name)
@@ -107,7 +107,7 @@ def build_trim(file, start, end, user, mute=0):
     frappe.set_user(user)
     source = frappe.db.get_value("File", file, ["name", "file_name", "file_url", "folder"], as_dict=True)
     taken = frappe.db.get_value(METADATA, file, "taken_on") or frappe.utils.now_datetime()
-    parent = source.folder if user_has_permission(source.folder, "upload") else None
+    parent = source.folder if can_access(source.folder, "upload") else None
     stem = Path(source.file_name).stem
     try:
         with tempfile.TemporaryDirectory() as folder:
@@ -141,7 +141,7 @@ def export_frame(file: str, at: float):
     if image is None:
         frappe.throw("Could not read that frame.")
     taken = frappe.db.get_value(METADATA, file, "taken_on") or frappe.utils.now_datetime()
-    parent = source.folder if user_has_permission(source.folder, "upload") else None
+    parent = source.folder if can_access(source.folder, "upload") else None
     with tempfile.TemporaryDirectory() as folder:
         target = Path(folder) / f"{Path(source.file_name).stem}-frame.jpg"
         image.convert("RGB").save(target, "JPEG", quality=92)

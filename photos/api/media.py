@@ -2,7 +2,6 @@ from io import BytesIO
 
 import frappe
 from suite.drive.api import files as drive
-from suite.drive.api.permissions import user_has_permission
 from suite.drive.utils import STATUS_ACTIVE
 from suite.drive.utils.files import FileManager, storage_key
 from werkzeug.utils import send_file
@@ -11,6 +10,7 @@ from werkzeug.wsgi import wrap_file
 
 from photos import formats
 from photos.api.albums import album_access, can_read
+from photos.permissions import can_access
 
 
 def _file(entity_name, album):
@@ -58,13 +58,13 @@ def content(entity_name: str, album: str | None = None, download: int = 0, displ
             frappe.throw("Not found", frappe.DoesNotExistError)
         return _send(clip, "video/mp4")
     if int(download or 0):
-        if not user_has_permission(entity_name, "read") and not album_access(album)["download"]:
+        if not can_access(entity_name, "read") and not album_access(album)["download"]:
             frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
         return drive._serve_resumable(manager, storage_key(file.file_url), file.file_name, file.mime_type)
     if (
         album
         and file.file_type == "Image"
-        and not user_has_permission(entity_name, "read")
+        and not can_access(entity_name, "read")
         and not album_access(album)["download"]
     ):
         return _preview(manager, file)
