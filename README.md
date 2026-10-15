@@ -23,6 +23,14 @@ Load demo photos, people and shared albums:
 bench --site your.site photos-demo-data
 ```
 
+### Pick from Google Photos
+
+1. In Google Cloud, enable the Google Photos Picker API and create an OAuth client of type Web application.
+2. Add `https://your.site/api/method/frappe.integrations.google_oauth.callback` as a redirect URI.
+3. Enter the client ID and secret in Google Settings on your site and enable it.
+
+Each user then connects their account under Settings → Import and picks photos in Google Photos.
+
 ### Android app
 
 The app in `mobile/` bundles the same frontend with Capacitor. It signs in with OAuth, backs up the phone's gallery in the background, and accepts photos shared from other apps.
