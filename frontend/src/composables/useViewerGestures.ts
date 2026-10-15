@@ -11,6 +11,7 @@ interface Options {
   onDismiss?: () => void
   onInfo: () => void
   onTap: () => void
+  onBackdropClick?: (event: PointerEvent) => boolean
   zoomable: () => boolean
 }
 
@@ -159,6 +160,7 @@ export function useViewerGestures(options: Options) {
   }
 
   function tap(event: PointerEvent) {
+    if (event.pointerType === 'mouse' && state.scale === 1 && options.onBackdropClick?.(event)) return
     const now = Date.now()
     const double =
       now - lastTap.time < DOUBLE_TAP_MS &&

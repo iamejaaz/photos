@@ -661,6 +661,24 @@ const stage = ref<HTMLElement>()
 const hero = reactive({ transform: '', clip: '', opacity: 1, backdrop: 1, transition: '' })
 let closing = false
 
+function outsidePhoto(x: number, y: number) {
+  const current = photo.value
+  const box = stage.value?.getBoundingClientRect()
+  if (!current || !box) return false
+  if (isVideo(current)) {
+    const rect = stage.value?.querySelector('video')?.getBoundingClientRect()
+    return Boolean(rect) && (x < rect!.left || x > rect!.right || y < rect!.top || y > rect!.bottom)
+  }
+  if (!current.width || !current.height) return false
+  const ratio = current.width / current.height
+  const width = Math.min(box.width, box.height * ratio)
+  const height = width / ratio
+  return (
+    Math.abs(x - (box.left + box.width / 2)) > width / 2 ||
+    Math.abs(y - (box.top + box.height / 2)) > height / 2
+  )
+}
+
 function tileFrame() {
   const current = photo.value
   const box = stage.value?.getBoundingClientRect()
@@ -742,6 +760,11 @@ const gestures = useViewerGestures({
   onDismiss: close,
   onInfo: () => (lightbox.showInfo = true),
   onTap: () => (chrome.value = !chrome.value),
+  onBackdropClick: (event) => {
+    if (!outsidePhoto(event.clientX, event.clientY)) return false
+    close()
+    return true
+  },
   zoomable: () => Boolean(photo.value && !isVideo(photo.value)),
 })
 watch(
