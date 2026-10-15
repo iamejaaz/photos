@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { faceUrl } from '../api'
+import { faceUrl } from '../resources/people'
 
 defineProps<{ face?: string | null }>()
 </script>

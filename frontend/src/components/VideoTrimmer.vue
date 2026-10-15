@@ -74,8 +74,10 @@ import LucideVolume2 from '~icons/lucide/volume-2'
 import LucideVolumeX from '~icons/lucide/volume-x'
 import LucideX from '~icons/lucide/x'
 
-import { type Photo, exportFrame, streamUrl, trimVideo } from '../api'
-import { notifyUploaded } from '../store'
+import { type Photo } from '../resources/photos'
+import { exportFrame, trimVideo } from '../resources/edit'
+import { streamUrl } from '../resources/media'
+import { notifyUploaded } from '../data/uploads'
 import { useBackClose } from '../composables/useBackClose'
 
 const props = defineProps<{ photo: Photo | null }>()

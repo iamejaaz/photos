@@ -80,8 +80,9 @@ import { Button } from 'frappe-ui'
 import LucideHistory from '~icons/lucide/history'
 import LucideMapPin from '~icons/lucide/map-pin'
 
-import { type Person, getExplore, getPeople } from '../api'
-import { clearRecentSearches, recentSearches } from '../store'
+import { type Person, getPeople } from '../resources/people'
+import { getExplore } from '../resources/photos'
+import { clearRecentSearches, recentSearches } from '../data/search'
 import FaceAvatar from './FaceAvatar.vue'
 
 const recent = recentSearches

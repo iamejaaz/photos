@@ -28,8 +28,9 @@ import { computed, ref, watch } from 'vue'
 import { DateTimePicker, Dialog, FormControl, Radio, RadioGroup, toast } from 'frappe-ui'
 import dayjs from 'dayjs'
 
-import { editDate } from '../api'
-import { activeFeed, editing, metadataSaved } from '../store'
+import { editDate } from '../resources/edit'
+import { activeFeed } from '../data/feed'
+import { editing, metadataSaved } from '../data/dialogs'
 
 const open = computed({
   get: () => editing.kind === 'date',

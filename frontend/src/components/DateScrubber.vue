@@ -51,8 +51,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import dayjs from 'dayjs'
 
-import { type MonthCount, getMonths } from '../api'
-import type { FeedHandle } from '../store'
+import { type MonthCount, getMonths } from '../resources/photos'
+import type { FeedHandle } from '../data/feed'
 
 interface Mark extends MonthCount {
   top: number

@@ -16,7 +16,7 @@ import LucideCloudOff from '~icons/lucide/cloud-off'
 import LucideCloudUpload from '~icons/lucide/cloud-upload'
 
 import { type BackupStatus, photosBackup } from '../native/backup'
-import { openSettings } from '../store'
+import { openSettings } from '../data/dialogs'
 
 const status = ref<BackupStatus | null>(null)
 let stop: (() => void) | null = null

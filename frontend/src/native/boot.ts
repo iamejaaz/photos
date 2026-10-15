@@ -89,7 +89,7 @@ async function connectBackup(site: Site, user: string) {
   const { plugin } = await photosBackup()
   let running = false
   plugin.addListener('status', (status) => {
-    if (running && !status.running) import('../store').then(({ notifyUploaded }) => notifyUploaded())
+    if (running && !status.running) import('../data/uploads').then(({ notifyUploaded }) => notifyUploaded())
     running = status.running
   })
   const status = await plugin.getStatus().catch(() => null)

@@ -166,19 +166,19 @@ import { readString, writeString } from '@/utils/localStorage'
 import {
   ALBUM_PHOTOS,
   type Album,
-  type Photo,
   albumGate,
   collectUpload,
   deleteAlbum,
   getAlbum,
-  exportAlbum,
   getAlbumFiles,
   leaveAlbum,
   removeFromAlbum,
   renameAlbum,
   setCover,
   unlockAlbum,
-} from '../api'
+} from '../resources/albums'
+import { type Photo } from '../resources/photos'
+import { exportAlbum } from '../resources/export'
 import ActivityPanel from '../components/ActivityPanel.vue'
 import AddPhotosDialog from '../components/AddPhotosDialog.vue'
 import AlbumLinkDialog from '../components/AlbumLinkDialog.vue'
@@ -186,15 +186,13 @@ import AutoPeopleDialog from '../components/AutoPeopleDialog.vue'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import ShareAlbumDialog from '../components/ShareAlbumDialog.vue'
-import {
-  clearSelection,
-  createFeed,
-  download,
-  loadAlbums,
-  onUploaded,
-  openLightbox,
-  startExport,
-} from '../store'
+import { clearSelection } from '../data/selection'
+import { createFeed } from '../data/feed'
+import { download } from '../data/actions'
+import { loadAlbums } from '../data/albums'
+import { onUploaded } from '../data/uploads'
+import { openLightbox } from '../data/viewer'
+import { startExport } from '../data/imports'
 
 const props = defineProps<{ album: string }>()
 const router = useRouter()

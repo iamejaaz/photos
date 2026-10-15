@@ -32,7 +32,7 @@ import { computed, ref, watch } from 'vue'
 import { Dialog, TextInput, toast } from 'frappe-ui'
 import LucidePlus from '~icons/lucide/plus'
 
-import { type Person, getPeople, moveFace } from '../api'
+import { type Person, getPeople, moveFace } from '../resources/people'
 import FaceAvatar from './FaceAvatar.vue'
 
 const props = defineProps<{ face: string | null; current?: string | null }>()

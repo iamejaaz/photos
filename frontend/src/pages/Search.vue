@@ -26,7 +26,8 @@ import { appPageMeta } from '@/utils/documentTitle'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import SearchSuggestions from '../components/SearchSuggestions.vue'
-import { createFeed, rememberSearch } from '../store'
+import { createFeed } from '../data/feed'
+import { rememberSearch } from '../data/search'
 
 const route = useRoute()
 const router = useRouter()

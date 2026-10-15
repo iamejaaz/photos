@@ -47,7 +47,8 @@ import { ref, watch } from 'vue'
 import { Dialog, toast } from 'frappe-ui'
 import LucideCheck from '~icons/lucide/check'
 
-import { type Album, type Person, getPeople, setAutoPeople } from '../api'
+import { type Album, setAutoPeople } from '../resources/albums'
+import { type Person, getPeople } from '../resources/people'
 import FaceAvatar from './FaceAvatar.vue'
 
 const props = defineProps<{ album: Album }>()

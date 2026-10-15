@@ -126,11 +126,12 @@ import {
   removePhotosFromPerson,
   renamePerson,
   setPersonHidden,
-} from '../api'
+} from '../resources/people'
 import FaceAvatar from '../components/FaceAvatar.vue'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { clearSelection, createFeed } from '../store'
+import { clearSelection } from '../data/selection'
+import { createFeed } from '../data/feed'
 
 const props = defineProps<{ person: string }>()
 const router = useRouter()

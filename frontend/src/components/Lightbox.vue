@@ -426,40 +426,17 @@ import LucideTrash2 from '~icons/lucide/trash-2'
 import LucideX from '~icons/lucide/x'
 
 import { useSessionStore } from '@/boot/session'
-import {
-  ALBUM_PHOTOS,
-  type Photo,
-  type PhotoPerson,
-  contentUrl,
-  downloadUrl,
-  getDetails,
-  editCaption,
-  getPhotoPeople,
-  liveUrl,
-  markNotAFace,
-  unassignFace,
-  isVideo,
-  streamUrl,
-  thumbnailUrl,
-  toggleLike,
-} from '../api'
-import {
-  activeFeed,
-  albums,
-  archive,
-  createStaticFeed,
-  download,
-  editMetadata,
-  openLightbox,
-  openShare,
-  editing as metadataEdits,
-  lightbox,
-  notifyUploaded,
-  pickAlbumFor,
-  sharedAlbums,
-  toggleFavourite,
-  trash,
-} from '../store'
+import { ALBUM_PHOTOS, toggleLike } from '../resources/albums'
+import { type Photo, getDetails, isVideo } from '../resources/photos'
+import { type PhotoPerson, getPhotoPeople, markNotAFace, unassignFace } from '../resources/people'
+import { contentUrl, downloadUrl, liveUrl, streamUrl, thumbnailUrl } from '../resources/media'
+import { editCaption } from '../resources/edit'
+import { activeFeed, createStaticFeed } from '../data/feed'
+import { albums, pickAlbumFor, sharedAlbums } from '../data/albums'
+import { archive, download, toggleFavourite, trash } from '../data/actions'
+import { editMetadata, openShare, editing as metadataEdits } from '../data/dialogs'
+import { openLightbox, lightbox } from '../data/viewer'
+import { notifyUploaded } from '../data/uploads'
 import InfoRow from './InfoRow.vue'
 import MoveFaceDialog from './MoveFaceDialog.vue'
 import FaceAvatar from './FaceAvatar.vue'

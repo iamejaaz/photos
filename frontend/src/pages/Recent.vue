@@ -17,7 +17,8 @@ import LucideHistory from '~icons/lucide/history'
 import { appPageMeta } from '@/utils/documentTitle'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { createFeed, onUploaded } from '../store'
+import { createFeed } from '../data/feed'
+import { onUploaded } from '../data/uploads'
 
 const handle = createFeed('recently_added')
 onBeforeUnmount(onUploaded(() => handle.reload()))

@@ -8,7 +8,8 @@ import { useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-import { type Place, thumbnailUrl } from '../api'
+import { type Place } from '../resources/photos'
+import { thumbnailUrl } from '../resources/media'
 
 const props = defineProps<{ places: Place[] }>()
 const router = useRouter()

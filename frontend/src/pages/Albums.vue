@@ -131,18 +131,12 @@ import LucideUsers from '~icons/lucide/users'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import { readString, writeString } from '@/utils/localStorage'
-import {
-  type Album,
-  type Folder,
-  createAlbum,
-  deleteAlbum,
-  getFolders,
-  getLibraryFolder,
-  getShareLinks,
-  thumbnailUrl,
-} from '../api'
+import { type Album, createAlbum, deleteAlbum, getShareLinks } from '../resources/albums'
+import { type Folder, getFolders, getLibraryFolder } from '../resources/photos'
+import { thumbnailUrl } from '../resources/media'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { albums, albumsLoaded, loadAlbums, markSharingSeen, sharedAlbums } from '../store'
+import { albums, albumsLoaded, loadAlbums, sharedAlbums } from '../data/albums'
+import { markSharingSeen } from '../data/prefs'
 import { itemCount } from '../utils'
 
 const props = defineProps<{ shared?: boolean }>()

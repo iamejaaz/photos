@@ -120,7 +120,10 @@ import LucideFlipHorizontal2 from '~icons/lucide/flip-horizontal-2'
 import LucideRotateCw from '~icons/lucide/rotate-cw'
 import LucideX from '~icons/lucide/x'
 
-import { type Photo, contentUrl, getUploadFolder, markEdited, thumbnailUrl, uploadFile } from '../api'
+import { type Photo, getUploadFolder } from '../resources/photos'
+import { contentUrl, thumbnailUrl } from '../resources/media'
+import { markEdited } from '../resources/edit'
+import { uploadFile } from '../resources/drive'
 import { useBackClose } from '../composables/useBackClose'
 
 const props = defineProps<{ photo: Photo | null; folder?: string | null }>()

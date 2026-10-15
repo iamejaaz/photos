@@ -40,8 +40,11 @@ import { Button, Dialog, TextInput, toast } from 'frappe-ui'
 import LucideLink from '~icons/lucide/link'
 import LucideSend from '~icons/lucide/send'
 
-import { createShareLink, downloadUrl } from '../api'
-import { activeFeed, clearSelection, sharePhotos } from '../store'
+import { createShareLink } from '../resources/albums'
+import { downloadUrl } from '../resources/media'
+import { activeFeed } from '../data/feed'
+import { clearSelection } from '../data/selection'
+import { sharePhotos } from '../data/dialogs'
 
 const MAX_SEND = 20
 const count = computed(() => sharePhotos.files.length)

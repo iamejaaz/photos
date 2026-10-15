@@ -6,8 +6,8 @@
 import { ref, watch } from 'vue'
 
 import { ShareDialog } from '@/apps/drive/sdk'
-import { getLibraryFolder } from '../api'
-import { libraryShare } from '../store'
+import { getLibraryFolder } from '../resources/photos'
+import { libraryShare } from '../data/dialogs'
 
 const folder = ref<Record<string, unknown> | null>(null)
 

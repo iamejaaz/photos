@@ -42,7 +42,8 @@ import { usePageMeta } from 'frappe-ui'
 import LucideFolder from '~icons/lucide/folder'
 
 import { appPageMeta } from '@/utils/documentTitle'
-import { type Folder, getFolders, thumbnailUrl } from '../api'
+import { type Folder, getFolders } from '../resources/photos'
+import { thumbnailUrl } from '../resources/media'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { itemCount } from '../utils'
 

@@ -72,7 +72,8 @@ import LucideX from '~icons/lucide/x'
 
 import { initSocket } from '@/apps/drive/socket'
 import { useSessionStore } from '@/boot/session'
-import { type Activity, addComment, deleteActivity, getActivity, mediaUrl, thumbnailUrl } from '../api'
+import { type Activity, addComment, deleteActivity, getActivity } from '../resources/albums'
+import { mediaUrl, thumbnailUrl } from '../resources/media'
 
 dayjs.extend(relativeTime)
 

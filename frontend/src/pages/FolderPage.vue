@@ -36,10 +36,10 @@ import LucideFolder from '~icons/lucide/folder'
 import LucideHardDrive from '~icons/lucide/hard-drive'
 
 import { appPageMeta } from '@/utils/documentTitle'
-import { type Folder, getFolders } from '../api'
+import { type Folder, getFolders } from '../resources/photos'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { createFeed } from '../store'
+import { createFeed } from '../data/feed'
 
 const props = defineProps<{ folder: string }>()
 const handle = createFeed('folder_photos', { folder: props.folder })

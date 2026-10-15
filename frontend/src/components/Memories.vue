@@ -27,8 +27,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-import { type Memory, getMemories, thumbnailUrl } from '../api'
-import { memoriesVersion, playMemories } from '../store'
+import { type Memory, getMemories } from '../resources/photos'
+import { thumbnailUrl } from '../resources/media'
+import { memoriesVersion, playMemories } from '../data/viewer'
 import { itemCount } from '../utils'
 
 const memories = ref<Memory[]>([])

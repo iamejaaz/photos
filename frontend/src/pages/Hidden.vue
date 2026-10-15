@@ -48,10 +48,10 @@ import LucideFingerprint from '~icons/lucide/fingerprint'
 import LucideLock from '~icons/lucide/lock'
 
 import { appPageMeta } from '@/utils/documentTitle'
-import { HIDDEN_PHOTOS, hiddenState, lockHidden, unlockHidden } from '../api'
+import { HIDDEN_PHOTOS, hiddenState, lockHidden, unlockHidden } from '../resources/hidden'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { createFeed } from '../store'
+import { createFeed } from '../data/feed'
 
 const unlocked = ref<boolean | null>(null)
 const password = ref('')

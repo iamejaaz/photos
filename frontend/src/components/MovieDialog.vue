@@ -19,8 +19,9 @@
 import { ref, watch } from 'vue'
 import { Dialog, FormControl, toast } from 'frappe-ui'
 
-import { createMovie } from '../api'
-import { clearSelection, movie } from '../store'
+import { createMovie } from '../resources/movies'
+import { clearSelection } from '../data/selection'
+import { movie } from '../data/dialogs'
 
 const speeds = [
   { label: __('2 seconds'), value: '2' },

@@ -97,38 +97,18 @@ import LucideUserX from '~icons/lucide/user-x'
 import LucideX from '~icons/lucide/x'
 
 import { useSessionStore } from '@/boot/session'
-import {
-  type Album,
-  type Photo,
-  createAnimation,
-  exportFiles,
-  getPhotoRow,
-  isVideo,
-  saveToLibrary,
-} from '../api'
-import {
-  activeFeed,
-  archive,
-  clearSelection,
-  download,
-  editMetadata,
-  hide,
-  makeCollage,
-  openShare,
-  startExport,
-  makeMovie,
-  notifyUploaded,
-  openLightbox,
-  createStaticFeed,
-  pickAlbumFor,
-  removeForever,
-  restore,
-  selection,
-  toggleFavourite,
-  trash,
-  upload,
-  uploadPhotos,
-} from '../store'
+import { type Album } from '../resources/albums'
+import { type Photo, getPhotoRow, isVideo, saveToLibrary } from '../resources/photos'
+import { createAnimation } from '../resources/edit'
+import { exportFiles } from '../resources/export'
+import { activeFeed, createStaticFeed } from '../data/feed'
+import { archive, download, hide, removeForever, restore, toggleFavourite, trash } from '../data/actions'
+import { clearSelection, selection } from '../data/selection'
+import { editMetadata, makeCollage, openShare, makeMovie } from '../data/dialogs'
+import { startExport } from '../data/imports'
+import { notifyUploaded, upload, uploadPhotos } from '../data/uploads'
+import { openLightbox } from '../data/viewer'
+import { pickAlbumFor } from '../data/albums'
 
 type Mode = 'library' | 'album' | 'archive' | 'trash' | 'person' | 'hidden'
 interface Action {

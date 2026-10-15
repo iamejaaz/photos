@@ -117,19 +117,13 @@ import MemoryStory from '../components/MemoryStory.vue'
 import PullToRefresh from '../components/PullToRefresh.vue'
 import PhotosSidebar from '../components/PhotosSidebar.vue'
 import { useBackClose } from '../composables/useBackClose'
-import {
-  changeZoom,
-  clearSelection,
-  googleImport,
-  lightbox,
-  openSettings,
-  loadAlbums,
-  loadSettings,
-  loadImport,
-  notifyUploaded,
-  selection,
-  uploadPhotos,
-} from '../store'
+import { changeZoom } from '../data/prefs'
+import { clearSelection, selection } from '../data/selection'
+import { googleImport, loadImport } from '../data/imports'
+import { lightbox } from '../data/viewer'
+import { openSettings, loadSettings } from '../data/dialogs'
+import { loadAlbums } from '../data/albums'
+import { notifyUploaded, uploadPhotos } from '../data/uploads'
 
 setupTheme()
 useBackClose(() => selection.size > 0, clearSelection)

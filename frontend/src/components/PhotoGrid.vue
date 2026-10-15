@@ -144,9 +144,13 @@ import LucideCheck from '~icons/lucide/check'
 import LucidePlay from '~icons/lucide/play'
 import LucideStar from '~icons/lucide/star'
 
-import { type Photo, isVideo, thumbnailUrl } from '../api'
+import { type Photo, isVideo } from '../resources/photos'
+import { thumbnailUrl } from '../resources/media'
 import { useTouchSelect } from '../composables/useTouchSelect'
-import { type FeedHandle, activeFeed, changeZoom, openLightbox, selection, zoom } from '../store'
+import { type FeedHandle, activeFeed } from '../data/feed'
+import { changeZoom, zoom } from '../data/prefs'
+import { openLightbox } from '../data/viewer'
+import { selection } from '../data/selection'
 
 const props = defineProps<{
   handle: FeedHandle

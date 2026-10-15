@@ -25,7 +25,9 @@
 import { ref } from 'vue'
 
 import { usePullToRefresh } from '../composables/usePullToRefresh'
-import { lightbox, memoriesVersion, memoryStory, notifyUploaded, selection } from '../store'
+import { lightbox, memoriesVersion, memoryStory } from '../data/viewer'
+import { notifyUploaded } from '../data/uploads'
+import { selection } from '../data/selection'
 
 const anchor = ref<HTMLElement>()
 

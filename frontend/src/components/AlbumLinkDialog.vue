@@ -57,7 +57,7 @@ import { reactive, ref, watch } from 'vue'
 import { Button, DatePicker, Dialog, Password, SettingsRow, Switch, toast } from 'frappe-ui'
 import LucideX from '~icons/lucide/x'
 
-import { type LinkSettings, getLinkSettings, saveLinkSettings } from '../api'
+import { type LinkSettings, getLinkSettings, saveLinkSettings } from '../resources/albums'
 
 const props = defineProps<{ album: string }>()
 const open = defineModel<boolean>({ default: false })

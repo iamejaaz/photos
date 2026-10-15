@@ -75,8 +75,12 @@
 import { computed, ref, watch } from 'vue'
 import { Button, Dialog, LoadingIndicator, toast } from 'frappe-ui'
 
-import { contentUrl, getUploadFolder, uploadFile } from '../api'
-import { clearSelection, collage, notifyUploaded } from '../store'
+import { contentUrl } from '../resources/media'
+import { getUploadFolder } from '../resources/photos'
+import { uploadFile } from '../resources/drive'
+import { clearSelection } from '../data/selection'
+import { collage } from '../data/dialogs'
+import { notifyUploaded } from '../data/uploads'
 
 type Cell = [number, number, number, number]
 interface Layout {

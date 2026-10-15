@@ -44,8 +44,10 @@ import { reactive, ref, watch } from 'vue'
 import { Button, Checkbox, Dialog, LoadingIndicator, toast } from 'frappe-ui'
 import LucideUpload from '~icons/lucide/upload'
 
-import { type Album, addToAlbum, thumbnailUrl } from '../api'
-import { createFeed, upload, uploadPhotos } from '../store'
+import { type Album, addToAlbum } from '../resources/albums'
+import { thumbnailUrl } from '../resources/media'
+import { createFeed } from '../data/feed'
+import { upload, uploadPhotos } from '../data/uploads'
 
 const props = defineProps<{ album: Album }>()
 const open = defineModel<boolean>({ default: false })

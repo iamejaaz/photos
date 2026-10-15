@@ -149,9 +149,9 @@ import {
 } from 'frappe-ui'
 import LucideUpload from '~icons/lucide/upload'
 
-import type { ImportOptions } from '../../api'
+import type { ImportOptions } from '../../resources/takeout'
 import GooglePicker from './GooglePicker.vue'
-import { discardImport, loadImport, runImport, startTakeout, takeout } from '../../store'
+import { discardImport, loadImport, runImport, startTakeout, takeout } from '../../data/imports'
 
 const job = computed(() => takeout.job)
 const items = computed(() => job.value?.summary?.items ?? [])

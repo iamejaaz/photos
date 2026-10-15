@@ -75,10 +75,10 @@ import { computed, ref, watch } from 'vue'
 import { Button, toast, usePageMeta } from 'frappe-ui'
 
 import { appPageMeta } from '@/utils/documentTitle'
-import { type Person, getPeople, mergePeople, mergeSuggestions, notSamePeople } from '../api'
+import { type Person, getPeople, mergePeople, mergeSuggestions, notSamePeople } from '../resources/people'
 import FaceAvatar from '../components/FaceAvatar.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { openSettings, settings } from '../store'
+import { openSettings, settings } from '../data/dialogs'
 import { itemCount } from '../utils'
 
 const data = ref<{ enabled: boolean; people: Person[] }>()

@@ -27,6 +27,6 @@
 import { Button, SettingsBody, SettingsHeader } from 'frappe-ui'
 import LucideFileArchive from '~icons/lucide/file-archive'
 
-import { exportLibrary } from '../../api'
-import { startExport } from '../../store'
+import { exportLibrary } from '../../resources/export'
+import { startExport } from '../../data/imports'
 </script>

@@ -49,8 +49,9 @@ import { computed, ref } from 'vue'
 import { SettingsBody, SettingsHeader, SettingsRow, Switch, toast } from 'frappe-ui'
 import LucideEyeOff from '~icons/lucide/eye-off'
 
-import { type Person, type Preferences, getPeople, getPreferences, savePreferences } from '../../api'
-import { memoriesVersion } from '../../store'
+import { type Person, getPeople } from '../../resources/people'
+import { type Preferences, getPreferences, savePreferences } from '../../resources/settings'
+import { memoriesVersion } from '../../data/viewer'
 import FaceAvatar from '../FaceAvatar.vue'
 
 const preferences = ref<Preferences | null>(null)

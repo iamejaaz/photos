@@ -62,7 +62,7 @@ import LucideUsersRound from '~icons/lucide/users-round'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { libraryShare, openSettings } from '../store'
+import { libraryShare, openSettings } from '../data/dialogs'
 
 const native = Boolean(import.meta.env.VITE_NATIVE)
 

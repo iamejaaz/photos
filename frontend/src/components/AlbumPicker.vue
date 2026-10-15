@@ -38,8 +38,10 @@
 import { computed, ref, watch } from 'vue'
 import { Button, Dialog, TextInput, toast } from 'frappe-ui'
 
-import { addToAlbum, createAlbum, thumbnailUrl } from '../api'
-import { albumPicker, albums, clearSelection, loadAlbums, sharedAlbums } from '../store'
+import { addToAlbum, createAlbum } from '../resources/albums'
+import { thumbnailUrl } from '../resources/media'
+import { albumPicker, albums, loadAlbums, sharedAlbums } from '../data/albums'
+import { clearSelection } from '../data/selection'
 import { itemCount } from '../utils'
 
 const title = ref('')

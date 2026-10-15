@@ -25,10 +25,10 @@ import LucideStar from '~icons/lucide/star'
 import LucideTrash2 from '~icons/lucide/trash-2'
 
 import { appPageMeta } from '@/utils/documentTitle'
-import type { Photo } from '../api'
+import type { Photo } from '../resources/photos'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { createFeed } from '../store'
+import { createFeed } from '../data/feed'
 
 const props = defineProps<{ kind: 'favourites' | 'archive' | 'trash' }>()
 

@@ -66,7 +66,7 @@ import {
 
 import LucideX from '~icons/lucide/x'
 
-import { settings } from '../../store'
+import { settings } from '../../data/dialogs'
 import FeaturesPanel from './FeaturesPanel.vue'
 import { defineAsyncComponent } from 'vue'
 

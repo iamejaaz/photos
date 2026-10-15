@@ -6,7 +6,7 @@
 import { ref, watch } from 'vue'
 
 import { ShareDialog, getFileForDoc } from '@/apps/drive/sdk'
-import type { Album } from '../api'
+import type { Album } from '../resources/albums'
 
 const props = defineProps<{ album: Album }>()
 const open = defineModel<boolean>({ default: false })

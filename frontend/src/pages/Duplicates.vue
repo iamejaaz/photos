@@ -71,7 +71,8 @@ import dayjs from 'dayjs'
 import LucideCopyCheck from '~icons/lucide/copy-check'
 
 import { appPageMeta } from '@/utils/documentTitle'
-import { thumbnailUrl, toggleTrash } from '../api'
+import { thumbnailUrl } from '../resources/media'
+import { toggleTrash } from '../resources/drive'
 import PhotosHeader from '../components/PhotosHeader.vue'
 
 interface Row {

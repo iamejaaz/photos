@@ -64,9 +64,10 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import LucideX from '~icons/lucide/x'
 
-import { contentUrl, isVideo, streamUrl } from '../api'
+import { contentUrl, streamUrl } from '../resources/media'
+import { isVideo } from '../resources/photos'
 import { useBackClose } from '../composables/useBackClose'
-import { memoryStory as story } from '../store'
+import { memoryStory as story } from '../data/viewer'
 
 const PHOTO_MS = 5000
 const HOLD_MS = 220

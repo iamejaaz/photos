@@ -54,8 +54,8 @@ import {
   googleStatus,
   importGooglePicked,
   startGooglePicking,
-} from '../../api'
-import { googleImport } from '../../store'
+} from '../../resources/google'
+import { googleImport } from '../../data/imports'
 
 const status = ref<GoogleStatus | null>(null)
 const busy = ref(false)

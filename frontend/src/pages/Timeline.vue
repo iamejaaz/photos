@@ -41,7 +41,9 @@ import DateScrubber from '../components/DateScrubber.vue'
 import Memories from '../components/Memories.vue'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { createFeed, onUploaded, openSettings } from '../store'
+import { createFeed } from '../data/feed'
+import { onUploaded } from '../data/uploads'
+import { openSettings } from '../data/dialogs'
 
 const native = Boolean(import.meta.env.VITE_NATIVE)
 const BackupChip = native ? defineAsyncComponent(() => import('../components/BackupChip.vue')) : null

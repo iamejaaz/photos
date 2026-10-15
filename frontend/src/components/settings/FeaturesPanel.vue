@@ -42,8 +42,8 @@ import {
   toast,
 } from 'frappe-ui'
 
-import { type Feature, saveSettings } from '../../api'
-import { settings } from '../../store'
+import { type Feature, saveSettings } from '../../resources/settings'
+import { settings } from '../../data/dialogs'
 
 const features: { key: Feature; label: string; description: string }[] = [
   { key: 'people', label: __('People'), description: __('Group photos and videos by the faces in them') },

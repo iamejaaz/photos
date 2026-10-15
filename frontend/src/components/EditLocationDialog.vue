@@ -40,8 +40,8 @@ import { useDebounceFn } from '@vueuse/core'
 import LucideMapPin from '~icons/lucide/map-pin'
 import LucideSearch from '~icons/lucide/search'
 
-import { type PlaceMatch, editLocation, searchPlaces } from '../api'
-import { editing, metadataSaved } from '../store'
+import { type PlaceMatch, editLocation, searchPlaces } from '../resources/edit'
+import { editing, metadataSaved } from '../data/dialogs'
 
 const open = computed({
   get: () => editing.kind === 'location',
