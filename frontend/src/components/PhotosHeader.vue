@@ -82,6 +82,7 @@ import LucideEyeOff from '~icons/lucide/eye-off'
 import LucideFileArchive from '~icons/lucide/file-archive'
 import LucideImageDown from '~icons/lucide/image-down'
 import LucideImageMinus from '~icons/lucide/image-minus'
+import LucideImagePlay from '~icons/lucide/image-play'
 import LucideImagePlus from '~icons/lucide/image-plus'
 import LucideImageUp from '~icons/lucide/image-up'
 import LucideLayoutGrid from '~icons/lucide/layout-grid'
@@ -96,7 +97,7 @@ import LucideUserX from '~icons/lucide/user-x'
 import LucideX from '~icons/lucide/x'
 
 import { useSessionStore } from '@/boot/session'
-import { type Album, type Photo, exportFiles, isVideo, saveToLibrary } from '../api'
+import { type Album, type Photo, createAnimation, exportFiles, isVideo, saveToLibrary } from '../api'
 import {
   activeFeed,
   archive,
@@ -108,6 +109,7 @@ import {
   openShare,
   startExport,
   makeMovie,
+  notifyUploaded,
   pickAlbumFor,
   removeForever,
   restore,
@@ -252,6 +254,22 @@ const actions = computed<Action[]>(() => {
     addToAlbum,
     save,
     movie,
+    {
+      label: __('Create animation'),
+      icon: LucideImagePlay,
+      more: true,
+      run: async (names) => {
+        const photos = names.filter((name) => !isVideo(rowFor(name)))
+        if (photos.length < 2) return toast.warning(__('Pick at least two photos for an animation'))
+        try {
+          await createAnimation(photos.slice(0, 50), props.album?.name)
+          notifyUploaded()
+          toast.success(__('Animation saved to your photos'))
+        } catch (error) {
+          toast.error((error as Error).message || __('Could not create the animation'))
+        }
+      },
+    },
     {
       label: __('Create collage'),
       icon: LucideLayoutGrid,

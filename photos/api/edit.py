@@ -146,3 +146,53 @@ def export_frame(file: str, at: float):
         target = Path(folder) / f"{Path(source.file_name).stem}-frame.jpg"
         image.convert("RGB").save(target, "JPEG", quality=92)
         return add_file(target, frappe.session.user, get_datetime(taken) + timedelta(seconds=at), parent)
+
+
+@frappe.whitelist(methods=["POST"])
+def create_animation(files: list[str] | str, album: str | None = None):
+    import tempfile
+    from pathlib import Path
+
+    from PIL import Image
+
+    from photos import formats
+    from photos.api.albums import can_read
+    from photos.library import add_file
+
+    names = json.loads(files) if isinstance(files, str) else files
+    rows = frappe.get_all(
+        "File",
+        filters={"name": ["in", names], "mime_type": ["like", "image/%"]},
+        fields=["name", "file_name", "file_url"],
+    )
+    if any(not can_read(row.name, album) for row in rows):
+        frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
+    if not 2 <= len(rows) <= 50:
+        frappe.throw("Pick between 2 and 50 photos for an animation.")
+    taken = dict(
+        frappe.get_all(
+            METADATA,
+            filters={"file": ["in", [row.name for row in rows]]},
+            fields=["file", "taken_on"],
+            as_list=True,
+        )
+    )
+    rows.sort(key=lambda row: str(taken.get(row.name) or ""))
+    frames = []
+    for row in rows:
+        with formats.open_image(formats.source_path(row), row.file_name) as image:
+            image = image.convert("RGB")
+            image.thumbnail((720, 720))
+            frames.append(image.copy())
+    width, height = frames[0].size
+    canvas = [Image.new("RGB", (width, height), "black") for _ in frames]
+    for frame, background in zip(frames, canvas, strict=True):
+        frame.thumbnail((width, height))
+        background.paste(frame, ((width - frame.width) // 2, (height - frame.height) // 2))
+    with tempfile.TemporaryDirectory() as folder:
+        target = Path(folder) / "Animation.gif"
+        canvas[0].save(target, save_all=True, append_images=canvas[1:], duration=450, loop=0, optimize=True)
+        latest = max(
+            (get_datetime(value) for value in taken.values() if value), default=frappe.utils.now_datetime()
+        )
+        return add_file(target, frappe.session.user, latest)
