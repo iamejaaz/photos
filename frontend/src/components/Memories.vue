@@ -28,7 +28,7 @@
 import { ref, watch } from 'vue'
 
 import { type Memory, getMemories, thumbnailUrl } from '../api'
-import { createStaticFeed, memoriesVersion, openLightbox } from '../store'
+import { memoriesVersion, playMemories } from '../store'
 import { itemCount } from '../utils'
 
 const memories = ref<Memory[]>([])
@@ -39,7 +39,6 @@ watch(
 )
 
 function play(memory: Memory) {
-  const feed = createStaticFeed([...memory.photos].reverse())
-  openLightbox(feed, feed.feed.rows[0].name, true)
+  playMemories(memories.value, memories.value.indexOf(memory))
 }
 </script>

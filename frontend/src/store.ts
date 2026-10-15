@@ -5,6 +5,7 @@ import { entitiesDownload } from '@/apps/drive/utils/download'
 import { readString, writeString } from '@/utils/localStorage'
 import {
   type Album,
+  type Memory,
   type Photo,
   type Settings,
   addToAlbum,
@@ -196,6 +197,20 @@ export async function startExport(run: () => Promise<unknown>) {
   }
 }
 export const memoriesVersion = ref(0)
+export const memoryStory = reactive<{ open: boolean; memories: Memory[]; memory: number; index: number }>({
+  open: false,
+  memories: [],
+  memory: 0,
+  index: 0,
+})
+export function playMemories(memories: Memory[], start: number) {
+  Object.assign(memoryStory, {
+    memories: memories.map((memory) => ({ ...memory, photos: [...memory.photos].reverse() })),
+    memory: start,
+    index: 0,
+    open: true,
+  })
+}
 
 export const editing = reactive<{ kind: 'date' | 'location' | null; files: string[]; version: number }>({
   kind: null,

@@ -59,6 +59,7 @@
       </div>
     </div>
     <Lightbox />
+    <MemoryStory />
     <AlbumPicker />
     <MovieDialog />
     <LibraryShareDialog />
@@ -103,6 +104,7 @@ import SharePhotosDialog from '../components/SharePhotosDialog.vue'
 import EditDateDialog from '../components/EditDateDialog.vue'
 import EditLocationDialog from '../components/EditLocationDialog.vue'
 import Lightbox from '../components/Lightbox.vue'
+import MemoryStory from '../components/MemoryStory.vue'
 import PhotosSidebar from '../components/PhotosSidebar.vue'
 import { useBackClose } from '../composables/useBackClose'
 import {
