@@ -64,7 +64,7 @@ ASSETS = {
 
 
 def asset_dir():
-    return Path(frappe.get_app_path("photos", "models"))
+    return Path(frappe.get_site_path("photos-models")).resolve()
 
 
 def path(key):

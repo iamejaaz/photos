@@ -16,6 +16,20 @@ def enabled(feature):
     return bool(frappe.db.get_single_value(SETTINGS, feature))
 
 
+def ensure_models():
+    keys = [key for feature, needed in FEATURES.items() if enabled(feature) for key in needed]
+    if not keys or assets.ready(*keys):
+        return
+    frappe.enqueue(
+        "photos.smart.settings.prepare",
+        queue="long",
+        timeout=3 * 60 * 60,
+        job_id="photos-setup",
+        deduplicate=True,
+        enqueue_after_commit=True,
+    )
+
+
 def prepare(user=None):
     from photos.smart import scan
 
