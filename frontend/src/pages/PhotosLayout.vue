@@ -22,6 +22,7 @@
     </DesktopShell>
     <MobileShell v-else class="isolate">
       <div class="relative flex min-h-full flex-col bg-surface-base pb-20">
+        <PullToRefresh />
         <router-view :key="$route.fullPath" />
       </div>
       <template #nav>
@@ -113,6 +114,7 @@ import EditDateDialog from '../components/EditDateDialog.vue'
 import EditLocationDialog from '../components/EditLocationDialog.vue'
 import Lightbox from '../components/Lightbox.vue'
 import MemoryStory from '../components/MemoryStory.vue'
+import PullToRefresh from '../components/PullToRefresh.vue'
 import PhotosSidebar from '../components/PhotosSidebar.vue'
 import { useBackClose } from '../composables/useBackClose'
 import {
