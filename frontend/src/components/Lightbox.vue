@@ -732,6 +732,7 @@ async function go(step: number) {
 
 function openOriginal() {
   if (!details.value?.original) return
+  lightbox.showInfo = false
   openLightbox(createStaticFeed([details.value.original]), details.value.original.name)
 }
 
