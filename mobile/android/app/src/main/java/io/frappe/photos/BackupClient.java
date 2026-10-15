@@ -163,7 +163,9 @@ final class BackupClient {
                 olderSite = true;
             }
         }
-        return call("POST", DRIVE_UPLOAD, form.body(), form.contentType());
+        synchronized (DRIVE_UPLOAD) {
+            return call("POST", DRIVE_UPLOAD, form.body(), form.contentType());
+        }
     }
 
     interface ChunkSource { byte[] read(long offset, int length) throws IOException; }
