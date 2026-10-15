@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
   webDir: '../frontend/dist-native',
   android: { allowMixedContent: false, useLegacyBridge: true },
   plugins: {
-    SplashScreen: { launchAutoHide: true, launchShowDuration: 1200 },
+    SplashScreen: { launchAutoHide: true, launchShowDuration: 8000 },
   },
 }
 

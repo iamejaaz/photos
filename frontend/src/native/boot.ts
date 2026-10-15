@@ -35,6 +35,7 @@ const socketUrl = (origin: string, port: number) => {
 
 const showPicker = (site?: Site | null, notice?: string) => {
   createApp(SitePicker, { site, notice }).use(translationPlugin).mount('#app')
+  import('./splash').then(({ hideSplash }) => hideSplash())
   return false
 }
 

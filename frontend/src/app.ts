@@ -17,4 +17,7 @@ app.use(router)
 app.use(spritePlugin)
 app.use(translationPlugin)
 
-router.isReady().then(() => app.mount('#app'))
+router.isReady().then(() => {
+  app.mount('#app')
+  if (import.meta.env.VITE_NATIVE) import('./native/splash').then(({ hideSplash }) => hideSplash())
+})

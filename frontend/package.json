@@ -20,7 +20,8 @@
     "@capacitor/preferences": "8.0.1",
     "capacitor-secure-storage-plugin": "0.13.0",
     "@capacitor/app": "8.1.1",
-    "@capacitor/status-bar": "8.0.3"
+    "@capacitor/status-bar": "8.0.3",
+    "@capacitor/splash-screen": "8.0.2"
   },
   "devDependencies": {
     "@types/leaflet": "1.9.12",
