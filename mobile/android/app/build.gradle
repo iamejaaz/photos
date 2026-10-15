@@ -38,6 +38,7 @@ dependencies {
     implementation "androidx.webkit:webkit:$androidxWebkitVersion"
     implementation "androidx.work:work-runtime:2.10.5"
     implementation "androidx.security:security-crypto:1.0.0"
+    implementation "androidx.biometric:biometric:1.1.0"
     implementation 'io.socket:socket.io-client:2.1.2'
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
