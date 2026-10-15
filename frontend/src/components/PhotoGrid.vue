@@ -196,7 +196,8 @@ const loadedThumbs = new Set<string>()
 let lastClicked: string | null = null
 
 useResizeObserver(container, (entries) => {
-  width.value = Math.floor(entries[0].contentRect.width)
+  const next = Math.floor(entries[0].contentRect.width)
+  requestAnimationFrame(() => (width.value = next))
 })
 
 const targetHeight = computed(() => (width.value < 1100 ? 180 : 220) * zoom.value)
@@ -447,11 +448,24 @@ const lineObserver = new ResizeObserver((entries) => {
       changed = true
     }
   }
-  if (changed) measuredVersion.value++
+  if (changed && !bumpFrame)
+    bumpFrame = requestAnimationFrame(() => {
+      bumpFrame = 0
+      measuredVersion.value++
+      for (const element of observed) {
+        if (element.isConnected) continue
+        lineObserver.unobserve(element)
+        observed.delete(element)
+      }
+    })
 })
+const observed = new Set<HTMLElement>()
+let bumpFrame = 0
 
 function observeLine(element: unknown) {
-  if (element instanceof HTMLElement) lineObserver.observe(element)
+  if (!(element instanceof HTMLElement) || observed.has(element)) return
+  observed.add(element)
+  lineObserver.observe(element)
 }
 
 function updateView() {
@@ -515,6 +529,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   observer?.disconnect()
   lineObserver.disconnect()
+  cancelAnimationFrame(bumpFrame)
   document.removeEventListener('scroll', onScroll, { capture: true })
   window.removeEventListener('resize', onScroll)
   cancelAnimationFrame(measureFrame)
