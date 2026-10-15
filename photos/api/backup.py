@@ -1,3 +1,4 @@
+import hashlib
 import json
 
 import frappe
@@ -14,6 +15,7 @@ def missing(hashes: list[str] | str):
     hashes = [h.lower() for h in hashes if isinstance(h, str) and len(h) == 40][:2000]
     if not hashes:
         return []
+    _fingerprint_recent_uploads(frappe.session.user)
     found = set(
         frappe.db.sql_list(
             """
@@ -25,6 +27,47 @@ def missing(hashes: list[str] | str):
         )
     )
     return [h for h in hashes if SOURCE.format(h) not in found]
+
+
+RECENT_DAYS = 7
+FINGERPRINT_LIMIT = 200
+
+
+def _fingerprint_recent_uploads(user):
+    from suite.drive.utils.files import FileManager, storage_key
+
+    from photos.utils.metadata import extract
+
+    File = frappe.qb.DocType("File")
+    Metadata = frappe.qb.DocType("Photo Metadata")
+    rows = (
+        frappe.qb.from_(File)
+        .left_join(Metadata)
+        .on(Metadata.file == File.name)
+        .select(File.name, File.file_url, Metadata.name.as_("metadata"))
+        .where(File.owner == user)
+        .where(File.status == "Active")
+        .where(File.is_folder == 0)
+        .where(File.mime_type.like("image/%") | File.mime_type.like("video/%"))
+        .where(File.creation > frappe.utils.add_days(frappe.utils.now_datetime(), -RECENT_DAYS))
+        .where(Metadata.source.isnull())
+        .limit(FINGERPRINT_LIMIT)
+        .run(as_dict=True)
+    )
+    site_folder = FileManager().site_folder
+    for row in rows:
+        path = site_folder / storage_key(row.file_url or "").lstrip("/")
+        if not row.file_url or not path.is_file():
+            continue
+        digest = hashlib.sha1()
+        with path.open("rb") as stream:
+            for block in iter(lambda: stream.read(1 << 20), b""):
+                digest.update(block)
+        if not row.metadata:
+            extract(row.name)
+        frappe.db.set_value(
+            "Photo Metadata", row.name, "source", SOURCE.format(digest.hexdigest()), update_modified=False
+        )
 
 
 @frappe.whitelist(methods=["POST"])
