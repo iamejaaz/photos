@@ -10,12 +10,12 @@
     :handle="handle"
     :empty-icon="LucideSearchX"
     :empty-title="__('No results')"
-    :empty-text="__('Try a file name, a camera, a month like October, a year like 2025, or the word videos.')"
+    :empty-text="__('Try other words, a person, a place, a month like October or a year like 2025.')"
   />
   <div v-else class="flex flex-col items-center gap-2 px-6 py-24 text-center">
     <div class="text-lg font-medium text-ink-gray-8">{{ __('Search your photos') }}</div>
     <div class="max-w-sm text-base text-ink-gray-5">
-      {{ __('Try a person, a place like Paris, a thing like beach, a month or a year.') }}
+      {{ __('Try a person, a place like Paris, a year, or describe the photo, like dog on the beach.') }}
     </div>
   </div>
 </template>
