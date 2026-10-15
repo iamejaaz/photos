@@ -48,11 +48,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
 
 import { type MonthCount, getMonths } from '../resources/photos'
-import type { FeedHandle } from '../data/feed'
+import { gridNav } from '../data/feed'
 
 interface Mark extends MonthCount {
   top: number
@@ -61,11 +61,10 @@ interface Mark extends MonthCount {
 
 const MIN_LABEL_GAP = 0.06
 
-const props = defineProps<{ handle: FeedHandle }>()
 const months = ref<MonthCount[]>([])
 const track = ref<HTMLElement>()
 const hover = ref<Mark | null>(null)
-const current = ref('')
+const current = computed(() => gridNav.month)
 getMonths().then((data) => (months.value = data))
 
 const marks = computed<Mark[]>(() => {
@@ -105,35 +104,7 @@ function hoverAt(event: MouseEvent) {
   hover.value = mark ? { ...mark, top: fraction } : null
 }
 
-function trackScroll() {
-  for (const line of document.querySelectorAll<HTMLElement>('[data-month]')) {
-    if (line.getBoundingClientRect().bottom > 80) {
-      current.value = line.dataset.month ?? ''
-      return
-    }
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('scroll', trackScroll, { capture: true, passive: true })
-  setTimeout(trackScroll, 500)
-})
-onBeforeUnmount(() => document.removeEventListener('scroll', trackScroll, { capture: true }))
-
-async function jumpTo(mark: Mark | null) {
-  if (!mark) return
-  const targetKey = key(mark.year, mark.month)
-  for (let attempt = 0; attempt < 30; attempt++) {
-    const target = [...document.querySelectorAll<HTMLElement>('[data-month]')].find(
-      (el) => (el.dataset.month ?? '') <= targetKey,
-    )
-    if (target && (target.dataset.month === targetKey || !props.handle.feed.hasNext)) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      return
-    }
-    if (!props.handle.feed.hasNext) return
-    await props.handle.loadMore()
-    await nextTick()
-  }
+function jumpTo(mark: Mark | null) {
+  if (mark) gridNav.jump?.(key(mark.year, mark.month))
 }
 </script>

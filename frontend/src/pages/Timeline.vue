@@ -25,7 +25,7 @@
         </Button>
       </template>
     </PhotoGrid>
-    <DateScrubber :handle="handle" />
+    <DateScrubber />
   </div>
 </template>
 

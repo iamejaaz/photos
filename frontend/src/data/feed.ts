@@ -66,3 +66,7 @@ export function createStaticFeed(rows: Photo[]) {
 }
 export type FeedHandle = ReturnType<typeof createFeed>
 export const activeFeed = shallowRef<FeedHandle | null>(null)
+export const gridNav = reactive<{ month: string; jump: ((month: string) => Promise<void>) | null }>({
+  month: '',
+  jump: null,
+})

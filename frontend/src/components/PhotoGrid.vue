@@ -7,7 +7,8 @@
     @touchstart="onPinchStart"
     @touchmove="onPinchMove"
   >
-    <template v-for="line in lines" :key="line.key">
+    <div :style="{ height: `${padTop}px` }" />
+    <div v-for="line in visibleLines" :key="line.key" :ref="observeLine" :data-line="line.key">
       <h2
         v-if="line.month"
         class="pb-1 pt-6 text-xl font-semibold text-ink-gray-9"
@@ -73,7 +74,7 @@
                   draggable="false"
                   class="size-full select-none object-cover transition-opacity duration-300 [-webkit-touch-callout:none]"
                   :class="loadedThumbs.has(tile.photo.name) ? 'opacity-100' : 'opacity-0'"
-                  @load="loadedThumbs.add(tile.photo.name)"
+                  @load="onThumbLoad($event, tile.photo.name)"
                 />
                 <div
                   class="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/40 to-transparent transition-opacity"
@@ -114,7 +115,8 @@
           </div>
         </div>
       </div>
-    </template>
+    </div>
+    <div :style="{ height: `${padBottom}px` }" />
 
     <div ref="sentinel" class="h-px" />
     <div v-if="handle.feed.loading" class="flex justify-center py-8">
@@ -147,7 +149,7 @@ import LucideStar from '~icons/lucide/star'
 import { type Photo, isVideo } from '../resources/photos'
 import { thumbnailUrl } from '../resources/media'
 import { useTouchSelect } from '../composables/useTouchSelect'
-import { type FeedHandle, activeFeed } from '../data/feed'
+import { type FeedHandle, activeFeed, gridNav } from '../data/feed'
 import { changeZoom, zoom } from '../data/prefs'
 import { openLightbox } from '../data/viewer'
 import { selection } from '../data/selection'
@@ -187,7 +189,7 @@ const DAY_GAP = 16
 const container = ref<HTMLElement>()
 const sentinel = ref<HTMLElement>()
 const width = ref(0)
-const loadedThumbs = reactive(new Set<string>())
+const loadedThumbs = new Set<string>()
 let lastClicked: string | null = null
 
 useResizeObserver(container, (entries) => {
@@ -352,6 +354,123 @@ function onTileClick(event: MouseEvent, photo: Photo) {
   openLightbox(props.handle, photo.name)
 }
 
+function onThumbLoad(event: Event, name: string) {
+  loadedThumbs.add(name)
+  ;(event.target as HTMLElement).classList.replace('opacity-0', 'opacity-100')
+}
+
+const OVERSCAN = 1.5
+const MONTH_HEADER = 56
+const DAY_HEADER = 36
+const measured = new Map<string, number>()
+const measuredVersion = ref(0)
+const view = reactive({ top: 0, height: window.innerHeight })
+let measureFrame = 0
+
+function estimate(line: Line) {
+  let height = line.month ? MONTH_HEADER : 0
+  let tallest = 0
+  for (const group of line.groups) {
+    let rows = DAY_HEADER
+    if (square.value) {
+      const cells = group.rows[0]?.reduce((sum, tile) => sum + (tile.span ?? 1) ** 2, 0) ?? 0
+      const size = (width.value - 2 * (columns.value - 1)) / columns.value
+      rows += Math.ceil(cells / columns.value) * (size + 2)
+    } else rows += group.rows.reduce((sum, row) => sum + (row[0]?.height ?? 0) + GAP, 0)
+    tallest = Math.max(tallest, rows)
+  }
+  return height + tallest
+}
+
+const offsets = computed(() => {
+  void measuredVersion.value
+  const result = [0]
+  for (const line of lines.value)
+    result.push(result[result.length - 1] + (measured.get(sizeKey(line)) ?? estimate(line)))
+  return result
+})
+
+const sizeKey = (line: Line) =>
+  `${width.value}:${zoom.value}:${line.key}:${line.groups.map((g) => g.photos.length).join(',')}`
+
+function lineAt(y: number) {
+  const list = offsets.value
+  let low = 0
+  let high = list.length - 1
+  while (low < high) {
+    const middle = (low + high + 1) >> 1
+    if (list[middle] <= y) low = middle
+    else high = middle - 1
+  }
+  return Math.min(low, Math.max(0, lines.value.length - 1))
+}
+
+const range = computed(() => {
+  const buffer = view.height * OVERSCAN
+  return [lineAt(view.top - buffer), lineAt(view.top + view.height + buffer) + 1]
+})
+const visibleLines = computed(() => lines.value.slice(range.value[0], range.value[1]))
+const padTop = computed(() => offsets.value[range.value[0]] ?? 0)
+const padBottom = computed(() => {
+  const list = offsets.value
+  return Math.max(0, list[list.length - 1] - (list[range.value[1]] ?? list[list.length - 1]))
+})
+
+const lineByKey = computed(() => new Map(lines.value.map((line) => [line.key, line])))
+const lineObserver = new ResizeObserver((entries) => {
+  let changed = false
+  for (const entry of entries) {
+    const key = (entry.target as HTMLElement).dataset.line
+    const line = key && lineByKey.value.get(key)
+    if (!line) continue
+    const height = (entry.target as HTMLElement).offsetHeight
+    if (height && measured.get(sizeKey(line)) !== height) {
+      measured.set(sizeKey(line), height)
+      changed = true
+    }
+  }
+  if (changed) measuredVersion.value++
+})
+
+function observeLine(element: unknown) {
+  if (element instanceof HTMLElement) lineObserver.observe(element)
+}
+
+function updateView() {
+  measureFrame = 0
+  if (!container.value) return
+  view.top = -container.value.getBoundingClientRect().top
+  view.height = window.innerHeight
+  if (activeFeed.value === props.handle) gridNav.month = lines.value[lineAt(view.top + 80)]?.monthKey ?? ''
+}
+
+function onScroll() {
+  if (!measureFrame) measureFrame = requestAnimationFrame(updateView)
+}
+
+function scrollParent(element: HTMLElement | undefined) {
+  for (let node = element?.parentElement; node; node = node.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight)
+      return node
+  }
+  return document.scrollingElement as HTMLElement
+}
+
+async function jumpToMonth(month: string) {
+  for (;;) {
+    const index = lines.value.findIndex((line) => line.monthKey <= month)
+    if (index > -1 && (lines.value[index].monthKey === month || !props.handle.feed.hasNext)) {
+      if (!container.value) return
+      const scroller = scrollParent(container.value)
+      const gridTop = container.value.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+      scroller.scrollTo({ top: scroller.scrollTop + gridTop + offsets.value[index] })
+      return
+    }
+    if (!props.handle.feed.hasNext || props.handle.feed.error) return
+    await props.handle.loadMore()
+  }
+}
+
 function isGroupSelected(group: Group) {
   return group.photos.every((photo) => selection.has(photo.name))
 }
@@ -364,13 +483,25 @@ function toggleGroup(group: Group) {
 let observer: IntersectionObserver | null = null
 onMounted(() => {
   activeFeed.value = props.handle
+  gridNav.jump = jumpToMonth
+  document.addEventListener('scroll', onScroll, { capture: true, passive: true })
+  window.addEventListener('resize', onScroll)
+  updateView()
   observer = new IntersectionObserver((entries) => entries[0].isIntersecting && props.handle.loadMore(), {
     rootMargin: '1200px',
   })
   if (sentinel.value) observer.observe(sentinel.value)
   if (!props.handle.feed.loaded) props.handle.loadMore()
 })
-onBeforeUnmount(() => observer?.disconnect())
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  lineObserver.disconnect()
+  document.removeEventListener('scroll', onScroll, { capture: true })
+  window.removeEventListener('resize', onScroll)
+  cancelAnimationFrame(measureFrame)
+  if (gridNav.jump === jumpToMonth) gridNav.jump = null
+})
+watch(() => lines.value.length, onScroll)
 
 watch(
   () => props.handle.feed.loading,
