@@ -90,7 +90,7 @@ async function addSite() {
 
 function openPhotoSettings() {
   accountSheet.open = false
-  openSettings(native ? 'backup' : 'memories')
+  openSettings()
 }
 
 async function signOut() {

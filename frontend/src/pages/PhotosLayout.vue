@@ -36,7 +36,7 @@
       <template #nav>
         <nav
           class="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-3 transition-transform duration-200 ease-out"
-          :class="{ 'translate-y-[150%]': selection.size }"
+          :class="{ 'translate-y-[150%]': selection.size || $route.name === 'photos-settings' }"
         >
           <div
             class="pointer-events-auto flex items-center gap-1 rounded-full bg-surface-base/90 p-1.5 shadow-xl ring-1 ring-black/5 backdrop-blur-md"

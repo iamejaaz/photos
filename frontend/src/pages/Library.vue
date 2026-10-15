@@ -125,7 +125,7 @@ const actions: { label: string; icon: unknown; route?: string; onClick?: () => v
     icon: LucideHardDriveDownload,
     onClick: () => openSettings('import'),
   },
-  { label: __('Settings'), icon: LucideSettings, onClick: () => openSettings('memories') },
+  { label: __('Settings'), icon: LucideSettings, onClick: () => openSettings() },
 ]
 
 usePageMeta(() => appPageMeta(__('Library'), 'Photos'))

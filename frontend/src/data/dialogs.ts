@@ -49,8 +49,14 @@ export const settings = reactive<{ open: boolean; tab: string; data: Settings | 
   tab: 'import',
   data: null,
 })
-export function openSettings(tab = 'import') {
-  settings.tab = tab
+export function openSettings(tab?: string) {
+  if (!window.matchMedia('(min-width: 768px)').matches) {
+    import('../router').then(({ default: router }) =>
+      router.push({ name: 'photos-settings', params: tab ? { section: tab } : {} }),
+    )
+    return
+  }
+  settings.tab = tab ?? 'memories'
   settings.open = true
 }
 export async function loadSettings() {

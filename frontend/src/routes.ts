@@ -60,6 +60,12 @@ export const routes: RouteRecordRaw[] = [
         component: () => import('./pages/Library.vue'),
       },
       {
+        path: 'settings/:section?',
+        name: 'photos-settings',
+        component: () => import('./pages/SettingsPage.vue'),
+        props: true,
+      },
+      {
         path: 'folders',
         name: 'photos-folders',
         component: () => import('./pages/Folders.vue'),
