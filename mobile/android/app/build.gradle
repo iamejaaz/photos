@@ -1,5 +1,9 @@
 apply plugin: 'com.android.application'
 
+def releaseKeystore = new Properties()
+def releaseKeystoreFile = rootProject.file('keystore.properties')
+if (releaseKeystoreFile.exists()) releaseKeystore.load(new FileInputStream(releaseKeystoreFile))
+
 android {
     namespace = "io.frappe.photos"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +20,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (releaseKeystoreFile.exists()) {
+                storeFile file(releaseKeystore['storeFile'])
+                storePassword releaseKeystore['storePassword']
+                keyAlias releaseKeystore['keyAlias']
+                keyPassword releaseKeystore['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig releaseKeystoreFile.exists() ? signingConfigs.release : null
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
