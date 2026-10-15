@@ -3,7 +3,10 @@
     <div
       v-if="lightbox.open && photo"
       class="edge-to-edge fixed inset-0 z-50 flex text-white"
-      :style="{ backgroundColor: `rgba(0, 0, 0, ${gestures.backdropOpacity.value})` }"
+      :style="{
+        backgroundColor: `rgba(0, 0, 0, ${gestures.backdropOpacity.value * hero.backdrop})`,
+        transition: hero.transition && `background-color ${HERO_MS}ms`,
+      }"
     >
       <div class="relative flex min-w-0 flex-1 flex-col">
         <div
@@ -92,6 +95,7 @@
         </div>
 
         <div
+          ref="stage"
           class="relative flex min-h-0 flex-1 touch-none select-none items-center justify-center overflow-hidden"
           v-on="gestures.handlers"
           @dragstart.prevent
@@ -110,60 +114,70 @@
                 />
               </div>
             </template>
-            <div class="flex size-full items-center justify-center" :style="gestures.contentStyle.value">
-              <video
-                v-if="isVideo(photo)"
-                :key="photo.name"
-                :src="streamUrl(photo.name, photo.album)"
-                :poster="thumbnailUrl(photo.name, photo.album)"
-                ref="videoEl"
-                class="max-h-full max-w-full"
-                controls
-                autoplay
-                @ended="lightbox.slideshow && go(1)"
-              />
-              <div v-else :key="photo.name" class="relative flex size-full items-center justify-center">
-                <img
-                  v-if="!loaded"
-                  :src="thumbnailUrl(photo.name, photo.album)"
-                  class="absolute size-full object-contain"
-                  alt=""
-                />
-                <img
-                  :src="contentUrl(photo.name, photo.album)"
-                  :alt="photo.file_name"
-                  class="relative size-full object-contain transition-opacity"
-                  :class="loaded ? 'opacity-100' : 'opacity-0'"
-                  @load="loaded = true"
-                />
-                <img
-                  v-if="sharp"
-                  :src="originalUrl(photo.name, photo.album)"
-                  class="absolute size-full object-contain opacity-0"
-                  alt=""
-                  @load="($event.target as HTMLElement).classList.remove('opacity-0')"
-                />
+            <div
+              class="flex size-full items-center justify-center"
+              :style="{
+                transform: hero.transform,
+                clipPath: hero.clip,
+                opacity: hero.opacity,
+                transition: hero.transition,
+              }"
+            >
+              <div class="flex size-full items-center justify-center" :style="gestures.contentStyle.value">
                 <video
-                  v-if="liveSource && livePlaying"
-                  :key="liveSource"
-                  :src="liveSource"
-                  class="absolute max-h-full max-w-full object-contain"
-                  :style="sizeStyle"
+                  v-if="isVideo(photo)"
+                  :key="photo.name"
+                  :src="streamUrl(photo.name, photo.album)"
+                  :poster="thumbnailUrl(photo.name, photo.album)"
+                  ref="videoEl"
+                  class="max-h-full max-w-full"
+                  controls
                   autoplay
-                  muted
-                  playsinline
-                  @ended="livePlaying = false"
-                  @error="livePlaying = false"
+                  @ended="lightbox.slideshow && go(1)"
                 />
-                <button
-                  v-if="liveSource"
-                  class="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white"
-                  :aria-pressed="livePlaying"
-                  @click="livePlaying = !livePlaying"
-                >
-                  <LucideCirclePlay class="size-3.5" />
-                  {{ __('Live') }}
-                </button>
+                <div v-else :key="photo.name" class="relative flex size-full items-center justify-center">
+                  <img
+                    v-if="!loaded"
+                    :src="thumbnailUrl(photo.name, photo.album)"
+                    class="absolute size-full object-contain"
+                    alt=""
+                  />
+                  <img
+                    :src="contentUrl(photo.name, photo.album)"
+                    :alt="photo.file_name"
+                    class="relative size-full object-contain transition-opacity"
+                    :class="loaded ? 'opacity-100' : 'opacity-0'"
+                    @load="loaded = true"
+                  />
+                  <img
+                    v-if="sharp"
+                    :src="originalUrl(photo.name, photo.album)"
+                    class="absolute size-full object-contain opacity-0"
+                    alt=""
+                    @load="($event.target as HTMLElement).classList.remove('opacity-0')"
+                  />
+                  <video
+                    v-if="liveSource && livePlaying"
+                    :key="liveSource"
+                    :src="liveSource"
+                    class="absolute max-h-full max-w-full object-contain"
+                    :style="sizeStyle"
+                    autoplay
+                    muted
+                    playsinline
+                    @ended="livePlaying = false"
+                    @error="livePlaying = false"
+                  />
+                  <button
+                    v-if="liveSource"
+                    class="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white"
+                    :aria-pressed="livePlaying"
+                    @click="livePlaying = !livePlaying"
+                  >
+                    <LucideCirclePlay class="size-3.5" />
+                    {{ __('Live') }}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -402,7 +416,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, Dropdown, LoadingIndicator, Textarea, Tooltip, toast, useKeyboardShortcut } from 'frappe-ui'
 import dayjs from 'dayjs'
@@ -637,9 +651,66 @@ watch(
   },
 )
 
-function close() {
+const HERO_MS = 280
+const HERO_EASE = 'cubic-bezier(0.2, 0, 0, 1)'
+const stage = ref<HTMLElement>()
+const hero = reactive({ transform: '', clip: '', opacity: 1, backdrop: 1, transition: '' })
+let closing = false
+
+function tileFrame() {
+  const current = photo.value
+  const box = stage.value?.getBoundingClientRect()
+  const tile = current && document.querySelector<HTMLElement>(`[data-photo="${CSS.escape(current.name)}"]`)
+  if (!current?.width || !current.height || !box?.width || !tile) return null
+  const rect = tile.getBoundingClientRect()
+  if (rect.bottom < 0 || rect.top > window.innerHeight) return null
+  const ratio = current.width / current.height
+  const fitWidth = Math.min(box.width, box.height * ratio)
+  const fitHeight = fitWidth / ratio
+  const scale = Math.max(rect.width / fitWidth, rect.height / fitHeight)
+  const insetX = Math.max(0, (box.width - rect.width / scale) / 2)
+  const insetY = Math.max(0, (box.height - rect.height / scale) / 2)
+  return {
+    transform: `translate(${rect.left + rect.width / 2 - (box.left + box.width / 2)}px, ${rect.top + rect.height / 2 - (box.top + box.height / 2)}px) scale(${scale})`,
+    clip: `inset(${insetY}px ${insetX}px round ${8 / scale}px)`,
+  }
+}
+
+const heroTransition = `transform ${HERO_MS}ms ${HERO_EASE}, clip-path ${HERO_MS}ms ${HERO_EASE}, opacity ${HERO_MS}ms`
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+async function heroIn() {
+  Object.assign(hero, { transform: '', clip: '', opacity: 1, backdrop: 1, transition: '' })
+  if (reducedMotion()) return
+  await nextTick()
+  const frame = tileFrame()
+  Object.assign(hero, frame ? { ...frame, backdrop: 0 } : { opacity: 0, backdrop: 0 })
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() =>
+      Object.assign(hero, {
+        transform: '',
+        clip: 'inset(0px 0px round 0px)',
+        opacity: 1,
+        backdrop: 1,
+        transition: heroTransition,
+      }),
+    ),
+  )
+}
+
+function finishClose() {
+  closing = false
   lightbox.open = false
   lightbox.slideshow = false
+}
+
+function close() {
+  if (closing || !lightbox.open) return
+  if (reducedMotion() || gestures.state.scale > 1) return finishClose()
+  closing = true
+  const frame = tileFrame()
+  Object.assign(hero, { transition: heroTransition, backdrop: 0, ...(frame ?? { opacity: 0 }) })
+  setTimeout(finishClose, HERO_MS)
 }
 
 const chrome = ref(true)
@@ -663,7 +734,7 @@ const gestures = useViewerGestures({
   canNext: () => lightbox.index < rows.value.length - 1 || Boolean(feed.value?.feed.hasNext),
   onPrevious: () => go(-1),
   onNext: () => go(1),
-  onClose: close,
+  onClose: finishClose,
   onInfo: () => (lightbox.showInfo = true),
   onTap: () => (chrome.value = !chrome.value),
   zoomable: () => Boolean(photo.value && !isVideo(photo.value)),
@@ -686,6 +757,7 @@ const onPopState = () => lightbox.open && close()
 watch(
   () => lightbox.open,
   (open) => {
+    if (open) heroIn()
     if (open && !history.state?.photosViewer) {
       chrome.value = true
       history.pushState({ ...history.state, photosViewer: true }, '')
