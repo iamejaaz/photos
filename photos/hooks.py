@@ -33,7 +33,7 @@ doc_events = {
     },
 }
 
-before_request = ["photos.api.native.set_cors"]
+before_request = ["photos.api.native.set_cors", "photos.utils.permissions.block_impersonation"]
 after_install = "photos.api.native.ensure_oauth_client"
 after_migrate = ["photos.api.native.ensure_oauth_client", "photos.smart.settings.ensure_models"]
 

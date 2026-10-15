@@ -1,4 +1,5 @@
 import frappe
+from frappe import _
 from suite.drive.api.permissions import filter_access, get_user_access_for_user
 from suite.drive.utils import PERMISSION_TYPES, generate_upward_path
 
@@ -20,3 +21,14 @@ def can_access(entity, ptype, user=None):
     if ptype not in PERMISSION_TYPES:
         ptype = "write"
     return bool(photo_access(entity, user).get(ptype))
+
+
+PRIVATE_PATHS = ("/api/method/photos.", "/photos")
+
+
+def block_impersonation():
+    request = getattr(frappe.local, "request", None)
+    if not request or not request.path.startswith(PRIVATE_PATHS):
+        return
+    if (frappe.session.data or {}).get("impersonated_by"):
+        frappe.throw(_("Photos are private. Stop impersonating to see them."), frappe.PermissionError)
