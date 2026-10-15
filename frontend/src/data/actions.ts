@@ -4,6 +4,7 @@ import { type Photo, setArchived } from '../resources/photos'
 import { deleteForever, setFavourite, toggleTrash } from '../resources/drive'
 import { downloadUrl } from '../resources/media'
 import { setHidden } from '../resources/hidden'
+import { undoMerge } from '../resources/people'
 import { type FeedHandle, activeFeed } from './feed'
 import { lightbox, openLightbox } from './viewer'
 import { selection } from './selection'
@@ -76,6 +77,22 @@ function putBack(removal: Removal) {
   for (const step of [...removal.steps].reverse()) {
     for (const { row, index } of step) rows.splice(Math.min(index, rows.length), 0, row)
   }
+}
+export function mergedToast(token: string | undefined, afterUndo: () => unknown) {
+  toast.success(__('Merged'), {
+    id: UNDO_TOAST,
+    duration: 10000,
+    action: token
+      ? {
+          label: __('Undo'),
+          onClick: async () => {
+            await undoMerge(token)
+            await afterUndo()
+            toast.success(__('Merge undone'), { id: UNDO_TOAST })
+          },
+        }
+      : undefined,
+  })
 }
 export async function trash(names: string[]) {
   await toggleTrash(names)

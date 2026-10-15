@@ -133,6 +133,7 @@ import PhotosHeader from '../components/PhotosHeader.vue'
 import { clearSelection } from '../data/selection'
 import { createFeed } from '../data/feed'
 import { errorText } from '../resources/drive'
+import { mergedToast } from '../data/actions'
 
 const props = defineProps<{ person: string }>()
 const router = useRouter()
@@ -186,7 +187,7 @@ async function mergeIntoDuplicate() {
   if (!duplicate.value) return
   const result = await renamePerson(props.person, duplicate.value.person_name ?? '', true)
   duplicate.value = null
-  toast.success(__('Merged'))
+  mergedToast(result?.undo, () => router.replace({ name: 'photos-person', params: { person: props.person } }))
   if (result?.merged_into) router.replace({ name: 'photos-person', params: { person: result.merged_into } })
 }
 
@@ -210,9 +211,12 @@ function toggleMerge(name: string) {
 }
 
 async function merge() {
-  await mergePeople(props.person, [...mergePicks])
+  const { undo } = await mergePeople(props.person, [...mergePicks])
   merging.value = false
-  toast.success(__('Merged'))
+  mergedToast(undo, async () => {
+    await refresh()
+    handle.reload()
+  })
   await refresh()
   handle.reload()
 }

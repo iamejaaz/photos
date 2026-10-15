@@ -39,6 +39,7 @@ export const renamePerson = (person: string, personName: string, merge = false, 
   call(`${PEOPLE}.rename_person`, { person, person_name: personName, merge, separate }) as Promise<{
     duplicate?: PersonSummary
     merged_into?: string
+    undo?: string
   } | null>
 export const mergeSuggestions = () =>
   call(`${PEOPLE}.merge_suggestions`) as Promise<
@@ -49,6 +50,7 @@ export const notSamePeople = (first: string, second: string) =>
 export const setPersonHidden = (person: string, hidden: boolean) =>
   call(`${PEOPLE}.set_hidden`, { person, hidden })
 export const mergePeople = (target: string, sources: string[]) =>
-  call(`${PEOPLE}.merge_people`, { target, sources })
+  call(`${PEOPLE}.merge_people`, { target, sources }) as Promise<{ undo: string }>
+export const undoMerge = (token: string) => call(`${PEOPLE}.undo_merge`, { token })
 export const removePhotosFromPerson = (person: string, files: string[]) =>
   call(`${PEOPLE}.remove_photos`, { person, files })

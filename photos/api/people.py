@@ -131,12 +131,13 @@ def rename_person(person: str, person_name: str, merge: bool = False, separate: 
     if duplicate and not frappe.parse_json(merge):
         return {"duplicate": duplicate}
     if duplicate:
-        merge_people(duplicate.name, [person])
-        return {"merged_into": duplicate.name}
+        result = merge_people(duplicate.name, [person])
+        return {"merged_into": duplicate.name, "undo": result["undo"]}
     frappe.db.set_value("Photo Person", person, "person_name", person_name)
 
 
 SUGGEST_FROM = 0.4
+UNDO_SECONDS = 60 * 60
 NOT_SAME = "photos_not_same_people"
 
 
@@ -195,10 +196,67 @@ def merge_people(target: str, sources: list[str] | str):
     sources = [s for s in (json.loads(sources) if isinstance(sources, str) else sources) if s != target]
     for source in sources:
         _own(source)
+    fields = ["name", "person_name", "cover_face", "face_count"]
+    people = [frappe.db.get_value("Photo Person", name, fields, as_dict=True) for name in [target, *sources]]
+    undo = {
+        "target": people[0],
+        "sources": [
+            {
+                "doc": frappe.get_doc("Photo Person", source).as_dict(no_default_fields=False),
+                "faces": frappe.get_all("Photo Face", filters={"person": source}, pluck="name"),
+            }
+            for source in sources
+        ],
+    }
+    biggest = max(people, key=lambda person: person.face_count or 0)
+    person_name = next((person.person_name for person in people if person.person_name), None)
+    for source in sources:
         frappe.db.set_value("Photo Face", {"person": source}, "person", target, update_modified=False)
         auto_albums.replace_person(source, target)
         frappe.delete_doc("Photo Person", source, ignore_permissions=True, force=True)
     engine.recompute(target)
+    frappe.db.set_value(
+        "Photo Person",
+        target,
+        {"person_name": person_name, "cover_face": biggest.cover_face},
+        update_modified=False,
+    )
+    token = frappe.generate_hash(length=16)
+    frappe.cache.set_value(_undo_key(token), undo, expires_in_sec=UNDO_SECONDS)
+    return {"undo": token}
+
+
+@frappe.whitelist(methods=["POST"])
+def undo_merge(token: str):
+    undo = frappe.cache.get_value(_undo_key(token))
+    if not undo:
+        frappe.throw("This merge can no longer be undone.")
+    target = undo["target"]
+    _own(target["name"])
+    for source in undo["sources"]:
+        doc = frappe.get_doc(source["doc"])
+        if not frappe.db.exists("Photo Person", doc.name):
+            doc.db_insert()
+        frappe.db.set_value(
+            "Photo Face",
+            {"name": ["in", source["faces"] or [""]], "person": target["name"]},
+            "person",
+            doc.name,
+            update_modified=False,
+        )
+        engine.recompute(doc.name)
+    engine.recompute(target["name"])
+    frappe.db.set_value(
+        "Photo Person",
+        target["name"],
+        {"person_name": target["person_name"], "cover_face": target["cover_face"]},
+        update_modified=False,
+    )
+    frappe.cache.delete_value(_undo_key(token))
+
+
+def _undo_key(token):
+    return f"photos:undo-merge:{frappe.session.user}:{token}"
 
 
 @frappe.whitelist()

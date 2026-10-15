@@ -80,6 +80,7 @@ import FaceAvatar from '../components/FaceAvatar.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { openSettings, settings } from '../data/dialogs'
 import { itemCount } from '../utils'
+import { mergedToast } from '../data/actions'
 
 const data = ref<{ enabled: boolean; people: Person[] }>()
 const showHidden = ref(false)
@@ -104,8 +105,8 @@ async function answer(same: boolean) {
           ? Boolean(pair.second.person_name)
           : pair.second.face_count > pair.first.face_count
       const [target, source] = keepSecond ? [pair.second, pair.first] : [pair.first, pair.second]
-      await mergePeople(target.name, [source.name])
-      toast.success(__('Merged'))
+      const { undo } = await mergePeople(target.name, [source.name])
+      mergedToast(undo, load)
     } else await notSamePeople(pair.first.name, pair.second.name)
     await load()
   } finally {
