@@ -29,6 +29,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="io.frappe.photos" android:host="oauth" />
+                <data android:scheme="io.frappe.photos" android:host="open" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
