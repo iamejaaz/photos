@@ -14,6 +14,7 @@
         <video
           ref="video"
           :src="streamUrl(photo.name, photo.album)"
+          :poster="thumbnailUrl(photo.name, photo.album, true)"
           class="max-h-full max-w-full"
           playsinline
           @loadedmetadata="loaded"
@@ -76,7 +77,7 @@ import LucideX from '~icons/lucide/x'
 
 import { type Photo } from '../resources/photos'
 import { exportFrame, trimVideo } from '../resources/edit'
-import { streamUrl } from '../resources/media'
+import { streamUrl, thumbnailUrl } from '../resources/media'
 import { notifyUploaded } from '../data/uploads'
 import { useBackClose } from '../composables/useBackClose'
 import { errorText } from '../resources/drive'

@@ -9,25 +9,40 @@
       @contextmenu.prevent
     >
       <div class="absolute inset-0 overflow-hidden">
-        <video
-          v-if="isVideo(photo)"
-          :key="photo.name"
-          :src="streamUrl(photo.name)"
-          class="size-full object-contain"
-          autoplay
-          muted
-          playsinline
-          @ended="next"
-        />
-        <img
-          v-else
-          :key="photo.name"
-          :src="contentUrl(photo.name)"
-          class="story-image size-full object-contain"
-          :style="{ animationDuration: `${PHOTO_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }"
-          draggable="false"
-          alt=""
-        />
+        <template v-if="isVideo(photo)">
+          <video
+            :key="photo.name"
+            :src="streamUrl(photo.name)"
+            :poster="thumbnailUrl(photo.name, undefined, true)"
+            class="size-full object-contain"
+            autoplay
+            muted
+            playsinline
+            @loadstart="buffering = true"
+            @waiting="buffering = true"
+            @playing="buffering = false"
+            @ended="next"
+          />
+          <LoadingIndicator
+            v-if="buffering"
+            class="pointer-events-none absolute left-1/2 top-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-white"
+          />
+        </template>
+        <div v-else :key="photo.name" class="relative size-full">
+          <img
+            :src="thumbnailUrl(photo.name, undefined, true)"
+            class="absolute inset-0 size-full object-contain"
+            draggable="false"
+            alt=""
+          />
+          <img
+            :src="contentUrl(photo.name)"
+            class="story-image relative size-full object-contain"
+            :style="{ animationDuration: `${PHOTO_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }"
+            draggable="false"
+            alt=""
+          />
+        </div>
       </div>
 
       <div class="absolute inset-x-0 top-0 bg-gradient-to-b from-black/60 to-transparent px-3 pb-10 pt-3">
@@ -62,9 +77,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import dayjs from 'dayjs'
+import { LoadingIndicator } from 'frappe-ui'
 import LucideX from '~icons/lucide/x'
 
-import { contentUrl, streamUrl } from '../resources/media'
+import { contentUrl, streamUrl, thumbnailUrl } from '../resources/media'
 import { isVideo } from '../resources/photos'
 import { useBackClose } from '../composables/useBackClose'
 import { memoryStory as story } from '../data/viewer'
@@ -73,6 +89,7 @@ const PHOTO_MS = 5000
 const HOLD_MS = 220
 
 const memory = computed(() => story.memories[story.memory])
+const buffering = ref(false)
 const photo = computed(() => memory.value?.photos[story.index])
 const progress = ref(0)
 const paused = ref(false)
