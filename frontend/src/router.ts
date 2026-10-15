@@ -15,7 +15,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  if (!useSessionStore().isLoggedIn && !to.meta.allowGuest) {
+  if (!import.meta.env.VITE_NATIVE && !useSessionStore().isLoggedIn && !to.meta.allowGuest) {
     window.location.href = `/login?redirect-to=${encodeURIComponent(`/photos${to.fullPath}`)}`
     return false
   }
