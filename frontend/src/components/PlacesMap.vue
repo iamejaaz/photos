@@ -38,6 +38,7 @@ function render() {
     map.fitBounds(L.latLngBounds(props.places.map((p) => [p.latitude, p.longitude] as [number, number])), {
       padding: mapEl.value && mapEl.value.clientWidth < 500 ? [16, 16] : [48, 48],
       maxZoom: 9,
+      animate: false,
     })
   }
 }
@@ -61,12 +62,15 @@ onMounted(() => {
     attribution: '&copy; OpenStreetMap contributors',
   }).addTo(map)
   render()
-  resizeObserver = new ResizeObserver(() => map?.invalidateSize())
+  resizeObserver = new ResizeObserver(() => map?.invalidateSize({ animate: false }))
   resizeObserver.observe(mapEl.value)
 })
 watch(() => props.places, render)
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
+  map?.stop()
+  map?.off()
   map?.remove()
+  map = null
 })
 </script>
