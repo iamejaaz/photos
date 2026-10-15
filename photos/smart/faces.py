@@ -11,10 +11,12 @@ DETECT_SIDE = 1280
 MIN_FACE = 48
 MIN_FACE_SHARE = 0.03
 MIN_SCORE = 0.85
-SAME_PERSON = 0.4
+SAME_PERSON = 0.45
 SAME_PEOPLE = 0.5
 VIDEO_SAMPLES = 12
 EMBEDDER = "auraface-v1"
+MIN_STRENGTH = 15
+MIN_SHARPNESS = 10
 
 _engine = None
 
@@ -132,11 +134,15 @@ def _embed(frame, row):
 
     _, recognizer, embedder = _models()
     aligned = recognizer.alignCrop(frame, row)
+    sharpness = cv2.Laplacian(cv2.cvtColor(aligned, cv2.COLOR_BGR2GRAY), cv2.CV_64F).var()
     embedder.setInput(
         cv2.dnn.blobFromImage(aligned, 1 / 127.5, (112, 112), (127.5, 127.5, 127.5), swapRB=True)
     )
     feature = embedder.forward().flatten().astype("float32")
-    return feature / (np.linalg.norm(feature) or 1)
+    strength = float(np.linalg.norm(feature))
+    if strength < MIN_STRENGTH or sharpness < MIN_SHARPNESS:
+        return None
+    return feature / strength
 
 
 def _detect(rgb):
@@ -150,6 +156,8 @@ def _detect(rgb):
         if w / width < MIN_FACE_SHARE or h / height < MIN_FACE_SHARE:
             continue
         feature = _embed(frame, row)
+        if feature is None:
+            continue
         faces.append(
             {
                 "x": max(0.0, x / width),
@@ -310,13 +318,15 @@ def _reembed(file_name, timestamp, faces):
             key=lambda row: abs(row[0] / width - face.x) + abs(row[1] / height - face.y),
             default=None,
         )
-        if row is None or abs(row[0] / width - face.x) + abs(row[1] / height - face.y) > 0.05:
+        close = row is not None and abs(row[0] / width - face.x) + abs(row[1] / height - face.y) <= 0.05
+        feature = _embed(frame, row) if close else None
+        if feature is None:
             frappe.delete_doc("Photo Face", face.name, ignore_permissions=True, force=True)
             continue
         frappe.db.set_value(
             "Photo Face",
             face.name,
-            {"embedding": _encode(_embed(frame, row)), "embedder": EMBEDDER},
+            {"embedding": _encode(feature), "embedder": EMBEDDER},
             update_modified=False,
         )
 
