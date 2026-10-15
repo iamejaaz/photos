@@ -2,7 +2,7 @@ from io import BytesIO
 
 import frappe
 from suite.drive.api import files as drive
-from suite.drive.utils import STATUS_ACTIVE
+from suite.drive.utils import STATUS_ACTIVE, STATUS_TRASHED
 from suite.drive.utils.files import FileManager, storage_key
 from werkzeug.utils import send_file
 from werkzeug.wrappers import Response
@@ -21,10 +21,21 @@ def _file(entity_name, album):
     file = frappe.db.get_value(
         "File",
         entity_name,
-        ["name", "file_name", "file_type", "file_url", "is_folder", "status", "mime_type", "file_size"],
+        [
+            "name",
+            "file_name",
+            "file_type",
+            "file_url",
+            "is_folder",
+            "status",
+            "mime_type",
+            "file_size",
+            "owner",
+        ],
         as_dict=True,
     )
-    if not file or file.is_folder or file.status != STATUS_ACTIVE:
+    trashed_own = file and file.status == STATUS_TRASHED and file.owner == frappe.session.user
+    if not file or file.is_folder or (file.status != STATUS_ACTIVE and not trashed_own):
         frappe.throw("Not found", frappe.DoesNotExistError)
     return file
 
