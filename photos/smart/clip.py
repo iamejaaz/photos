@@ -7,7 +7,7 @@ SIZE = 224
 MEAN = (0.48145466, 0.4578275, 0.40821073)
 STD = (0.26862954, 0.26130258, 0.27577711)
 MAX_TOKENS = 77
-MIN_SCORE = 0.235
+MIN_SCORE = 0.25
 NEAR_BEST = 0.035
 MAX_MATCHES = 500
 
@@ -79,7 +79,7 @@ def matches(query, rows):
         .reshape(len(rows), -1)
         .astype("float32")
     )
-    scores = vectors @ embed_text(query)
+    scores = vectors @ embed_text(f"a photo of {query}")
     best = float(scores.max())
     floor = max(MIN_SCORE, best - NEAR_BEST)
     order = np.argsort(-scores)[:MAX_MATCHES]
