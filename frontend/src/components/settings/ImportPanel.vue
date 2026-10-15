@@ -4,6 +4,8 @@
     :description="__('Bring your photos, videos, albums and favourites over from Google Photos.')"
   />
   <SettingsBody>
+    <GooglePicker class="border-b border-outline-gray-1 pb-6 pt-2" />
+    <h3 class="mt-6 text-base font-semibold text-ink-gray-8">{{ __('Import a Google Takeout export') }}</h3>
     <div v-if="takeout.uploading" class="flex flex-col gap-3 pt-2">
       <div class="text-base text-ink-gray-8">
         {{ __('Uploading {0} of {1}', [Math.min(takeout.uploaded + 1, takeout.parts), takeout.parts]) }}
@@ -148,6 +150,7 @@ import {
 import LucideUpload from '~icons/lucide/upload'
 
 import type { ImportOptions } from '../../api'
+import GooglePicker from './GooglePicker.vue'
 import { discardImport, loadImport, runImport, startTakeout, takeout } from '../../store'
 
 const job = computed(() => takeout.job)

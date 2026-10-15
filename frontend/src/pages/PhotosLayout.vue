@@ -107,7 +107,9 @@ import PhotosSidebar from '../components/PhotosSidebar.vue'
 import {
   changeZoom,
   clearSelection,
+  googleImport,
   lightbox,
+  openSettings,
   loadAlbums,
   loadSettings,
   loadImport,
@@ -142,6 +144,31 @@ if (loggedIn.value) {
     if (data.status === 'Ready') toast.success(__('People, places and things are ready'))
     if (data.status === 'Failed') toast.error(__('Photos setup failed. Open Settings to see why.'))
   })
+  initSocket().on(
+    'photos-google-import',
+    (data: {
+      finished: boolean
+      done?: number
+      total?: number
+      imported?: number
+      skipped?: number
+      failed?: number
+    }) => {
+      if (!data.finished) {
+        Object.assign(googleImport, { running: true, done: data.done ?? 0, total: data.total ?? 0 })
+        return
+      }
+      googleImport.running = false
+      notifyUploaded()
+      const imported = data.imported ?? 0
+      toast.success(
+        imported === 1
+          ? __('Imported 1 item from Google Photos')
+          : __('Imported {0} items from Google Photos', [imported]),
+      )
+      if (data.failed) toast.error(__('{0} items could not be imported', [data.failed]))
+    },
+  )
   initSocket().on('photos-trim-ready', () => {
     notifyUploaded()
     toast.success(__('The trimmed video is ready in Photos'))
@@ -156,6 +183,14 @@ if (loggedIn.value) {
   loadAlbums()
   loadSettings()
   receiveShared()
+  googleConnected()
+}
+
+function googleConnected() {
+  if (new URLSearchParams(window.location.search).get('google') !== 'connected') return
+  window.history.replaceState(null, '', window.location.pathname)
+  toast.success(__('Google account connected'))
+  openSettings('import')
 }
 
 async function receiveShared() {

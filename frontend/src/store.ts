@@ -216,6 +216,13 @@ export const takeout = reactive({
   job: null as ImportJob | null,
   error: '',
 })
+export const googleImport = reactive<{
+  picking: boolean
+  running: boolean
+  done: number
+  total: number
+}>({ picking: false, running: false, done: 0, total: 0 })
+
 export async function loadImport(name?: string) {
   const job = await getImport(name)
   const finished = takeout.job?.status === 'Importing' && job?.status === 'Done'
