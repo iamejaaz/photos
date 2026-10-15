@@ -17,6 +17,8 @@ final class BackupScheduler {
     static final String PERIODIC = "photos-backup-periodic";
     static final String NOW = "photos-backup-now";
     static final String WATCH = "photos-backup-watch";
+    static final String SOON = "photos-backup-soon";
+    private static final long RETRY_SECONDS = 30;
 
     static void schedule(Context context) {
         BackupStore store = new BackupStore(context);
@@ -24,6 +26,7 @@ final class BackupScheduler {
         if (!store.signedIn() || !store.enabled()) {
             work.cancelUniqueWork(PERIODIC);
             work.cancelUniqueWork(WATCH);
+            work.cancelUniqueWork(SOON);
             if (SharedItems.pending(context)) runNow(context);
             return;
         }
@@ -42,6 +45,15 @@ final class BackupScheduler {
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .build();
         WorkManager.getInstance(context).enqueueUniqueWork(NOW, ExistingWorkPolicy.APPEND_OR_REPLACE, request);
+    }
+
+    static void runSoon(Context context) {
+        BackupStore store = new BackupStore(context);
+        OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(BackupWorker.class)
+            .setConstraints(network(store))
+            .setInitialDelay(RETRY_SECONDS, TimeUnit.SECONDS)
+            .build();
+        WorkManager.getInstance(context).enqueueUniqueWork(SOON, ExistingWorkPolicy.APPEND_OR_REPLACE, request);
     }
 
     static void watch(Context context) {

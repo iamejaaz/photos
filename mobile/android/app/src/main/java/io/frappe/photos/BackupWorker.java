@@ -66,7 +66,7 @@ public class BackupWorker extends Worker {
     @Override
     public Result doWork() {
         if (!store.signedIn()) return Result.success();
-        if (!LOCK.tryLock()) return Result.retry();
+        if (!LOCK.tryLock()) return Result.success();
         skipped = null;
         running = true;
         PhotosBackupPlugin.emit(getApplicationContext());
@@ -81,7 +81,8 @@ public class BackupWorker extends Worker {
             return Result.success();
         } catch (IOException | RuntimeException e) {
             store.finished(e.getMessage());
-            return isStopped() ? Result.success() : Result.retry();
+            if (!isStopped()) BackupScheduler.runSoon(getApplicationContext());
+            return Result.success();
         } finally {
             running = false;
             LOCK.unlock();
