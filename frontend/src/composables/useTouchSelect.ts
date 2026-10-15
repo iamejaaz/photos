@@ -85,6 +85,7 @@ export function useTouchSelect({ names, selection }: Options) {
 
   function onPress(event: PointerEvent, name: string) {
     if (event.pointerType !== 'touch') return
+    suppressClick = false
     cancel()
     start = point = { x: event.clientX, y: event.clientY }
     scrollTarget = scroller(event.currentTarget as Element)
