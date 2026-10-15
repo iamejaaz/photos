@@ -39,6 +39,7 @@ public class BackupWorker extends Worker {
     private static final String CHANNEL = "photos_backup";
     private static final int NOTIFICATION_ID = 4120;
     private static final int BATCH = 25;
+    private static final int MAX_DROPS_IN_ROW = 3;
     static volatile boolean running;
     private static final ReentrantLock LOCK = new ReentrantLock();
     private String skipped;
@@ -98,8 +99,8 @@ public class BackupWorker extends Worker {
             JSONArray missing = client.missing(new JSONArray().put(sha1));
             if (missing != null && missing.length() > 0) {
                 try {
-                    String uploaded = client.upload(folder, name, mime, file.length(), file.lastModified(), (offset, length) -> readFile(file, offset, length));
-                    client.mark(uploaded, sha1);
+                    String uploaded = client.upload(folder, name, mime, file.length(), file.lastModified(), sha1, (offset, length) -> readFile(file, offset, length));
+                    if (uploaded != null) client.mark(uploaded, sha1);
                 } catch (BackupClient.Rejected e) {
                     skipped = name + ": " + e.getMessage();
                 }
@@ -115,6 +116,7 @@ public class BackupWorker extends Worker {
         List<Item> pending = new ArrayList<>();
         for (Item item : items) if (!store.isDone(item.key)) pending.add(item);
         int done = items.size() - pending.size();
+        int dropsInRow = 0;
         store.progress(items.size(), done);
         PhotosBackupPlugin.emit(getApplicationContext());
         if (pending.size() > 50) setForegroundAsync(foregroundInfo(done, items.size()));
@@ -139,10 +141,15 @@ public class BackupWorker extends Worker {
                 if (hash == null) continue;
                 if (wanted.contains(hash)) {
                     try {
-                        String uploaded = client.upload(folder, item.name, item.mime, item.size, item.modified, (offset, length) -> readUri(item.uri, offset, length));
-                        client.mark(uploaded, hash);
+                        String uploaded = client.upload(folder, item.name, item.mime, item.size, item.modified, hash, (offset, length) -> readUri(item.uri, offset, length));
+                        if (uploaded != null) client.mark(uploaded, hash);
+                        dropsInRow = 0;
                     } catch (BackupClient.Rejected e) {
                         skipped = item.name + ": " + e.getMessage();
+                        continue;
+                    } catch (BackupClient.Dropped e) {
+                        if (++dropsInRow >= MAX_DROPS_IN_ROW) throw e;
+                        skipped = e.getMessage();
                         continue;
                     }
                 }

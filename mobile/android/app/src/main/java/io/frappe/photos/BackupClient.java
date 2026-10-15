@@ -23,13 +23,46 @@ final class BackupClient {
         Rejected(String message) { super(message); }
     }
 
+    static final class Refused extends IOException {
+        Refused(String message) { super(message); }
+    }
+
+    static final class Dropped extends IOException {
+        Dropped(IOException cause) { super("The connection to the site dropped. Backup tries again by itself.", cause); }
+    }
+
+    private static final int ATTEMPTS = 3;
+    private static final long FIRST_PAUSE_MS = 2_000;
+
+    interface Attempt<T> { T run(int tried) throws IOException; }
+
+    static <T> T retrying(Attempt<T> attempt) throws IOException {
+        IOException last = null;
+        for (int tried = 0; tried < ATTEMPTS; tried++) {
+            try {
+                return attempt.run(tried);
+            } catch (SignedOut | Rejected | Refused e) {
+                throw e;
+            } catch (IOException e) {
+                last = e;
+                try {
+                    Thread.sleep(FIRST_PAUSE_MS << tried);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        throw new Dropped(last);
+    }
+
     private static final String TOKEN = "/api/method/frappe.integrations.oauth2.get_token";
     private final BackupStore store;
 
     BackupClient(BackupStore store) { this.store = store; }
 
     String uploadFolder() throws IOException {
-        String folder = call("POST", "/api/method/photos.api.backup.upload_folder", "{}", "application/json").optString("message", "");
+        String folder = retrying(tried -> call("POST", "/api/method/photos.api.backup.upload_folder", "{}", "application/json")).optString("message", "");
         if (folder.isEmpty()) throw new IOException("The site has no Photos folder for this account");
         return folder;
     }
@@ -37,16 +70,28 @@ final class BackupClient {
     JSONArray missing(JSONArray hashes) throws IOException {
         JSONObject body = new JSONObject();
         try { body.put("hashes", hashes); } catch (JSONException e) { throw new IOException(e); }
-        return call("POST", "/api/method/photos.api.backup.missing", body.toString(), "application/json").optJSONArray("message");
+        return retrying(tried -> call("POST", "/api/method/photos.api.backup.missing", body.toString(), "application/json")).optJSONArray("message");
     }
 
     void mark(String file, String sha1) throws IOException {
         JSONObject body = new JSONObject();
         try { body.put("file", file); body.put("sha1", sha1); } catch (JSONException e) { throw new IOException(e); }
-        call("POST", "/api/method/photos.api.backup.mark", body.toString(), "application/json");
+        retrying(tried -> call("POST", "/api/method/photos.api.backup.mark", body.toString(), "application/json"));
     }
 
-    String upload(String parent, String name, String mime, long size, long modified, ChunkSource source) throws IOException {
+    String upload(String parent, String name, String mime, long size, long modified, String sha1, ChunkSource source) throws IOException {
+        return retrying(tried -> {
+            if (tried > 0 && !isMissing(sha1)) return null;
+            return uploadOnce(parent, name, mime, size, modified, source);
+        });
+    }
+
+    private boolean isMissing(String sha1) throws IOException {
+        JSONArray missing = missing(new JSONArray().put(sha1));
+        return missing == null || missing.length() > 0;
+    }
+
+    private String uploadOnce(String parent, String name, String mime, long size, long modified, ChunkSource source) throws IOException {
         long chunkSize = 20L * 1024 * 1024;
         int total = (int) Math.max(1, (size + chunkSize - 1) / chunkSize);
         String uuid = UUID.randomUUID().toString();
@@ -77,7 +122,8 @@ final class BackupClient {
             response = send(method, path, body, contentType);
         }
         if (response.status == 400 || response.status == 413 || response.status == 415 || response.status == 417) throw new Rejected(serverMessage(response));
-        if (response.status >= 400) throw new IOException(serverMessage(response));
+        if (response.status >= 500) throw new IOException("The site answered " + response.status);
+        if (response.status >= 400) throw new Refused(serverMessage(response));
         try { return new JSONObject(response.body.isEmpty() ? "{}" : response.body); } catch (JSONException e) { throw new IOException(e); }
     }
 
@@ -88,6 +134,7 @@ final class BackupClient {
         connection.setReadTimeout(120_000);
         connection.setRequestProperty("Authorization", "Bearer " + store.accessToken());
         connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("Connection", "close");
         if (body != null) {
             byte[] bytes = body instanceof byte[] ? (byte[]) body : ((String) body).getBytes(StandardCharsets.UTF_8);
             connection.setDoOutput(true);
