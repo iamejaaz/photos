@@ -92,7 +92,7 @@ export function createFeed(method: string, params: Record<string, unknown> = {})
 export function createStaticFeed(rows: Photo[]) {
   const handle = createFeed('static')
   Object.assign(handle.feed, { rows, hasNext: false, loaded: true })
-  return handle
+  return { ...handle, reload: async () => {} }
 }
 
 export type FeedHandle = ReturnType<typeof createFeed>
@@ -314,10 +314,24 @@ function dropFromFeed(names: string[]) {
 
 const countLabel = (one: string, many: string, count: number) => (count === 1 ? __(one) : __(many, [count]))
 
+function undoable(message: string, revert: () => Promise<unknown>) {
+  const feed = activeFeed.value
+  toast.success(message, {
+    duration: 8000,
+    action: {
+      label: __('Undo'),
+      onClick: async () => {
+        await revert()
+        feed?.reload()
+      },
+    },
+  })
+}
+
 export async function trash(names: string[]) {
   await toggleTrash(names)
   dropFromFeed(names)
-  toast.success(countLabel('Moved to trash', '{0} items moved to trash', names.length))
+  undoable(countLabel('Moved to trash', '{0} items moved to trash', names.length), () => toggleTrash(names))
 }
 
 export async function restore(names: string[]) {
@@ -335,10 +349,11 @@ export async function removeForever(names: string[]) {
 export async function archive(names: string[], value = true) {
   await setArchived(names, value)
   dropFromFeed(names)
-  toast.success(
+  undoable(
     value
       ? countLabel('Archived', '{0} items archived', names.length)
       : countLabel('Moved back to photos', '{0} items moved back to photos', names.length),
+    () => setArchived(names, !value),
   )
 }
 
