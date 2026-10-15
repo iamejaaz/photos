@@ -2,18 +2,6 @@
   <div class="flex flex-col gap-3">
     <h3 class="text-base font-semibold text-ink-gray-8">{{ __('Pick from Google Photos') }}</h3>
     <div v-if="!status" class="h-8" />
-    <template v-else-if="!status.configured">
-      <p class="text-base text-ink-gray-6">
-        {{
-          status.can_configure
-            ? __('Add a Google client ID and secret in Google Settings to pick photos straight from Google.')
-            : __('Ask your administrator to set up Google sign-in to pick photos straight from Google.')
-        }}
-      </p>
-      <div v-if="status.can_configure">
-        <Button @click="openGoogleSettings">{{ __('Open Google Settings') }}</Button>
-      </div>
-    </template>
     <template v-else-if="googleImport.running">
       <div class="text-base text-ink-gray-8">
         {{ __('Importing {0} of {1}', [googleImport.done, googleImport.total || '…']) }}
@@ -62,15 +50,30 @@ const status = ref<GoogleStatus | null>(null)
 const busy = ref(false)
 let timer: ReturnType<typeof setTimeout> | undefined
 
-googleStatus().then((value) => (status.value = value))
-onBeforeUnmount(() => clearTimeout(timer))
+const refreshStatus = () => googleStatus().then((value) => (status.value = value))
+const onVisible = () => document.visibilityState === 'visible' && refreshStatus()
+refreshStatus()
+document.addEventListener('visibilitychange', onVisible)
+onBeforeUnmount(() => {
+  clearTimeout(timer)
+  document.removeEventListener('visibilitychange', onVisible)
+})
 
-const openGoogleSettings = () => window.open('/desk/google-settings', '_blank')
+const native = Boolean(import.meta.env.VITE_NATIVE)
+
+async function openOutside(url: string) {
+  const { photosShell } = await import('../../native/shell')
+  const { plugin } = await photosShell()
+  await plugin.openExternal({ url })
+}
 
 async function connect() {
   busy.value = true
   try {
-    window.location.assign(await connectGoogle())
+    const url = await connectGoogle(native)
+    if (!native) return window.location.assign(url)
+    await openOutside(url)
+    busy.value = false
   } catch (error) {
     busy.value = false
     toast.error(errorText(error) || __('Could not connect to Google'))
@@ -79,14 +82,15 @@ async function connect() {
 
 async function disconnect() {
   await disconnectGoogle()
-  status.value = await googleStatus()
+  await refreshStatus()
 }
 
 async function pick() {
-  const picker = window.open('', '_blank')
+  const picker = native ? null : window.open('', '_blank')
   try {
     const session = await startGooglePicking()
-    if (picker) picker.location.href = session.url
+    if (native) await openOutside(session.url)
+    else if (picker) picker.location.href = session.url
     else window.open(session.url, '_blank')
     googleImport.picking = true
     const deadline = Date.now() + 30 * 60_000

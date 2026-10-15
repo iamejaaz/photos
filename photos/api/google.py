@@ -1,33 +1,31 @@
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlencode
 
 import frappe
 import requests
+from frappe.utils import get_url
 from frappe.utils.password import get_decrypted_password, remove_encrypted_password, set_encrypted_password
 
-DOMAIN = "photos_picker"
-SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
+from photos.api import google_relay
+
 PICKER = "https://photospicker.googleapis.com/v1"
 TOKEN_FIELD = "photos_google_refresh_token"
 SOURCE = "google:{}"
+RELAY = "https://photos.m.frappe.cloud"
+CONNECT = "photos:google-connect:{}"
+CONNECT_SECONDS = 15 * 60
+APP_RETURN = "io.frappe.photos://open/settings/import"
 
 
-def _oauth():
-    from frappe.integrations import google_oauth
-
-    google_oauth._SCOPES[DOMAIN] = SCOPE
-    return google_oauth.GoogleOAuth(
-        DOMAIN,
-        config={
-            "domain_callback_url": "photos.api.google.authorize",
-            "service_version": ("photospicker", "v1"),
-        },
-    )
+def _picker():
+    return (frappe.conf.get("photos_google_endpoints") or {}).get("picker") or PICKER
 
 
-def _configured():
-    settings = frappe.get_cached_doc("Google Settings")
-    return bool(settings.enable and settings.client_id)
+def _relay():
+    if google_relay.available():
+        return None
+    return (frappe.conf.get("photos_google_relay") or RELAY).rstrip("/")
 
 
 def _refresh_token(user=None):
@@ -35,31 +33,69 @@ def _refresh_token(user=None):
 
 
 def _access_token(user=None):
-    token = _oauth().refresh_access_token(_refresh_token(user)).get("access_token")
-    if not token:
-        frappe.throw("Connect your Google account again.")
-    return token
+    refresh_token = _refresh_token(user)
+    if not refresh_token:
+        frappe.throw("Connect your Google account first.")
+    relay = _relay()
+    if relay:
+        tokens = _relay_call(relay, "refresh", refresh_token=refresh_token)
+    else:
+        tokens = google_relay.refreshed(refresh_token)
+    return tokens["access_token"]
+
+
+def _relay_call(relay, method, **data):
+    response = requests.post(f"{relay}/api/method/photos.api.google_relay.{method}", data=data, timeout=30)
+    if response.status_code != 200:
+        frappe.throw("Google sign-in is not available right now. Please try again later.")
+    return response.json()["message"]
 
 
 @frappe.whitelist()
 def status():
-    return {
-        "configured": _configured(),
-        "connected": bool(_refresh_token()),
-        "can_configure": "System Manager" in frappe.get_roles(),
-    }
+    return {"connected": bool(_refresh_token())}
 
 
 @frappe.whitelist(methods=["POST"])
-def connect():
-    return _oauth().get_authentication_url({"redirect": "/photos?google=connected"})["url"]
+def connect(native: bool = False):
+    nonce, verifier = frappe.generate_hash(length=24), frappe.generate_hash(length=48)
+    frappe.cache.set_value(
+        CONNECT.format(nonce),
+        {"user": frappe.session.user, "verifier": verifier, "native": int(frappe.parse_json(native) or 0)},
+        expires_in_sec=CONNECT_SECONDS,
+    )
+    query = urlencode(
+        {
+            "challenge": google_relay.challenge_for(verifier),
+            "return_to": get_url(f"/api/method/photos.api.google.connected?nonce={nonce}"),
+        }
+    )
+    return f"{_relay() or get_url()}/api/method/photos.api.google_relay.begin?{query}"
 
 
-def authorize(code, **kwargs):
-    response = _oauth().authorize(code)
-    if not response.get("refresh_token"):
-        frappe.throw("Google did not allow access. Please try again.")
-    set_encrypted_password("User", frappe.session.user, response["refresh_token"], TOKEN_FIELD)
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def connected(nonce: str, handoff: str | None = None, error: str | None = None):
+    key = CONNECT.format(nonce)
+    attempt = frappe.cache.get_value(key)
+    frappe.cache.delete_value(key)
+    if not attempt:
+        frappe.throw("This Google sign-in has expired. Please start again.")
+    outcome = "cancelled"
+    if handoff and not error:
+        relay = _relay()
+        tokens = (
+            _relay_call(relay, "claim", handoff=handoff, verifier=attempt["verifier"])
+            if relay
+            else google_relay.take_handoff(handoff, attempt["verifier"])
+        )
+        if tokens.get("refresh_token"):
+            set_encrypted_password("User", attempt["user"], tokens["refresh_token"], TOKEN_FIELD)
+            frappe.db.commit()
+            outcome = "connected"
+    frappe.local.response["type"] = "redirect"
+    frappe.local.response["location"] = (
+        f"{APP_RETURN}?google={outcome}" if attempt["native"] else get_url(f"/photos?google={outcome}")
+    )
 
 
 @frappe.whitelist(methods=["POST"])
@@ -70,7 +106,7 @@ def disconnect():
 @frappe.whitelist(methods=["POST"])
 def start_picking():
     response = requests.post(
-        f"{PICKER}/sessions",
+        f"{_picker()}/sessions",
         headers={"Authorization": f"Bearer {_access_token()}"},
         json={},
         timeout=30,
@@ -87,7 +123,7 @@ def start_picking():
 @frappe.whitelist()
 def picking_done(session_id: str):
     response = requests.get(
-        f"{PICKER}/sessions/{session_id}",
+        f"{_picker()}/sessions/{session_id}",
         headers={"Authorization": f"Bearer {_access_token()}"},
         timeout=30,
     )
@@ -147,7 +183,7 @@ def run_import(session_id, user):
                 {"done": index, "total": len(items), "finished": False},
                 user=user,
             )
-    requests.delete(f"{PICKER}/sessions/{session_id}", headers=headers, timeout=30)
+    requests.delete(f"{_picker()}/sessions/{session_id}", headers=headers, timeout=30)
     frappe.publish_realtime(
         "photos-google-import",
         {"finished": True, "imported": imported, "skipped": skipped, "failed": failed},
@@ -161,7 +197,7 @@ def _picked_items(session_id, headers):
         params = {"sessionId": session_id, "pageSize": 100}
         if page:
             params["pageToken"] = page
-        response = requests.get(f"{PICKER}/mediaItems", headers=headers, params=params, timeout=60)
+        response = requests.get(f"{_picker()}/mediaItems", headers=headers, params=params, timeout=60)
         response.raise_for_status()
         data = response.json()
         items.extend(data.get("mediaItems", []))
