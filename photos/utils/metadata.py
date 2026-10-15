@@ -54,7 +54,17 @@ def extract(file_name):
     file = frappe.db.get_value(
         "File",
         file_name,
-        ["name", "file_name", "file_url", "folder", "owner", "mime_type", "file_modified", "creation"],
+        [
+            "name",
+            "file_name",
+            "file_url",
+            "folder",
+            "owner",
+            "mime_type",
+            "file_size",
+            "file_modified",
+            "creation",
+        ],
         as_dict=True,
     )
     if not file or not file.file_url:
@@ -93,6 +103,8 @@ def _prepare_formats(file, path):
         if file.mime_type.startswith("image/") and formats.extract_motion_clip(file):
             frappe.db.set_value("Photo Metadata", file.name, "motion_photo", 1, update_modified=False)
         pair_live_photo(file)
+        if formats.needs_view_image(file):
+            formats.view_image(file)
     except Exception:
         frappe.log_error(f"Photos could not prepare {file.name}")
 

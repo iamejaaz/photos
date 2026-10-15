@@ -8,6 +8,8 @@ RAW = {"cr2", "cr3", "nef", "arw", "dng", "raf", "orf", "rw2", "pef", "srw"}
 BROWSER_IMAGES = {"image/jpeg", "image/png", "image/gif", "image/webp", "image/avif", "image/bmp"}
 BROWSER_VIDEO_CODECS = {"h264", "vp8", "vp9", "av1"}
 DISPLAY_SIZE = 2560
+VIEW_MIN_BYTES = 1_500_000
+VIEW_IMAGES = {"image/jpeg", "image/png", "image/webp", "image/avif", "image/bmp"}
 VIDEO_HEIGHT = 1080
 
 
@@ -76,6 +78,24 @@ def display_image(file):
         image = open_image(source_path(file), file.file_name)
         image.thumbnail((DISPLAY_SIZE, DISPLAY_SIZE))
         image.convert("RGB").save(target, "JPEG", quality=88)
+    return target
+
+
+def needs_view_image(file):
+    return file.mime_type in VIEW_IMAGES and (file.file_size or 0) > VIEW_MIN_BYTES
+
+
+def view_image(file):
+    from PIL import Image, ImageOps
+
+    target = derived_path(file.name, ".view.webp")
+    if not target.exists():
+        with Image.open(source_path(file)) as image:
+            image.draft("RGB", (DISPLAY_SIZE, DISPLAY_SIZE))
+            image = ImageOps.exif_transpose(image)
+            image.thumbnail((DISPLAY_SIZE, DISPLAY_SIZE))
+            image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+            image.save(target, "WEBP", quality=85, method=4)
     return target
 
 

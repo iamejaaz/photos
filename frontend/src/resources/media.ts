@@ -9,6 +9,8 @@ export const thumbnailUrl = (name: string, album?: string) =>
   mediaUrl(`/api/method/${MEDIA}.thumbnail?entity_name=${name}${inAlbum(album)}`)
 export const contentUrl = (name: string, album?: string) =>
   mediaUrl(`/api/method/${MEDIA}.content?entity_name=${name}&display=1${inAlbum(album)}`)
+export const originalUrl = (name: string, album?: string) =>
+  mediaUrl(`/api/method/${MEDIA}.content?entity_name=${name}&display=2${inAlbum(album)}`)
 export const streamUrl = contentUrl
 export const downloadUrl = (name: string, album?: string) =>
   album

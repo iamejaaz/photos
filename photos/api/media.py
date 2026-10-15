@@ -19,7 +19,7 @@ def _file(entity_name, album):
     file = frappe.db.get_value(
         "File",
         entity_name,
-        ["name", "file_name", "file_type", "file_url", "is_folder", "status", "mime_type"],
+        ["name", "file_name", "file_type", "file_url", "is_folder", "status", "mime_type", "file_size"],
         as_dict=True,
     )
     if not file or file.is_folder or file.status != STATUS_ACTIVE:
@@ -71,6 +71,8 @@ def content(entity_name: str, album: str | None = None, download: int = 0, displ
     if int(display or 0):
         if formats.needs_display_image(file):
             return _send(formats.display_image(file), "image/jpeg")
+        if int(display) == 1 and formats.needs_view_image(file):
+            return _send(formats.view_image(file), "image/webp")
         if (file.mime_type or "").startswith("video/"):
             if clip := formats.display_video(file.name):
                 return _send(clip, "video/mp4")

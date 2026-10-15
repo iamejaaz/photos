@@ -121,7 +121,7 @@ import LucideRotateCw from '~icons/lucide/rotate-cw'
 import LucideX from '~icons/lucide/x'
 
 import { type Photo, getUploadFolder } from '../resources/photos'
-import { contentUrl, thumbnailUrl } from '../resources/media'
+import { originalUrl, thumbnailUrl } from '../resources/media'
 import { markEdited } from '../resources/edit'
 import { uploadFile, errorText } from '../resources/drive'
 import { useBackClose } from '../composables/useBackClose'
@@ -331,7 +331,7 @@ watch(
       ready.value = true
       draw()
     }
-    image.src = contentUrl(name)
+    image.src = originalUrl(name)
   },
   { immediate: true },
 )

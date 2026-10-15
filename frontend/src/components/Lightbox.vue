@@ -136,6 +136,13 @@
                   :class="loaded ? 'opacity-100' : 'opacity-0'"
                   @load="loaded = true"
                 />
+                <img
+                  v-if="sharp"
+                  :src="originalUrl(photo.name, photo.album)"
+                  class="absolute size-full object-contain opacity-0"
+                  alt=""
+                  @load="($event.target as HTMLElement).classList.remove('opacity-0')"
+                />
                 <video
                   v-if="liveSource && livePlaying"
                   :key="liveSource"
@@ -429,7 +436,7 @@ import { useSessionStore } from '@/boot/session'
 import { ALBUM_PHOTOS, toggleLike } from '../resources/albums'
 import { type Photo, getDetails, isVideo } from '../resources/photos'
 import { type PhotoPerson, getPhotoPeople, markNotAFace, unassignFace } from '../resources/people'
-import { contentUrl, downloadUrl, liveUrl, streamUrl, thumbnailUrl } from '../resources/media'
+import { contentUrl, downloadUrl, liveUrl, originalUrl, streamUrl, thumbnailUrl } from '../resources/media'
 import { editCaption } from '../resources/edit'
 import { activeFeed, createStaticFeed } from '../data/feed'
 import { albums, pickAlbumFor, sharedAlbums } from '../data/albums'
@@ -451,6 +458,7 @@ const feed = computed(() => activeFeed.value)
 const rows = computed(() => feed.value?.feed.rows ?? [])
 const photo = computed(() => rows.value[lightbox.index])
 const loaded = ref(false)
+const sharp = ref(false)
 const editing = ref(false)
 const photoPeople = ref<PhotoPerson[]>([])
 
@@ -595,6 +603,7 @@ watch(
   async ([name], previous) => {
     if (name !== previous?.[0]) {
       loaded.value = false
+      sharp.value = false
       details.value = null
     }
     if (!name) return
@@ -662,6 +671,10 @@ const gestures = useViewerGestures({
 watch(
   () => photo.value?.name,
   () => gestures.reset(),
+)
+watch(
+  () => gestures.state.scale > 1.2,
+  (zoomed) => zoomed && (sharp.value = true),
 )
 
 if (import.meta.env.VITE_NATIVE)
