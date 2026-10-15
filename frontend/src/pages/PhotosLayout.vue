@@ -21,21 +21,29 @@
       </div>
     </DesktopShell>
     <MobileShell v-else class="isolate">
-      <div class="relative flex min-h-full flex-col bg-surface-base">
+      <div class="relative flex min-h-full flex-col bg-surface-base pb-20">
         <router-view :key="$route.fullPath" />
       </div>
       <template #nav>
-        <nav class="flex justify-around border-t bg-surface-base py-1">
-          <router-link
-            v-for="item in mobileNav"
-            :key="item.label"
-            :to="item.to"
-            class="flex flex-col items-center gap-0.5 px-4 py-1 text-xs"
-            :class="$route.name === item.to.name ? 'text-ink-gray-9' : 'text-ink-gray-5'"
+        <nav class="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-3">
+          <div
+            class="pointer-events-auto flex items-center gap-1 rounded-full bg-surface-base/90 p-1.5 shadow-xl ring-1 ring-black/5 backdrop-blur-md"
           >
-            <component :is="item.icon" class="size-5" />
-            {{ item.label }}
-          </router-link>
+            <router-link
+              v-for="item in mobileNav"
+              :key="item.label"
+              :to="item.to"
+              class="flex items-center gap-1.5 rounded-full px-3.5 py-2.5 text-sm transition-colors"
+              :class="
+                $route.name === item.to.name
+                  ? 'bg-surface-gray-3 font-semibold text-ink-gray-9'
+                  : 'text-ink-gray-6'
+              "
+            >
+              <component :is="item.icon" class="size-5" />
+              <span v-if="$route.name === item.to.name">{{ item.label }}</span>
+            </router-link>
+          </div>
         </nav>
       </template>
     </MobileShell>

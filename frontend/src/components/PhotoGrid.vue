@@ -1,13 +1,18 @@
 <template>
   <div
     ref="container"
-    class="px-3 pb-10 sm:px-5"
+    class="pb-10 sm:px-5"
+    :class="{ 'px-3': !square }"
     @wheel="onWheel"
     @touchstart="onPinchStart"
     @touchmove="onPinchMove"
   >
     <template v-for="line in lines" :key="line.key">
-      <h2 v-if="line.month" class="pb-1 pt-6 text-xl font-semibold text-ink-gray-9">
+      <h2
+        v-if="line.month"
+        class="pb-1 pt-6 text-xl font-semibold text-ink-gray-9"
+        :class="{ 'px-3': square }"
+      >
         {{ line.month }}
       </h2>
       <div class="flex gap-4" :data-month="line.monthKey">
@@ -17,7 +22,7 @@
           class="min-w-0"
           :class="{ 'flex-1': line.groups.length === 1 }"
         >
-          <div class="group/day flex h-9 items-center pt-1">
+          <div class="group/day flex h-9 items-center pt-1" :class="{ 'px-3': square }">
             <button
               class="flex shrink-0 overflow-hidden transition-all duration-200"
               :class="
@@ -32,12 +37,25 @@
             </button>
             <span class="text-sm font-medium text-ink-gray-7">{{ group.label }}</span>
           </div>
-          <div v-for="(row, rowIndex) in group.rows" :key="rowIndex" class="mb-1 flex gap-1">
+          <div
+            v-for="(row, rowIndex) in group.rows"
+            :key="rowIndex"
+            :class="square ? 'mb-0.5 grid gap-0.5' : 'mb-1 flex gap-1'"
+            :style="
+              square
+                ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoFlow: 'dense' }
+                : undefined
+            "
+          >
             <div
               v-for="tile in row"
               :key="tile.photo.name"
               class="group/tile relative shrink-0 cursor-pointer overflow-hidden bg-surface-gray-2"
-              :style="{ width: `${tile.width}px`, height: `${tile.height}px` }"
+              :style="
+                square
+                  ? { gridColumn: `span ${tile.span}`, gridRow: `span ${tile.span}`, aspectRatio: '1' }
+                  : { width: `${tile.width}px`, height: `${tile.height}px` }
+              "
               :data-photo="tile.photo.name"
               @click="onTileClick($event, tile.photo)"
               @pointerdown="touchSelect.onPress($event, tile.photo.name)"
@@ -143,6 +161,7 @@ interface Tile {
   photo: Photo
   width: number
   height: number
+  span?: number
 }
 interface Group {
   key: string
@@ -235,12 +254,14 @@ function justify(photos: Photo[]): { rows: Tile[][]; open: boolean } {
   if (!available) return { rows: [], open: false }
   const rows: Tile[][] = []
   if (square.value) {
-    const size = (available - GAP * (columns.value - 1)) / columns.value
-    for (let index = 0; index < photos.length; index += columns.value)
-      rows.push(
-        photos.slice(index, index + columns.value).map((photo) => ({ photo, width: size, height: size })),
-      )
-    return { rows, open: false }
+    const heroes = columns.value >= 3 ? Math.floor(photos.length / 6) : 0
+    let used = 0
+    const tiles = photos.map((photo) => {
+      const hero = used < heroes && Boolean(photo.is_favourite || (isVideo(photo) && used === 0))
+      if (hero) used++
+      return { photo, width: 0, height: 0, span: hero ? 2 : 1 }
+    })
+    return { rows: [tiles], open: false }
   }
   let current: Photo[] = []
   let ratioSum = 0

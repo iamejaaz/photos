@@ -1,5 +1,10 @@
 <template>
-  <PhotosHeader :title="__('Photos')" searchable />
+  <PhotosHeader :title="__('Photos')" searchable>
+    <template v-if="native" #title>
+      <BackupChip class="sm:hidden" />
+      <h1 class="truncate text-lg font-semibold text-ink-gray-9 max-sm:hidden">{{ __('Photos') }}</h1>
+    </template>
+  </PhotosHeader>
   <Memories />
   <div class="flex">
     <PhotoGrid
@@ -31,12 +36,15 @@ import LucideHardDriveDownload from '~icons/lucide/hard-drive-download'
 import LucideImages from '~icons/lucide/images'
 
 import { appPageMeta } from '@/utils/documentTitle'
+import { defineAsyncComponent } from 'vue'
 import DateScrubber from '../components/DateScrubber.vue'
 import Memories from '../components/Memories.vue'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { createFeed, onUploaded, openSettings } from '../store'
 
+const native = Boolean(import.meta.env.VITE_NATIVE)
+const BackupChip = native ? defineAsyncComponent(() => import('../components/BackupChip.vue')) : null
 const handle = createFeed('timeline')
 onBeforeUnmount(onUploaded(() => handle.reload()))
 
