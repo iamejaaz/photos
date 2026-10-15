@@ -1,5 +1,5 @@
 <template>
-  <PageHeader class="relative">
+  <PageHeader v-if="active" class="relative">
     <div v-if="selection.size" class="flex w-full items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <Button variant="ghost" :aria-label="__('Clear selection')" @click="clearSelection">
@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { type Component, computed, ref } from 'vue'
+import { type Component, computed, onActivated, onDeactivated, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Dialog, Dropdown, PageHeader, TextInput, Tooltip, toast } from 'frappe-ui'
 import LucideArchive from '~icons/lucide/archive'
@@ -325,4 +325,8 @@ function search() {
 }
 
 const pickFiles = () => pickAndUpload(props.album?.name)
+
+const active = ref(true)
+onActivated(() => (active.value = true))
+onDeactivated(() => (active.value = false))
 </script>
