@@ -2,16 +2,19 @@
   <div ref="anchor" class="pointer-events-none sticky top-0 z-20 h-0">
     <div
       v-show="pull > 0 || refreshing"
-      class="absolute left-1/2 flex size-10 -translate-x-1/2 items-center justify-center rounded-full bg-surface-base shadow-md ring-1 ring-black/5"
-      :style="{ top: `${pull - 44}px`, transition: refreshing || pull === 0 ? 'top 150ms ease-out' : 'none' }"
+      class="absolute left-1/2 top-0 -ml-5 flex size-10 items-center justify-center rounded-full bg-surface-base shadow-md ring-1 ring-black/5 will-change-transform"
+      :style="{
+        transform: `translate3d(0, ${pull - 44}px, 0)`,
+        transition: refreshing || pull === 0 ? 'transform 180ms ease-out' : 'none',
+      }"
     >
-      <LucideRefreshCw
-        class="size-5 text-ink-gray-7"
+      <div
+        class="size-5 rounded-full border-2 border-ink-gray-7 border-t-transparent will-change-transform"
         :class="{ 'animate-spin': refreshing }"
         :style="
           refreshing
             ? undefined
-            : { transform: `rotate(${pull * 3}deg)`, opacity: Math.min(1, pull / trigger) }
+            : { transform: `rotate(${pull * 4}deg)`, opacity: Math.min(1, pull / trigger) }
         "
       />
     </div>
@@ -20,7 +23,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import LucideRefreshCw from '~icons/lucide/refresh-cw'
 
 import { usePullToRefresh } from '../composables/usePullToRefresh'
 import { lightbox, memoriesVersion, memoryStory, notifyUploaded, selection } from '../store'
