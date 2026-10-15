@@ -10,6 +10,11 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.app.Activity;
+import android.app.PendingIntent;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.IntentSenderRequest;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import com.getcapacitor.JSArray;
@@ -30,9 +35,13 @@ import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -48,9 +57,29 @@ import org.json.JSONObject;
 public class PhotosBackupPlugin extends Plugin {
     private static WeakReference<PhotosBackupPlugin> instance = new WeakReference<>(null);
     private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final List<Uri> freeable = new ArrayList<>();
+    private long freeableBytes;
+    private ActivityResultLauncher<IntentSenderRequest> deleteLauncher;
+    private PluginCall deleteCall;
 
     @Override
-    public void load() { instance = new WeakReference<>(this); }
+    public void load() {
+        instance = new WeakReference<>(this);
+        deleteLauncher = getActivity().registerForActivityResult(new ActivityResultContracts.StartIntentSenderForResult(), result -> {
+            PluginCall call = deleteCall;
+            deleteCall = null;
+            if (call == null) return;
+            JSObject freed = new JSObject();
+            boolean ok = result.getResultCode() == Activity.RESULT_OK;
+            freed.put("count", ok ? freeable.size() : 0);
+            freed.put("bytes", ok ? freeableBytes : 0);
+            if (ok) {
+                freeable.clear();
+                freeableBytes = 0;
+            }
+            call.resolve(freed);
+        });
+    }
 
     static void emit(Context context) {
         PhotosBackupPlugin plugin = instance.get();
@@ -144,6 +173,74 @@ public class PhotosBackupPlugin extends Plugin {
         BackupScheduler.schedule(getContext());
         if (!site.isEmpty() && !token.isEmpty()) new Thread(() -> BackupClient.revoke(site, clientId, token)).start();
         call.resolve();
+    }
+
+    @PluginMethod
+    public void findFreeable(PluginCall call) {
+        BackupStore store = new BackupStore(getContext());
+        if (!store.signedIn() || !BackupWorker.hasPermission(getContext())) {
+            call.reject("Backup is not set up on this phone");
+            return;
+        }
+        io.execute(() -> {
+            try {
+                List<BackupWorker.Item> items = new ArrayList<>(BackupWorker.query(getContext(), MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image"));
+                items.addAll(BackupWorker.query(getContext(), MediaStore.Video.Media.EXTERNAL_CONTENT_URI, "video"));
+                List<BackupWorker.Item> backedUp = new ArrayList<>();
+                List<String> hashes = new ArrayList<>();
+                for (BackupWorker.Item item : items) {
+                    if (!store.isDone(item.key)) continue;
+                    String hash = store.hashOf(item.key);
+                    if (hash == null) {
+                        hash = BackupWorker.hashOf(getContext(), item);
+                        if (hash == null) continue;
+                        store.markDone(item.key, hash);
+                    }
+                    backedUp.add(item);
+                    hashes.add(hash);
+                }
+                BackupClient client = new BackupClient(store);
+                Set<String> missing = new HashSet<>();
+                for (int start = 0; start < hashes.size(); start += 500) {
+                    JSONArray batch = new JSONArray(hashes.subList(start, Math.min(hashes.size(), start + 500)));
+                    JSONArray answer = client.missing(batch);
+                    for (int i = 0; answer != null && i < answer.length(); i++) missing.add(answer.optString(i));
+                }
+                synchronized (freeable) {
+                    freeable.clear();
+                    freeableBytes = 0;
+                    for (int i = 0; i < backedUp.size(); i++) {
+                        if (missing.contains(hashes.get(i))) continue;
+                        freeable.add(backedUp.get(i).uri);
+                        freeableBytes += backedUp.get(i).size;
+                    }
+                }
+                JSObject result = new JSObject();
+                result.put("count", freeable.size());
+                result.put("bytes", freeableBytes);
+                call.resolve(result);
+            } catch (IOException | RuntimeException e) {
+                call.reject(e.getMessage() == null ? "Could not check the backup" : e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod
+    public void freeUpSpace(PluginCall call) {
+        if (Build.VERSION.SDK_INT < 30) {
+            call.reject("Freeing up space needs Android 11 or later");
+            return;
+        }
+        if (freeable.isEmpty()) {
+            JSObject none = new JSObject();
+            none.put("count", 0);
+            none.put("bytes", 0);
+            call.resolve(none);
+            return;
+        }
+        PendingIntent request = MediaStore.createDeleteRequest(getContext().getContentResolver(), new ArrayList<>(freeable));
+        deleteCall = call;
+        deleteLauncher.launch(new IntentSenderRequest.Builder(request.getIntentSender()).build());
     }
 
     @PluginMethod

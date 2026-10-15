@@ -27,6 +27,14 @@
       <span class="flex-1">{{ __('Back up this phone') }}</span>
     </button>
     <button
+      v-if="native"
+      class="flex items-center gap-3 rounded px-3 py-3 text-left text-base text-ink-gray-8 hover:bg-surface-gray-2"
+      @click="openSettings('backup')"
+    >
+      <LucideSmartphone class="size-4 text-ink-gray-6" />
+      <span class="flex-1">{{ __('Free up space') }}</span>
+    </button>
+    <button
       class="flex items-center gap-3 rounded px-3 py-3 text-left text-base text-ink-gray-8 hover:bg-surface-gray-2"
       @click="openSettings('import')"
     >
@@ -57,6 +65,7 @@ import LucideTrash2 from '~icons/lucide/trash-2'
 import LucideCloudUpload from '~icons/lucide/cloud-upload'
 import LucideHardDriveDownload from '~icons/lucide/hard-drive-download'
 import LucideSettings from '~icons/lucide/settings'
+import LucideSmartphone from '~icons/lucide/smartphone'
 import LucideUsers from '~icons/lucide/users'
 import LucideUsersRound from '~icons/lucide/users-round'
 

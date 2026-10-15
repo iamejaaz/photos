@@ -50,7 +50,7 @@ public class BackupWorker extends Worker {
         client = new BackupClient(store);
     }
 
-    private static final class Item {
+    static final class Item {
         final Uri uri;
         final String key, name, mime;
         final long size, modified;
@@ -144,7 +144,7 @@ public class BackupWorker extends Worker {
                         continue;
                     }
                 }
-                store.markDone(item.key);
+                store.markDone(item.key, hash);
                 store.progress(items.size(), ++done);
                 PhotosBackupPlugin.emit(getApplicationContext());
                 if (pending.size() > 50) setForegroundAsync(foregroundInfo(done, items.size()));
@@ -152,13 +152,15 @@ public class BackupWorker extends Worker {
         }
     }
 
-    private List<Item> query(Uri collection, String kind) {
+    private List<Item> query(Uri collection, String kind) { return query(getApplicationContext(), collection, kind); }
+
+    static List<Item> query(Context context, Uri collection, String kind) {
         List<Item> items = new ArrayList<>();
         String[] columns = {
             MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.MIME_TYPE,
             MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.DATE_MODIFIED, MediaStore.MediaColumns.DATE_TAKEN,
         };
-        ContentResolver resolver = getApplicationContext().getContentResolver();
+        ContentResolver resolver = context.getContentResolver();
         try (Cursor cursor = resolver.query(collection, columns, null, null, null)) {
             if (cursor == null) return items;
             while (cursor.moveToNext()) {
@@ -177,9 +179,11 @@ public class BackupWorker extends Worker {
         return items;
     }
 
-    private String hashOf(Item item) {
+    private String hashOf(Item item) { return hashOf(getApplicationContext(), item); }
+
+    static String hashOf(Context context, Item item) {
         try {
-            InputStream in = getApplicationContext().getContentResolver().openInputStream(item.uri);
+            InputStream in = context.getContentResolver().openInputStream(item.uri);
             return in == null ? null : sha1(in);
         } catch (IOException | SecurityException e) {
             return null;

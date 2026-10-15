@@ -93,17 +93,26 @@ final class BackupStore {
         }
     }
 
-    void markDone(String key) {
+    void markDone(String key, String sha1) {
         ContentValues values = new ContentValues();
         values.put("key", key);
-        db().getWritableDatabase().insertWithOnConflict("done", null, values, SQLiteDatabase.CONFLICT_IGNORE);
+        values.put("sha1", sha1);
+        db().getWritableDatabase().insertWithOnConflict("done", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+    }
+
+    String hashOf(String key) {
+        try (Cursor cursor = db().getReadableDatabase().rawQuery("select sha1 from done where key = ?", new String[]{key})) {
+            return cursor.moveToFirst() ? cursor.getString(0) : null;
+        }
     }
 
     private void clearDone() { db().getWritableDatabase().delete("done", null, null); }
 
     private static final class Database extends SQLiteOpenHelper {
-        Database(Context context) { super(context, "photos_backup.db", null, 1); }
-        @Override public void onCreate(SQLiteDatabase db) { db.execSQL("create table done (key text primary key)"); }
-        @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {}
+        Database(Context context) { super(context, "photos_backup.db", null, 2); }
+        @Override public void onCreate(SQLiteDatabase db) { db.execSQL("create table done (key text primary key, sha1 text)"); }
+        @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+            if (oldVersion < 2) db.execSQL("alter table done add column sha1 text");
+        }
     }
 }

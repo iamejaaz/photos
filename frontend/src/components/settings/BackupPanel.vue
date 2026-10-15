@@ -48,6 +48,31 @@
             __('Back up now')
           }}</Button>
         </div>
+        <div
+          v-if="status.permission !== 'prompt' && status.permission !== 'denied'"
+          class="flex flex-col gap-2"
+        >
+          <div class="text-base font-medium text-ink-gray-8">{{ __('Free up space') }}</div>
+          <div class="text-p-base text-ink-gray-6">
+            {{
+              __(
+                'Remove photos and videos from this phone that are already backed up. They stay in your library.',
+              )
+            }}
+          </div>
+          <div class="flex items-center gap-3">
+            <Button v-if="!freeable" :loading="checking" @click="check">{{ __('Check this phone') }}</Button>
+            <Button v-else-if="freeable.count" variant="solid" @click="freeUp">{{
+              __('Free up {0}', [formatBytes(freeable.bytes)])
+            }}</Button>
+            <span v-else class="text-base text-ink-gray-6">{{
+              __('Nothing to free up. Everything here is either not backed up yet or already removed.')
+            }}</span>
+            <span v-if="freeable?.count" class="text-base text-ink-gray-6">{{
+              freeable.count === 1 ? __('1 item') : __('{0} items', [freeable.count])
+            }}</span>
+          </div>
+        </div>
       </template>
     </div>
   </SettingsBody>
@@ -55,10 +80,20 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { Button, ErrorMessage, Progress, SettingsBody, SettingsHeader, SettingsRow, Switch } from 'frappe-ui'
+import {
+  Button,
+  ErrorMessage,
+  toast,
+  Progress,
+  SettingsBody,
+  SettingsHeader,
+  SettingsRow,
+  Switch,
+} from 'frappe-ui'
 import dayjs from 'dayjs'
 
 import { type BackupStatus, photosBackup } from '../../native/backup'
+import { formatBytes } from '../../format'
 
 const status = ref<BackupStatus | null>(null)
 let stop: (() => void) | undefined
@@ -94,6 +129,33 @@ async function set(options: Partial<Pick<BackupStatus, 'enabled' | 'wifiOnly' | 
 async function allow() {
   const { plugin } = await photosBackup()
   status.value = await plugin.requestPermission()
+}
+
+const checking = ref(false)
+const freeable = ref<{ count: number; bytes: number } | null>(null)
+
+async function check() {
+  checking.value = true
+  try {
+    const { plugin } = await photosBackup()
+    freeable.value = await plugin.findFreeable()
+  } catch (error) {
+    toast.error((error as Error).message)
+  } finally {
+    checking.value = false
+  }
+}
+
+async function freeUp() {
+  const { plugin } = await photosBackup()
+  try {
+    const freed = await plugin.freeUpSpace()
+    if (!freed.count) return
+    toast.success(__('Freed up {0} on this phone', [formatBytes(freed.bytes)]))
+    freeable.value = null
+  } catch (error) {
+    toast.error((error as Error).message)
+  }
 }
 
 async function runNow() {

@@ -440,6 +440,7 @@ import { notifyUploaded } from '../data/uploads'
 import InfoRow from './InfoRow.vue'
 import MoveFaceDialog from './MoveFaceDialog.vue'
 import FaceAvatar from './FaceAvatar.vue'
+import { formatBytes } from '../format'
 import { useBackClose } from '../composables/useBackClose'
 import { SWIPE_GAP, useViewerGestures } from '../composables/useViewerGestures'
 import PhotoEditor from './PhotoEditor.vue'
@@ -626,18 +627,6 @@ watch(
     else if (lightbox.index >= length) lightbox.index = length - 1
   },
 )
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB']
-  let value = bytes / 1024
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit++
-  }
-  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`
-}
 
 function close() {
   lightbox.open = false
