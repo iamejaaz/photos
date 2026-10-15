@@ -4,12 +4,15 @@ import android.Manifest;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
@@ -18,15 +21,19 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 @CapacitorPlugin(
@@ -156,6 +163,75 @@ public class PhotosBackupPlugin extends Plugin {
                 call.reject(e.getMessage() == null ? "Could not save" : e.getMessage());
             }
         });
+    }
+
+    @PluginMethod
+    public void shareFiles(PluginCall call) {
+        JSArray files = call.getArray("files", new JSArray());
+        JSObject headers = call.getObject("headers", new JSObject());
+        io.execute(() -> {
+            try {
+                File folder = new File(getContext().getCacheDir(), "share");
+                deleteChildren(folder);
+                folder.mkdirs();
+                ArrayList<Uri> uris = new ArrayList<>();
+                String common = null;
+                for (int i = 0; i < files.length(); i++) {
+                    JSONObject file = files.getJSONObject(i);
+                    String name = file.optString("name", "photo").replaceAll("[/\\\\]", "_");
+                    File target = new File(folder, i + "-" + name);
+                    String mime = download(file.getString("url"), headers, target);
+                    uris.add(FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", target));
+                    String kind = mime.contains("/") ? mime.substring(0, mime.indexOf('/')) + "/*" : "*/*";
+                    common = common == null || common.equals(kind) ? kind : "*/*";
+                }
+                if (uris.isEmpty()) {
+                    call.reject("Nothing to share");
+                    return;
+                }
+                Intent send = new Intent(uris.size() == 1 ? Intent.ACTION_SEND : Intent.ACTION_SEND_MULTIPLE);
+                send.setType(common == null ? "*/*" : common);
+                if (uris.size() == 1) send.putExtra(Intent.EXTRA_STREAM, uris.get(0));
+                else send.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+                send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                Intent chooser = Intent.createChooser(send, null);
+                chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                getActivity().runOnUiThread(() -> {
+                    getActivity().startActivity(chooser);
+                    call.resolve();
+                });
+            } catch (IOException | JSONException | RuntimeException e) {
+                call.reject(e.getMessage() == null ? "Could not share" : e.getMessage());
+            }
+        });
+    }
+
+    private String download(String url, JSONObject headers, File target) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setConnectTimeout(20_000);
+        connection.setReadTimeout(120_000);
+        for (Iterator<String> keys = headers.keys(); keys.hasNext(); ) {
+            String key = keys.next();
+            connection.setRequestProperty(key, headers.optString(key));
+        }
+        try {
+            int status = connection.getResponseCode();
+            if (status >= 400) throw new IOException("The site answered " + status);
+            try (InputStream in = connection.getInputStream(); OutputStream out = new FileOutputStream(target)) {
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
+            }
+            String type = connection.getContentType();
+            return type == null ? "application/octet-stream" : type.split(";")[0].trim();
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private static void deleteChildren(File folder) {
+        File[] children = folder.listFiles();
+        if (children != null) for (File child : children) child.delete();
     }
 
     private void save(String url, String name, JSONObject headers) throws IOException {

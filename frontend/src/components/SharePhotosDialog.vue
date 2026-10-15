@@ -41,7 +41,7 @@ import LucideLink from '~icons/lucide/link'
 import LucideSend from '~icons/lucide/send'
 
 import { createShareLink, downloadUrl } from '../api'
-import { clearSelection, sharePhotos } from '../store'
+import { activeFeed, clearSelection, sharePhotos } from '../store'
 
 const MAX_SEND = 20
 const count = computed(() => sharePhotos.files.length)
@@ -50,8 +50,9 @@ const copied = ref(false)
 const creating = ref(false)
 const sending = ref(false)
 const canSendFiles =
-  typeof navigator.canShare === 'function' &&
-  navigator.canShare({ files: [new File([], 'a.jpg', { type: 'image/jpeg' })] })
+  Boolean(import.meta.env.VITE_NATIVE) ||
+  (typeof navigator.canShare === 'function' &&
+    navigator.canShare({ files: [new File([], 'a.jpg', { type: 'image/jpeg' })] }))
 
 watch(
   () => sharePhotos.open,
@@ -83,6 +84,19 @@ async function sendToApps() {
   }
   sending.value = true
   try {
+    if (import.meta.env.VITE_NATIVE) {
+      const { shareFiles } = await import('../native/save')
+      const rows = activeFeed.value?.feed.rows ?? []
+      await shareFiles(
+        sharePhotos.files.map((name) => ({
+          url: downloadUrl(name),
+          name: rows.find((row) => row.name === name)?.file_name ?? name,
+        })),
+      )
+      sharePhotos.open = false
+      clearSelection()
+      return
+    }
     const files = await Promise.all(
       sharePhotos.files.map(async (name) => {
         const response = await fetch(downloadUrl(name))

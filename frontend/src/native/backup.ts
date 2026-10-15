@@ -34,6 +34,10 @@ export type PhotosBackupPlugin = {
   runNow(): Promise<void>
   signOut(): Promise<void>
   saveToDevice(options: { url: string; name: string; headers: Record<string, string> }): Promise<void>
+  shareFiles(options: {
+    files: { url: string; name: string }[]
+    headers: Record<string, string>
+  }): Promise<void>
   addListener(event: 'status', listener: (status: BackupStatus) => void): Promise<{ remove(): Promise<void> }>
 }
 

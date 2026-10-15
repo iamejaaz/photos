@@ -22,3 +22,11 @@ export async function saveFiles(files: { url: string; name: string }[]) {
   if (saved)
     toast.success(saved === 1 ? __('Saved to your phone') : __('{0} items saved to your phone', [saved]))
 }
+
+export async function shareFiles(files: { url: string; name: string }[]) {
+  const { plugin } = await photosBackup()
+  await plugin.shareFiles({
+    files: files.map((file) => ({ url: siteUrl(file.url), name: file.name })),
+    headers: { ...APP_HEADERS, Authorization: `Bearer ${accessToken()}` },
+  })
+}
