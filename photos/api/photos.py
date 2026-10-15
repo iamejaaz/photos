@@ -619,3 +619,13 @@ def _same_kind(a, b):
     if a_video != b_video:
         return False
     return not a_video or abs((a.duration or 0) - (b.duration or 0)) <= 1
+
+
+@frappe.whitelist()
+def photo_row(name: str):
+    from photos.api.albums import can_read
+
+    if not can_read(name, None):
+        frappe.throw("You don't have access.", frappe.PermissionError)
+    rows = page(media_query(archived=None).where(File.name == name), 0, 1)["rows"]
+    return rows[0] if rows else None

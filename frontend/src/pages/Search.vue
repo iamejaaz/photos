@@ -12,12 +12,7 @@
     :empty-title="__('No results')"
     :empty-text="__('Try other words, a person, a place, a month like October or a year like 2025.')"
   />
-  <div v-else class="flex flex-col items-center gap-2 px-6 py-24 text-center">
-    <div class="text-lg font-medium text-ink-gray-8">{{ __('Search your photos') }}</div>
-    <div class="max-w-sm text-base text-ink-gray-5">
-      {{ __('Try a person, a place like Paris, a year, or describe the photo, like dog on the beach.') }}
-    </div>
-  </div>
+  <SearchSuggestions v-else />
 </template>
 
 <script setup lang="ts">
@@ -30,7 +25,8 @@ import LucideSearchX from '~icons/lucide/search-x'
 import { appPageMeta } from '@/utils/documentTitle'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { createFeed } from '../store'
+import SearchSuggestions from '../components/SearchSuggestions.vue'
+import { createFeed, rememberSearch } from '../store'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +39,7 @@ const params = {
 const hasQuery = Object.values(params).some(Boolean)
 const handle = createFeed('timeline', params)
 const query = ref(String(route.query.q || ''))
+if (params.search) rememberSearch(String(params.search))
 
 const title = computed(() => {
   if (params.camera) return __('Taken with {0}', [String(params.camera)])

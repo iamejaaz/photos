@@ -5,7 +5,7 @@ interface Options {
   selection: Set<string>
 }
 
-const HOLD_MS = 450
+const HOLD_MS = 300
 const SLOP = 10
 const EDGE = 80
 const SCROLL_STEP = 12

@@ -103,6 +103,7 @@ export const fetchPage = (method: string, params: Record<string, unknown>) =>
 
 export const getDetails = (name: string, album?: string) =>
   call(`${PHOTOS}.get_details`, { name, album }) as Promise<any>
+export const getPhotoRow = (name: string) => call(`${PHOTOS}.photo_row`, { name }) as Promise<Photo | null>
 export const getMemories = () => call(`${PHOTOS}.memories`) as Promise<Memory[]>
 export const getPlaces = () => call(`${PHOTOS}.places`) as Promise<Place[]>
 export const getMonths = () => call(`${PHOTOS}.months`) as Promise<MonthCount[]>

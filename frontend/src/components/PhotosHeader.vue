@@ -97,7 +97,15 @@ import LucideUserX from '~icons/lucide/user-x'
 import LucideX from '~icons/lucide/x'
 
 import { useSessionStore } from '@/boot/session'
-import { type Album, type Photo, createAnimation, exportFiles, isVideo, saveToLibrary } from '../api'
+import {
+  type Album,
+  type Photo,
+  createAnimation,
+  exportFiles,
+  getPhotoRow,
+  isVideo,
+  saveToLibrary,
+} from '../api'
 import {
   activeFeed,
   archive,
@@ -110,6 +118,8 @@ import {
   startExport,
   makeMovie,
   notifyUploaded,
+  openLightbox,
+  createStaticFeed,
   pickAlbumFor,
   removeForever,
   restore,
@@ -262,9 +272,18 @@ const actions = computed<Action[]>(() => {
         const photos = names.filter((name) => !isVideo(rowFor(name)))
         if (photos.length < 2) return toast.warning(__('Pick at least two photos for an animation'))
         try {
-          await createAnimation(photos.slice(0, 50), props.album?.name)
+          const created = await createAnimation(photos.slice(0, 50), props.album?.name)
           notifyUploaded()
-          toast.success(__('Animation saved to your photos'))
+          toast.success(__('Animation saved to your photos'), {
+            duration: 8000,
+            action: {
+              label: __('View'),
+              onClick: async () => {
+                const row = await getPhotoRow(created)
+                if (row) openLightbox(createStaticFeed([row]), row.name)
+              },
+            },
+          })
         } catch (error) {
           toast.error((error as Error).message || __('Could not create the animation'))
         }
