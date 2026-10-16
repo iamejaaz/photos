@@ -95,3 +95,41 @@ def _notify_admins(report):
             ),
         },
     )
+
+
+STATUSES = ("Open", "Fixed", "Closed")
+
+
+@frappe.whitelist()
+def problem_reports(include_done: bool = False):
+    frappe.only_for("System Manager")
+    filters = {} if frappe.parse_json(include_done) else {"status": "Open"}
+    reports = frappe.get_all(
+        REPORT,
+        filters=filters,
+        fields=[
+            "name",
+            "status",
+            "description",
+            "screenshot",
+            "page",
+            "platform",
+            "app_version",
+            "recent_errors",
+            "owner",
+            "creation",
+        ],
+        order_by="creation desc",
+        limit=100,
+    )
+    for report in reports:
+        report.full_name = frappe.utils.get_fullname(report.owner)
+    return reports
+
+
+@frappe.whitelist(methods=["POST"])
+def set_report_status(report: str, status: str):
+    frappe.only_for("System Manager")
+    if status not in STATUSES:
+        frappe.throw(frappe._("Pick Open, Fixed or Closed."))
+    frappe.db.set_value(REPORT, report, "status", status)

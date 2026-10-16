@@ -35,6 +35,7 @@ import LucideHistory from '~icons/lucide/history'
 import LucideShield from '~icons/lucide/shield'
 import LucideSparkles from '~icons/lucide/sparkles'
 import LucideMailWarning from '~icons/lucide/mail-warning'
+import LucideMessageSquareWarning from '~icons/lucide/message-square-warning'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import { getSessionUser } from '@/boot/session'
@@ -106,6 +107,14 @@ const sections = computed(() => {
       description: __('People who did not get their sign-up email'),
       icon: LucideMailWarning,
       panel: panel(() => import('../components/settings/SignupsPanel.vue')),
+    })
+  if (settings.data?.can_manage)
+    list.push({
+      key: 'reports',
+      label: __('Problem reports'),
+      description: __('Problems people reported from the app or the web'),
+      icon: LucideMessageSquareWarning,
+      panel: panel(() => import('../components/settings/ProblemReportsPanel.vue')),
     })
   return list
 })
