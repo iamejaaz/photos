@@ -35,6 +35,11 @@
       </SidebarSection>
     </div>
     <div class="p-2">
+      <SidebarItem
+        :label="__('Report a problem')"
+        :icon="LucideMessageSquareWarning"
+        :on-click="reportProblem"
+      />
       <SidebarItem :label="__('Open Drive')" :icon="LucideHardDrive" href="/drive" />
       <SidebarCollapseToggle />
     </div>
@@ -43,6 +48,7 @@
 
 <script setup lang="ts">
 import { type Component, computed, ref } from 'vue'
+import { reportProblem } from '../data/problems'
 import { useRoute } from 'vue-router'
 import { Sidebar, SidebarCollapseToggle, SidebarHeader, SidebarItem, SidebarSection } from 'frappe-ui'
 import LucideArchive from '~icons/lucide/archive'
@@ -57,6 +63,7 @@ import LucideUsers from '~icons/lucide/users'
 import LucideCheck from '~icons/lucide/check'
 import LucideFolder from '~icons/lucide/folder'
 import LucideHardDrive from '~icons/lucide/hard-drive'
+import LucideMessageSquareWarning from '~icons/lucide/message-square-warning'
 import LucideImages from '~icons/lucide/images'
 import LucideMonitor from '~icons/lucide/monitor'
 import LucideMoon from '~icons/lucide/moon'

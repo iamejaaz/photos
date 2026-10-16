@@ -46,6 +46,12 @@
         />
         <ListRow
           class="px-5"
+          :icon="LucideMessageSquareWarning"
+          :label="__('Report a problem')"
+          @click="openReport"
+        />
+        <ListRow
+          class="px-5"
           :icon="LucideLogOut"
           :label="native ? __('Sign out of this site') : __('Sign out')"
           :disabled="signingOut"
@@ -60,6 +66,7 @@
 import { computed, ref, watch } from 'vue'
 import { Avatar, BottomSheet, Button } from 'frappe-ui'
 import LucideLogOut from '~icons/lucide/log-out'
+import LucideMessageSquareWarning from '~icons/lucide/message-square-warning'
 import LucidePlus from '~icons/lucide/plus'
 import LucideSettings from '~icons/lucide/settings'
 import LucideX from '~icons/lucide/x'
@@ -67,10 +74,12 @@ import LucideX from '~icons/lucide/x'
 import { fullName, getSessionUser, imageURL, useSessionStore } from '@/boot/session'
 import { mediaUrl } from '../resources/media'
 import ListRow from './ListRow.vue'
+import { reportProblem } from '../data/problems'
 import { accountSheet, openSettings } from '../data/dialogs'
 import type { Account } from '../native/sites'
 
 const native = Boolean(import.meta.env.VITE_NATIVE)
+const SHEET_CLOSE_MS = 350
 const user = getSessionUser() ?? ''
 const image = computed(() => (imageURL.value ? mediaUrl(imageURL.value) : undefined))
 const hostOf = (url: string) => new URL(url).host
@@ -109,6 +118,11 @@ async function remove(account: Account) {
 async function addSite() {
   const { startAddingSite } = await import('../native/sites')
   startAddingSite()
+}
+
+function openReport() {
+  accountSheet.open = false
+  setTimeout(reportProblem, SHEET_CLOSE_MS)
 }
 
 function openPhotoSettings() {

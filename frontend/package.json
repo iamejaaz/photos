@@ -9,19 +9,20 @@
     "build:native": "vite build --config vite.native.config.ts"
   },
   "dependencies": {
+    "@capacitor/app": "8.1.1",
+    "@capacitor/core": "8.5.0",
+    "@capacitor/preferences": "8.0.1",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.3",
     "@vueuse/core": "^14.1.0",
+    "capacitor-secure-storage-plugin": "0.13.0",
     "dayjs": "^1.11.20",
     "frappe-ui": "frappe/frappe-ui#4fede41aec287fe629d8d3d2041d06b9dbce1046",
+    "html-to-image": "1.11.13",
     "leaflet": "1.9.4",
     "pinia": "^3.0.4",
     "vue": "^3.5.38",
-    "vue-router": "^4.6.3",
-    "@capacitor/core": "8.5.0",
-    "@capacitor/preferences": "8.0.1",
-    "capacitor-secure-storage-plugin": "0.13.0",
-    "@capacitor/app": "8.1.1",
-    "@capacitor/status-bar": "8.0.3",
-    "@capacitor/splash-screen": "8.0.2"
+    "vue-router": "^4.6.3"
   },
   "devDependencies": {
     "@types/leaflet": "1.9.12",

@@ -6,10 +6,12 @@ import { getSessionUser, userResource } from '@/boot/session'
 import { translationPlugin } from '@/boot/translation'
 import App from './App.vue'
 import { retryFailedImages } from './retryImages'
+import { watchProblems } from './data/problems'
 import router from './router'
 
 configureFrappeUI()
 retryFailedImages()
+watchProblems()
 if (getSessionUser()) userResource.fetch()
 
 const app = createApp(App)

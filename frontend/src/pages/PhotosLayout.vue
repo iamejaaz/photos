@@ -89,6 +89,7 @@
     <AccountSheet v-if="loggedIn && !isDesktop" />
     <InstallHint v-if="loggedIn && !isDesktop" />
     <SharePhotosDialog />
+    <ReportProblemDialog v-if="loggedIn" />
     <EditDateDialog />
     <EditLocationDialog />
   </FrappeUIProvider>
@@ -125,6 +126,7 @@ import LibraryShareDialog from '../components/LibraryShareDialog.vue'
 import MovieDialog from '../components/MovieDialog.vue'
 import PhotosSettings from '../components/settings/PhotosSettings.vue'
 import AccountSheet from '../components/AccountSheet.vue'
+import ReportProblemDialog from '../components/ReportProblemDialog.vue'
 import InstallHint from '../components/InstallHint.vue'
 import SharePhotosDialog from '../components/SharePhotosDialog.vue'
 import EditDateDialog from '../components/EditDateDialog.vue'

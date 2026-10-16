@@ -1,0 +1,113 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-10-16 10:30:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "status",
+  "description",
+  "screenshot",
+  "context_section",
+  "page",
+  "platform",
+  "app_version",
+  "device",
+  "recent_errors"
+ ],
+ "fields": [
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Open\nFixed\nClosed",
+   "default": "Open",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "What went wrong",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "screenshot",
+   "fieldtype": "Attach Image",
+   "label": "Screenshot"
+  },
+  {
+   "fieldname": "context_section",
+   "fieldtype": "Section Break",
+   "label": "Context"
+  },
+  {
+   "fieldname": "page",
+   "fieldtype": "Data",
+   "label": "Page",
+   "read_only": 1
+  },
+  {
+   "fieldname": "platform",
+   "fieldtype": "Data",
+   "label": "Platform",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "app_version",
+   "fieldtype": "Data",
+   "label": "App version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "device",
+   "fieldtype": "Data",
+   "label": "Device",
+   "read_only": 1
+  },
+  {
+   "fieldname": "recent_errors",
+   "fieldtype": "Code",
+   "label": "Recent errors",
+   "read_only": 1,
+   "options": "JSON"
+  }
+ ],
+ "image_field": "screenshot",
+ "modified": "2026-10-16 10:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Photos",
+ "name": "Photo Problem Report",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [
+  {
+   "title": "Open",
+   "color": "Orange"
+  },
+  {
+   "title": "Fixed",
+   "color": "Green"
+  },
+  {
+   "title": "Closed",
+   "color": "Gray"
+  }
+ ],
+ "title_field": "description",
+ "track_changes": 1
+}

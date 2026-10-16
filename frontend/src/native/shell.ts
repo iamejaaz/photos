@@ -9,6 +9,12 @@ export type PhotosShellPlugin = {
   openExternal(options: { url: string }): Promise<void>
   screenLockAvailable(): Promise<{ available: boolean }>
   confirmScreenLock(options: { title: string }): Promise<{ confirmed: boolean }>
+  captureScreen(): Promise<{ dataUrl: string }>
+  installUpdate(options: { url: string }): Promise<{ needsPermission?: boolean }>
+  addListener(
+    event: 'updateProgress',
+    listener: (progress: { percent: number }) => void,
+  ): Promise<{ remove(): Promise<void> }>
 }
 
 export const photosShell = nativePlugin<PhotosShellPlugin>('PhotosShell')
