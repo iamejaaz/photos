@@ -34,6 +34,7 @@ import LucideHardDriveDownload from '~icons/lucide/hard-drive-download'
 import LucideHistory from '~icons/lucide/history'
 import LucideShield from '~icons/lucide/shield'
 import LucideSparkles from '~icons/lucide/sparkles'
+import LucideMailWarning from '~icons/lucide/mail-warning'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import { getSessionUser } from '@/boot/session'
@@ -97,6 +98,14 @@ const sections = computed(() => {
       description: __('People, places and search for this site'),
       icon: LucideSparkles,
       panel: panel(() => import('../components/settings/FeaturesPanel.vue')),
+    })
+  if (settings.data?.can_manage)
+    list.push({
+      key: 'signups',
+      label: __('Sign-up problems'),
+      description: __('People who did not get their sign-up email'),
+      icon: LucideMailWarning,
+      panel: panel(() => import('../components/settings/SignupsPanel.vue')),
     })
   return list
 })

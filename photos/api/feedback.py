@@ -65,8 +65,8 @@ def _decode(data_url):
     return content, extension
 
 
-def _notify_admins(report):
-    admins = [
+def site_admins():
+    return [
         user
         for user in frappe.get_all(
             "Has Role",
@@ -76,6 +76,10 @@ def _notify_admins(report):
         )
         if user not in ("Administrator", "Guest") and frappe.db.get_value("User", user, "enabled")
     ]
+
+
+def _notify_admins(report):
+    admins = site_admins()
     if not admins:
         return
     who = frappe.utils.get_fullname(frappe.session.user)
