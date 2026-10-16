@@ -188,6 +188,11 @@ const actions = computed<Action[]>(() => {
     more: true,
     run: (names) => startExport(() => exportFiles(names, props.album?.name)),
   }
+  const favourite: Action = {
+    label: __('Favourite'),
+    icon: LucideStar,
+    run: () => toggleFavourite(selected()),
+  }
   const toTrash: Action = { label: __('Move to trash'), icon: LucideTrash2, run: () => trash(writable()) }
   const movie: Action = {
     label: __('Create movie'),
@@ -213,6 +218,8 @@ const actions = computed<Action[]>(() => {
     ]
   if (props.mode === 'person')
     return [
+      share,
+      favourite,
       addToAlbum,
       save,
       {
@@ -220,6 +227,8 @@ const actions = computed<Action[]>(() => {
         icon: LucideUserX,
         run: (names) => emit('remove-from-person', names),
       },
+      movie,
+      toTrash,
     ]
   if (props.mode === 'hidden')
     return [{ label: __('Unhide'), icon: LucideEye, run: (names) => hide(names, false) }, save, toTrash]
@@ -266,7 +275,7 @@ const actions = computed<Action[]>(() => {
   }
   return [
     share,
-    { label: __('Favourite'), icon: LucideStar, run: () => toggleFavourite(selected()) },
+    favourite,
     addToAlbum,
     save,
     movie,
