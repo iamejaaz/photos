@@ -6,7 +6,7 @@
     </div>
     <div class="text-lg font-medium text-ink-gray-8">{{ __('Explore your photos') }}</div>
     <div class="max-w-sm text-base text-ink-gray-5">
-      {{ __('Places and things show up here once your photos are added and looked at.') }}
+      {{ __('People, places and things show up here once your photos are added and looked at.') }}
     </div>
     <Button variant="solid" size="md" class="mt-2" @click="pickAndUpload()">
       <template #prefix><LucideUpload class="size-4" /></template>
@@ -14,6 +14,33 @@
     </Button>
   </div>
   <div v-else class="flex flex-col gap-8 p-3 sm:p-5">
+    <section v-if="people.length">
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-ink-gray-9">{{ __('People') }}</h2>
+        <router-link :to="{ name: 'photos-people' }" class="text-base text-ink-gray-6 hover:text-ink-gray-9">
+          {{ __('View all') }}
+        </router-link>
+      </div>
+      <div class="flex gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <router-link
+          v-for="person in people.slice(0, 12)"
+          :key="person.name"
+          :to="{ name: 'photos-person', params: { person: person.name } }"
+          class="group flex w-24 shrink-0 flex-col items-center gap-1.5 text-center"
+        >
+          <FaceAvatar
+            :face="person.cover_face"
+            class="size-24 transition-transform duration-300 group-hover:scale-105"
+          />
+          <span
+            class="w-full truncate text-sm"
+            :class="person.person_name ? 'text-ink-gray-8' : 'text-ink-gray-5'"
+          >
+            {{ person.person_name || __('Add a name') }}
+          </span>
+        </router-link>
+      </div>
+    </section>
     <section>
       <h2 class="mb-3 text-lg font-semibold text-ink-gray-9">{{ __('Places') }}</h2>
       <div v-if="data?.places.length" class="h-80 sm:h-[420px]">
@@ -118,8 +145,10 @@ import LucidePlay from '~icons/lucide/play'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import { pickAndUpload } from '../data/uploads'
+import { type Person, getPeople } from '../resources/people'
 import { type Place, getExplore, getPlaces } from '../resources/photos'
 import { thumbnailUrl } from '../resources/media'
+import FaceAvatar from '../components/FaceAvatar.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import PlacesMap from '../components/PlacesMap.vue'
 import { itemCount } from '../utils'
@@ -130,13 +159,20 @@ getExplore().then((result) => (data.value = result))
 getPlaces().then((result) => (allPlaces.value = result))
 const empty = computed(
   () =>
+    peopleLoaded.value &&
     data.value &&
+    !people.value.length &&
     !data.value.places.length &&
     !data.value.things.length &&
     !data.value.cameras.length &&
     !data.value.videos.count,
 )
 const namedPlaces = computed(() => allPlaces.value.filter((place) => place.place).slice(0, 16))
+const people = ref<Person[]>([])
+const peopleLoaded = ref(false)
+getPeople()
+  .then((result) => (people.value = result.people))
+  .finally(() => (peopleLoaded.value = true))
 
 usePageMeta(() => appPageMeta(__('Explore'), 'Photos'))
 </script>
