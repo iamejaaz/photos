@@ -73,7 +73,6 @@ import LucideSunMoon from '~icons/lucide/sun-moon'
 
 import photosLogo from '../assets/photos.svg'
 import { useCurrentUser, useSessionStore } from '@/boot/session'
-import { useAppSwitcher } from '../useAppSwitcher'
 import { switchTheme, themeMode } from '@/utils/setupTheme'
 import { albums, sharedAlbums } from '../data/albums'
 import { libraryShare, openSettings } from '../data/dialogs'
@@ -82,7 +81,6 @@ import { sharingSeen } from '../data/prefs'
 const route = useRoute()
 const collapsed = ref<boolean | null>(window.innerWidth < 1024 ? true : null)
 const { fullName } = useCurrentUser()
-const appsMenu = useAppSwitcher('photos')
 const hasNewShares = computed(() =>
   sharedAlbums.value.some((album) => album.shared_on && album.shared_on > sharingSeen.value),
 )
@@ -122,7 +120,6 @@ const menuItems = computed(() => [
     group: __('Manage'),
     hideLabel: true,
     options: [
-      appsMenu.value,
       {
         label: __('Share your library'),
         icon: 'lucide-users',
