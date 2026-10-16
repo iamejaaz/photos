@@ -236,7 +236,7 @@ def merge_people(target: str, sources: list[str] | str):
             for source in sources
         ],
     }
-    biggest = max(people, key=lambda person: (person.cover_chosen or 0, person.face_count or 0))
+    chosen = next((person for person in people if person.cover_chosen), None)
     person_name = next((person.person_name for person in people if person.person_name), None)
     for source in sources:
         frappe.db.set_value("Photo Face", {"person": source}, "person", target, update_modified=False)
@@ -246,7 +246,10 @@ def merge_people(target: str, sources: list[str] | str):
     frappe.db.set_value(
         "Photo Person",
         target,
-        {"person_name": person_name, "cover_face": biggest.cover_face, "cover_chosen": biggest.cover_chosen},
+        {
+            "person_name": person_name,
+            **({"cover_face": chosen.cover_face, "cover_chosen": 1} if chosen else {}),
+        },
         update_modified=False,
     )
     token = frappe.generate_hash(length=16)

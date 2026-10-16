@@ -15,6 +15,9 @@ SAME_PERSON = 0.45
 SAME_PEOPLE = 0.5
 VIDEO_SAMPLES = 12
 EMBEDDER = "auraface-v1"
+GOOD_COVER_PIXELS = 160
+FRONTAL_EYE_SPAN = 0.38
+CLEAR_STRENGTH = 28
 MIN_STRENGTH = 15
 MIN_SHARPNESS = 10
 
@@ -142,7 +145,28 @@ def _embed(frame, row):
     strength = float(np.linalg.norm(feature))
     if strength < MIN_STRENGTH or sharpness < MIN_SHARPNESS:
         return None
-    return feature / strength
+    return feature / strength, strength
+
+
+def _quality(frame, row, rows, strength):
+    height, width = frame.shape[:2]
+    x, y, w, h = (float(v) for v in row[:4])
+    right_eye, left_eye, nose = float(row[4]), float(row[6]), float(row[8])
+    sides = sorted([abs(nose - right_eye), abs(left_eye - nose)])
+    symmetry = (sides[0] / sides[1]) ** 0.5 if sides[1] else 0.0
+    facing = symmetry * min(1.0, abs(left_eye - right_eye) / (w * FRONTAL_EYE_SPAN)) if w else 0.0
+    size = min(1.0, min(w, h) / GOOD_COVER_PIXELS)
+    clarity = min(1.0, strength / CLEAR_STRENGTH)
+    whole = 1.0 if x > 2 and y > 2 and x + w < width - 2 and y + h < height - 2 else 0.6
+    crowded = any(_overlaps(row, other) for other in rows if other is not row)
+    return max(0.0001, round(facing * size * clarity * whole * (0.6 if crowded else 1.0), 4))
+
+
+def _overlaps(a, b, margin=0.2):
+    ax, ay, aw, ah = (float(v) for v in a[:4])
+    bx, by, bw, bh = (float(v) for v in b[:4])
+    ax, ay, aw, ah = ax - aw * margin, ay - ah * margin, aw * (1 + 2 * margin), ah * (1 + 2 * margin)
+    return ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah
 
 
 def _detect(rgb):
@@ -155,9 +179,10 @@ def _detect(rgb):
             continue
         if w / width < MIN_FACE_SHARE or h / height < MIN_FACE_SHARE:
             continue
-        feature = _embed(frame, row)
-        if feature is None:
+        embedded = _embed(frame, row)
+        if embedded is None:
             continue
+        feature, strength = embedded
         faces.append(
             {
                 "x": max(0.0, x / width),
@@ -167,6 +192,7 @@ def _detect(rgb):
                 "score": float(row[14]),
                 "embedding": _encode(feature),
                 "embedder": EMBEDDER,
+                "quality": _quality(frame, row, rows, strength),
             }
         )
     return faces
@@ -211,36 +237,42 @@ def _assign(face, owner):
 
 
 def _maybe_update_cover(person, face):
-    cover, chosen = frappe.db.get_value("Photo Person", person, ["cover_face", "cover_chosen"])
+    cover, chosen, centroid = frappe.db.get_value(
+        "Photo Person", person, ["cover_face", "cover_chosen", "centroid"]
+    )
     if chosen and cover:
         return
     current = (
-        frappe.db.get_value("Photo Face", cover, ["width", "height", "score"], as_dict=True)
-        if cover
-        else None
+        frappe.db.get_value("Photo Face", cover, ["quality", "embedding"], as_dict=True) if cover else None
     )
-    if not current or face.width * face.height * face.score > current.width * current.height * current.score:
+    middle = _decode(centroid)
+    if not current or _cover_score(face, middle) > _cover_score(current, middle):
         frappe.db.set_value("Photo Person", person, "cover_face", face.name, update_modified=False)
+
+
+def _cover_score(face, centroid):
+    import numpy as np
+
+    vector = _decode(face.embedding)
+    likeness = float(np.dot(vector, centroid)) if vector.shape == centroid.shape else 0.0
+    return (face.quality or 0) * (0.6 + 0.4 * likeness)
 
 
 def recompute(person):
     import numpy as np
 
-    faces = frappe.get_all("Photo Face", filters={"person": person}, fields=["name", "embedding"])
+    faces = frappe.get_all("Photo Face", filters={"person": person}, fields=["name", "embedding", "quality"])
     if not faces:
         frappe.delete_doc("Photo Person", person, ignore_permissions=True, force=True)
         return
     centroid = sum(_decode(face.embedding) for face in faces)
     centroid /= np.linalg.norm(centroid) or 1
-    frappe.db.set_value(
-        "Photo Person",
-        person,
-        {"centroid": _encode(centroid), "face_count": len(faces)},
-        update_modified=False,
-    )
-    cover = frappe.db.get_value("Photo Person", person, "cover_face")
-    if not any(face.name == cover for face in faces):
-        frappe.db.set_value("Photo Person", person, "cover_face", faces[0].name, update_modified=False)
+    values = {"centroid": _encode(centroid), "face_count": len(faces)}
+    cover, chosen = frappe.db.get_value("Photo Person", person, ["cover_face", "cover_chosen"])
+    if not chosen or not any(face.name == cover for face in faces):
+        values["cover_face"] = max(faces, key=lambda face: _cover_score(face, centroid)).name
+        values["cover_chosen"] = 0
+    frappe.db.set_value("Photo Person", person, values, update_modified=False)
 
 
 def face_crop(face, size=256):
@@ -284,7 +316,7 @@ def upgrade():
         return
     stale = frappe.get_all(
         "Photo Face",
-        filters={"embedder": ["!=", EMBEDDER]},
+        or_filters=[["embedder", "!=", EMBEDDER], ["quality", "is", "not set"]],
         fields=["name", "file", "person", "x", "y", "width", "height", "timestamp"],
     )
     if not stale:
@@ -321,14 +353,19 @@ def _reembed(file_name, timestamp, faces):
             default=None,
         )
         close = row is not None and abs(row[0] / width - face.x) + abs(row[1] / height - face.y) <= 0.05
-        feature = _embed(frame, row) if close else None
-        if feature is None:
+        embedded = _embed(frame, row) if close else None
+        if embedded is None:
             frappe.delete_doc("Photo Face", face.name, ignore_permissions=True, force=True)
             continue
+        feature, strength = embedded
         frappe.db.set_value(
             "Photo Face",
             face.name,
-            {"embedding": _encode(feature), "embedder": EMBEDDER},
+            {
+                "embedding": _encode(feature),
+                "embedder": EMBEDDER,
+                "quality": _quality(frame, row, rows, strength),
+            },
             update_modified=False,
         )
 
