@@ -71,9 +71,9 @@
               </a>
             </Tooltip>
             <template v-if="inDrive">
-              <Tooltip :text="details.archived ? __('Unarchive') : __('Archive')">
+              <Tooltip :text="details?.archived ? __('Unarchive') : __('Archive')">
                 <button class="flex lightbox-button max-sm:hidden" @click="toggleArchive">
-                  <component :is="details.archived ? LucideArchiveRestore : LucideArchive" class="size-5" />
+                  <component :is="details?.archived ? LucideArchiveRestore : LucideArchive" class="size-5" />
                 </button>
               </Tooltip>
               <Tooltip :text="__('Open in Drive')">
@@ -842,7 +842,7 @@ watch(
   () => lightbox.open,
   (open) => {
     if (open) heroIn()
-    if (open && !history.state?.photosViewer) {
+    if (open &&!history.state?.photosViewer) {
       chrome.value = true
       history.pushState({ ...history.state, photosViewer: true }, '')
     } else if (!open && history.state?.photosViewer) history.back()
