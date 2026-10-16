@@ -358,6 +358,36 @@ def memories():
     if not preferences["memories"]:
         return []
     today = frappe.utils.getdate()
+    key = memories_key(frappe.session.user, today)
+    picked = frappe.cache.get_value(key)
+    if picked is None:
+        picked = _pick_memories(today, preferences)
+        frappe.cache.set_value(key, picked, expires_in_sec=MEMORIES_SECONDS)
+    if not picked:
+        return []
+    rows = {row["name"]: row for row in page(media_query().where(File.name.isin(picked)), 0, 60)["rows"]}
+    years = {}
+    for name in picked:
+        if row := rows.get(name):
+            years.setdefault(row["taken"].year, []).append(row)
+    return [
+        {"year": year, "years_ago": today.year - year, "photos": photos[:12]}
+        for year, photos in sorted(years.items(), reverse=True)
+    ]
+
+
+MEMORIES_SECONDS = 24 * 60 * 60
+
+
+def memories_key(user, day):
+    return f"photos:memories:{user}:{day}"
+
+
+def forget_memories(user):
+    frappe.cache.delete_value(memories_key(user, frappe.utils.getdate()))
+
+
+def _pick_memories(today, preferences):
     query = media_query().where(Year(taken) < today.year)
     if hidden := preferences["memory_hidden_people"]:
         query = query.where(
@@ -366,14 +396,7 @@ def memories():
     if removed := preferences["memory_removed"]:
         query = query.where(File.name.notin(removed))
     query = query.where(fn.Abs(DayOfYear(taken) - today.timetuple().tm_yday) <= 3)
-    rows = page(query, 0, 60)["rows"]
-    years = {}
-    for row in rows:
-        years.setdefault(row["taken"].year, []).append(row)
-    return [
-        {"year": year, "years_ago": today.year - year, "photos": photos[:12]}
-        for year, photos in sorted(years.items(), reverse=True)
-    ]
+    return [row["name"] for row in page(query, 0, 60)["rows"]]
 
 
 @frappe.whitelist()

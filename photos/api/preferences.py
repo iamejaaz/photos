@@ -33,5 +33,8 @@ def remove_from_memories(file: str):
 
 
 def _save(values):
+    from photos.api.photos import forget_memories
+
     frappe.defaults.set_user_default("photos_preferences", json.dumps(values))
+    forget_memories(frappe.session.user)
     return values
