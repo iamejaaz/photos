@@ -11,6 +11,7 @@
       <div class="absolute inset-0 overflow-hidden">
         <template v-if="isVideo(photo)">
           <video
+            ref="videoEl"
             :key="photo.name"
             :src="streamUrl(photo.name)"
             :poster="thumbnailUrl(photo.name, undefined, true)"
@@ -95,6 +96,24 @@
           </div>
         </div>
       </div>
+      <button
+        class="story-button absolute left-3 top-1/2 -translate-y-1/2 bg-black/30 [@media(pointer:coarse)]:hidden"
+        :aria-label="__('Previous')"
+        @pointerdown.stop
+        @pointerup.stop
+        @click="previous"
+      >
+        <LucideChevronLeft class="size-6" />
+      </button>
+      <button
+        class="story-button absolute right-3 top-1/2 -translate-y-1/2 bg-black/30 [@media(pointer:coarse)]:hidden"
+        :aria-label="__('Next')"
+        @pointerdown.stop
+        @pointerup.stop
+        @click="next"
+      >
+        <LucideChevronRight class="size-6" />
+      </button>
       <HideFacesDialog
         v-model:open="hidingFaces"
         :people="uniquePeople"
@@ -109,7 +128,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import dayjs from 'dayjs'
-import { Dropdown, LoadingIndicator, toast } from 'frappe-ui'
+import { Dropdown, LoadingIndicator, toast, useKeyboardShortcut } from 'frappe-ui'
+import LucideChevronLeft from '~icons/lucide/chevron-left'
+import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideEllipsisVertical from '~icons/lucide/ellipsis-vertical'
 import LucideShare2 from '~icons/lucide/share-2'
 import LucideStar from '~icons/lucide/star'
@@ -169,10 +190,61 @@ watch(
   { immediate: true },
 )
 
+const held = ref(false)
+const videoEl = ref<HTMLVideoElement | null>(null)
+watch(paused, (value) => {
+  if (!videoEl.value) return
+  if (value) videoEl.value.pause()
+  else videoEl.value.play().catch(() => {})
+})
 watch(
-  [menuOpen, hidingFaces, () => sharePhotos.open],
-  ([menu, faces, sharing]) => (paused.value = menu || faces || sharing),
+  [menuOpen, hidingFaces, () => sharePhotos.open, held],
+  ([menu, faces, sharing, hold]) => (paused.value = menu || faces || sharing || hold),
 )
+watch(
+  () => [story.memory, story.index],
+  () => (held.value = false),
+)
+
+const keys = () => story.open && !menuOpen.value && !hidingFaces.value && !sharePhotos.open
+useKeyboardShortcut([
+  {
+    combo: 'ArrowLeft',
+    description: __('Previous'),
+    group: __('Memories'),
+    enabled: keys,
+    handler: () => previous(),
+  },
+  {
+    combo: 'ArrowRight',
+    description: __('Next'),
+    group: __('Memories'),
+    enabled: keys,
+    handler: () => next(),
+  },
+  {
+    combo: 'Space',
+    description: __('Pause or play'),
+    group: __('Memories'),
+    enabled: keys,
+    handler: () => (held.value = !held.value),
+  },
+  {
+    combo: 'F',
+    description: __('Favourite'),
+    group: __('Memories'),
+    enabled: keys,
+    handler: () => photo.value && toggleFavourite([photo.value]),
+  },
+  {
+    combo: 'M',
+    description: __('Mute or unmute'),
+    group: __('Memories'),
+    enabled: keys,
+    handler: () => (muted.value = !muted.value),
+  },
+  { combo: 'Escape', description: __('Close'), group: __('Memories'), enabled: keys, handler: close },
+])
 
 function share() {
   if (photo.value) openShare([photo.value.name])
@@ -276,14 +348,14 @@ function onDown(event: PointerEvent) {
 }
 
 function onUp(event: PointerEvent) {
-  paused.value = false
+  paused.value = held.value
   if (event.clientY - downY > 80) return close()
   if (Date.now() - downAt > HOLD_MS || Math.abs(event.clientX - downX) > 30) return
   if (downX < window.innerWidth / 3) previous()
   else next()
 }
 
-const onCancel = () => (paused.value = false)
+const onCancel = () => (paused.value = held.value)
 
 if (import.meta.env.VITE_NATIVE)
   watch(
