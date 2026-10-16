@@ -53,9 +53,13 @@
             :key="item.name"
             class="h-0.5 flex-1 overflow-hidden rounded bg-white/35"
           >
-            <div
-              class="h-full bg-white"
-              :style="{ width: `${index < story.index ? 100 : index > story.index ? 0 : progress * 100}%` }"
+            <StyleLayer
+              class="h-full origin-left bg-white"
+              :style-of="
+                () => ({
+                  transform: `scaleX(${index < story.index ? 1 : index > story.index ? 0 : progress})`,
+                })
+              "
             />
           </div>
         </div>
@@ -145,6 +149,7 @@ import { memoriesVersion, memoryStory as story } from '../data/viewer'
 import { type PhotoPerson, getPhotoPeople } from '../resources/people'
 import { removeFromMemories } from '../resources/settings'
 import HideFacesDialog from './HideFacesDialog.vue'
+import StyleLayer from './StyleLayer.vue'
 import { toggleFavourite } from '../data/actions'
 import { openShare, sharePhotos } from '../data/dialogs'
 import { errorText } from '../resources/drive'
