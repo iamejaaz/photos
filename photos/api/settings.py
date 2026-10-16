@@ -2,6 +2,7 @@ import frappe
 
 from photos.smart import assets
 from photos.smart.settings import FEATURES, SETTINGS
+from photos.utils.managers import is_manager, only_managers
 
 
 @frappe.whitelist()
@@ -11,7 +12,7 @@ def get_settings():
         **{feature: bool(settings.get(feature)) for feature in FEATURES},
         "status": settings.setup_status,
         "error": settings.setup_error,
-        "can_manage": "System Manager" in frappe.get_roles(),
+        "can_manage": is_manager(),
     }
 
 
@@ -23,7 +24,7 @@ def save_settings(
     text: bool = False,
     smart_search: bool = False,
 ):
-    frappe.only_for("System Manager")
+    only_managers()
     values = {
         "people": int(people),
         "places": int(places),

@@ -42,8 +42,12 @@ before_request = [
 before_job = ["photos.utils.privacy.install"]
 
 scheduler_events = {"cron": {"*/10 * * * *": ["photos.api.signups.notify_failed_emails"]}}
-after_install = "photos.api.native.ensure_oauth_client"
-after_migrate = ["photos.api.native.ensure_oauth_client", "photos.smart.settings.ensure_models"]
+after_install = ["photos.api.native.ensure_oauth_client", "photos.utils.managers.ensure_role"]
+after_migrate = [
+    "photos.api.native.ensure_oauth_client",
+    "photos.smart.settings.ensure_models",
+    "photos.utils.managers.ensure_role",
+]
 
 has_permission = {
     "Photo Album": "suite.drive.overrides.file.content_has_permission",

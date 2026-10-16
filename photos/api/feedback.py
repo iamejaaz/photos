@@ -5,6 +5,8 @@ import frappe
 from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
 from frappe.rate_limiter import rate_limit
 
+from photos.utils.managers import managers, only_managers
+
 REPORT = "Photo Problem Report"
 SCREENSHOT_BYTES = 5 * 1024 * 1024
 TEXT_LIMIT = 2000
@@ -65,21 +67,8 @@ def _decode(data_url):
     return content, extension
 
 
-def site_admins():
-    return [
-        user
-        for user in frappe.get_all(
-            "Has Role",
-            filters={"role": "System Manager", "parenttype": "User"},
-            pluck="parent",
-            distinct=True,
-        )
-        if user not in ("Administrator", "Guest") and frappe.db.get_value("User", user, "enabled")
-    ]
-
-
 def _notify_admins(report):
-    admins = site_admins()
+    admins = managers()
     if not admins:
         return
     who = frappe.utils.get_fullname(frappe.session.user)
@@ -102,7 +91,7 @@ STATUSES = ("Open", "Fixed", "Closed")
 
 @frappe.whitelist()
 def problem_reports(include_done: bool = False):
-    frappe.only_for("System Manager")
+    only_managers()
     filters = {} if frappe.parse_json(include_done) else {"status": "Open"}
     reports = frappe.get_all(
         REPORT,
@@ -129,7 +118,7 @@ def problem_reports(include_done: bool = False):
 
 @frappe.whitelist(methods=["POST"])
 def set_report_status(report: str, status: str):
-    frappe.only_for("System Manager")
+    only_managers()
     if status not in STATUSES:
         frappe.throw(frappe._("Pick Open, Fixed or Closed."))
     frappe.db.set_value(REPORT, report, "status", status)

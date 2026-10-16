@@ -3,7 +3,7 @@ from frappe import _
 from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
 from frappe.rate_limiter import rate_limit
 
-from photos.api.feedback import site_admins
+from photos.utils.managers import is_manager, managers, only_managers
 
 QUEUE = "Email Queue"
 DAYS = 30
@@ -58,26 +58,22 @@ def _reason(error):
 
 @frappe.whitelist()
 def signup_problems():
-    frappe.only_for("System Manager")
+    only_managers()
     return _failed_emails(frappe.utils.add_days(frappe.utils.now_datetime(), -DAYS))
 
 
 @frappe.whitelist(methods=["POST"])
 @rate_limit(limit=30, seconds=60 * 60)
 def signup_link(user: str):
-    frappe.only_for("System Manager")
+    only_managers()
     doc = frappe.get_doc("User", user)
-    if (
-        not doc.enabled
-        or doc.name in ("Administrator", "Guest")
-        or "System Manager" in frappe.get_roles(doc.name)
-    ):
+    if not doc.enabled or doc.name in ("Administrator", "Guest") or is_manager(doc.name):
         frappe.throw(_("A link can only be made for people who signed up."), frappe.PermissionError)
     return doc._reset_password(send_email=False)
 
 
 def notify_failed_emails():
-    admins = site_admins()
+    admins = managers()
     if not admins:
         return
     since = frappe.utils.add_to_date(frappe.utils.now_datetime(), hours=-NOTIFY_HOURS)
