@@ -50,6 +50,7 @@
       </Button>
       <Button
         v-if="album"
+        class="max-sm:hidden"
         variant="ghost"
         :aria-label="__('Activity')"
         :class="{ 'bg-surface-gray-3': showActivity }"
@@ -57,7 +58,13 @@
       >
         <template #icon><LucideMessageCircle class="size-4" /></template>
       </Button>
-      <Button v-if="handle.feed.rows.length" variant="ghost" :aria-label="__('Slideshow')" @click="slideshow">
+      <Button
+        v-if="handle.feed.rows.length"
+        class="max-sm:hidden"
+        variant="ghost"
+        :aria-label="__('Slideshow')"
+        @click="slideshow"
+      >
         <template #icon><LucidePlay class="size-4" /></template>
       </Button>
       <Dropdown v-if="menu.length" :options="menu">
@@ -161,6 +168,7 @@
 import { errorText } from '../resources/drive'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useMediaQuery } from '@vueuse/core'
 import { Button, Dialog, Dropdown, ErrorMessage, Password, TextInput, toast, usePageMeta } from 'frappe-ui'
 import LucideLock from '~icons/lucide/lock'
 import LucideChevronRight from '~icons/lucide/chevron-right'
@@ -245,10 +253,21 @@ onBeforeUnmount(
   }),
 )
 
+const phone = useMediaQuery('(max-width: 639px)')
+
 const menu = computed(() => {
   const access = album.value?.access
   if (!access) return []
   const items = []
+  if (phone.value) {
+    items.push({
+      label: __('Activity'),
+      icon: 'lucide-message-circle',
+      onClick: () => (showActivity.value = true),
+    })
+    if (handle.feed.rows.length)
+      items.push({ label: __('Slideshow'), icon: 'lucide-play', onClick: slideshow })
+  }
   if (album.value?.count && access.download)
     items.push(
       { label: __('Download album'), icon: 'lucide-download', onClick: downloadAll },
