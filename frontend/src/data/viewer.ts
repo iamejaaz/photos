@@ -7,16 +7,19 @@ export const lightbox = reactive<{
   index: number
   showInfo: boolean
   slideshow: boolean
+  placeholder: { name: string; src: string } | null
 }>({
   open: false,
   index: 0,
   showInfo: false,
   slideshow: false,
+  placeholder: null,
 })
-export function openLightbox(feed: FeedHandle, name: string, slideshow = false) {
+export function openLightbox(feed: FeedHandle, name: string, slideshow = false, thumbnail?: string) {
   activeFeed.value = feed
   lightbox.index = feed.feed.rows.findIndex((row) => row.name === name)
   lightbox.slideshow = slideshow
+  lightbox.placeholder = thumbnail ? { name, src: thumbnail } : null
   lightbox.open = lightbox.index > -1
 }
 export const memoriesVersion = ref(0)

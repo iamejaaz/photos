@@ -427,7 +427,12 @@ function onPinchEnd(event: TouchEvent) {
 function onTileClick(event: MouseEvent, photo: Photo) {
   if (touchSelect.takeClick()) return
   if (selection.size) return toggle(photo, event)
-  openLightbox(props.handle, photo.name)
+  openLightbox(
+    props.handle,
+    photo.name,
+    false,
+    (event.currentTarget as HTMLElement | null)?.querySelector('img')?.currentSrc || undefined,
+  )
 }
 
 const LARGE_FROM = 640

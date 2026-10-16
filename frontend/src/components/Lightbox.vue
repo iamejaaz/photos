@@ -1,13 +1,13 @@
 <template>
   <Teleport to="body">
-    <div
-      v-if="lightbox.open && photo"
-      class="edge-to-edge fixed inset-0 z-50 flex text-white"
-      :style="{
-        backgroundColor: `rgba(0, 0, 0, ${gestures.backdropOpacity.value * hero.backdrop})`,
-        transition: hero.transition && `background-color ${HERO_MS}ms`,
-      }"
-    >
+    <div v-if="lightbox.open && photo" class="edge-to-edge fixed inset-0 z-50 flex text-white">
+      <div
+        class="pointer-events-none absolute inset-0 -z-10 bg-black"
+        :style="{
+          opacity: gestures.backdropOpacity.value * hero.backdrop,
+          transition: hero.transition && `opacity ${HERO_MS}ms`,
+        }"
+      />
       <div class="relative flex min-w-0 flex-1 flex-col">
         <div
           v-show="!lightbox.slideshow && chrome"
@@ -142,16 +142,20 @@
                 <div v-else :key="photo.name" class="relative flex size-full items-center justify-center">
                   <img
                     v-if="!loaded"
-                    :src="thumbnailUrl(photo.name, photo.album)"
+                    :src="
+                      lightbox.placeholder?.name === photo.name
+                        ? lightbox.placeholder.src
+                        : thumbnailUrl(photo.name, photo.album)
+                    "
                     class="absolute size-full object-contain"
                     alt=""
                   />
                   <img
+                    v-if="loaded"
                     :src="contentUrl(photo.name, photo.album)"
                     :alt="photo.file_name"
-                    class="relative size-full object-contain transition-opacity"
-                    :class="loaded ? 'opacity-100' : 'opacity-0'"
-                    @load="loaded = true"
+                    decoding="async"
+                    class="relative size-full object-contain"
                   />
                   <img
                     v-if="sharp"
@@ -628,12 +632,27 @@ watch(
     if (lightbox.index >= rows.value.length - 3) feed.value?.loadMore()
     photoPeople.value = []
     const result = await getDetails(name, photo.value?.album)
+    await settled()
     if (photo.value?.name !== name) return
     details.value = result
     if (result.folder && loggedIn.value) {
       const found = await getPhotoPeople(name, photo.value?.album).catch(() => [])
       if (photo.value?.name === name) photoPeople.value = found
     }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => photo.value,
+  async (current) => {
+    if (!current) return
+    if (isVideo(current)) return void (loaded.value = true)
+    const image = new Image()
+    image.src = contentUrl(current.name, current.album)
+    await image.decode().catch(() => {})
+    await settled()
+    if (photo.value?.name === current.name) loaded.value = true
   },
   { immediate: true },
 )
@@ -659,6 +678,8 @@ const HERO_MS = 280
 const HERO_EASE = 'cubic-bezier(0.2, 0, 0, 1)'
 const stage = ref<HTMLElement>()
 const hero = reactive({ transform: '', clip: '', opacity: 1, backdrop: 1, transition: '' })
+let heroDone: Promise<void> = Promise.resolve()
+const settled = () => heroDone
 let closing = false
 
 function outsidePhoto(x: number, y: number) {
@@ -704,6 +725,7 @@ const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)'
 async function heroIn() {
   Object.assign(hero, { transform: '', clip: '', opacity: 1, backdrop: 1, transition: '' })
   if (reducedMotion()) return
+  heroDone = new Promise((resolve) => setTimeout(resolve, HERO_MS + 40))
   await nextTick()
   const frame = tileFrame()
   Object.assign(hero, frame ? { ...frame, backdrop: 0 } : { opacity: 0, backdrop: 0 })
@@ -742,9 +764,9 @@ useBackClose(
 )
 const neighbour = (step: number) => rows.value[lightbox.index + step]
 watch(
-  () => lightbox.open && lightbox.index,
+  () => lightbox.open && loaded.value && lightbox.index,
   () => {
-    if (!lightbox.open) return
+    if (!lightbox.open || !loaded.value) return
     for (const step of [1, -1]) {
       const next = neighbour(step)
       if (next && !isVideo(next)) new Image().src = contentUrl(next.name, next.album)
