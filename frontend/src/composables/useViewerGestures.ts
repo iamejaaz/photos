@@ -159,7 +159,7 @@ export function useViewerGestures(options: Options) {
       } else animate(() => (state.dy = 0))
     } else if (mode === 'info') {
       animate(() => (state.dy = 0))
-      if (-y > 50) options.onInfo()
+      if (-y > 50 || -y / elapsed > FLICK) options.onInfo()
     } else if (!mode) {
       tap(event)
     }

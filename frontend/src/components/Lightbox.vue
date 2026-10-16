@@ -14,7 +14,6 @@
         <div
           v-show="!lightbox.slideshow && chrome"
           class="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent p-3"
-          :class="{ 'max-sm:hidden': lightbox.showInfo }"
         >
           <button class="flex lightbox-button" :aria-label="__('Close')" @click="close">
             <LucideArrowLeft class="size-5" />
@@ -103,6 +102,7 @@
         <div
           ref="stage"
           class="relative flex min-h-0 flex-1 touch-none select-none items-center justify-center overflow-hidden"
+          :style="infoShift"
           v-on="gestures.handlers"
           @dragstart.prevent
         >
@@ -246,174 +246,181 @@
         </div>
       </div>
 
-      <aside
-        v-if="lightbox.showInfo"
-        class="flex w-full max-w-sm shrink-0 flex-col overflow-y-auto bg-surface-base text-ink-gray-8 max-sm:absolute max-sm:inset-0 max-sm:max-w-none"
+      <Transition
+        enter-active-class="transition-transform duration-300 ease-[cubic-bezier(0.05,0.7,0.1,1)]"
+        leave-active-class="transition-transform duration-200 ease-[cubic-bezier(0.3,0,0.8,0.15)]"
+        enter-from-class="max-sm:translate-y-full"
+        leave-to-class="max-sm:translate-y-full"
       >
-        <div class="flex items-center gap-2 px-5 py-4">
-          <button
-            class="rounded p-1 hover:bg-surface-gray-2"
-            :aria-label="__('Close')"
-            @click="lightbox.showInfo = false"
-          >
-            <LucideX class="size-5" />
-          </button>
-          <span class="text-lg font-medium">{{ __('Info') }}</span>
-        </div>
-        <div v-if="details" class="flex flex-col gap-5 px-5 pb-8 text-base">
-          <Textarea
-            v-if="photo.write"
-            v-model="caption"
-            :placeholder="__('Add a caption')"
-            :rows="2"
-            variant="ghost"
-            class="-mx-2"
-            @blur="saveCaption"
-          />
-          <p v-else-if="meta?.description" class="whitespace-pre-line text-ink-gray-8">
-            {{ meta.description }}
-          </p>
-          <section>
-            <div class="mb-2 text-sm font-medium text-ink-gray-5">
-              {{ __('Details') }}
-            </div>
-            <dl class="flex flex-col gap-3">
-              <InfoRow :icon="LucideCalendar" :title="takenTitle" :subtitle="takenSubtitle">
-                <template v-if="photo.write" #action>
-                  <Button
-                    variant="ghost"
-                    :aria-label="__('Edit date')"
-                    @click="editMetadata('date', [photo.name])"
-                  >
-                    <template #icon><LucidePencil class="size-4" /></template>
-                  </Button>
-                </template>
-              </InfoRow>
-              <InfoRow :icon="LucideImage" :title="details.file_name" :subtitle="sizeLine" />
-              <InfoRow v-if="meta?.camera" :icon="LucideAperture" :title="meta.camera" />
-              <InfoRow
-                v-if="photo.added_by_name"
-                :icon="LucideUserRound"
-                :title="__('Added by {0}', [photo.added_by_name])"
-                :subtitle="__('Through the album link')"
-              />
-              <InfoRow
-                v-if="meta?.latitude"
-                :icon="LucideMapPin"
-                :title="meta.place || `${meta.latitude.toFixed(4)}, ${meta.longitude.toFixed(4)}`"
-                :subtitle="
-                  meta.place ? `${meta.latitude.toFixed(4)}, ${meta.longitude.toFixed(4)}` : undefined
-                "
-                :href="`https://www.openstreetmap.org/?mlat=${meta.latitude}&mlon=${meta.longitude}#map=14/${meta.latitude}/${meta.longitude}`"
-              >
-                <template v-if="photo.write" #action>
-                  <Button
-                    variant="ghost"
-                    :aria-label="__('Edit location')"
-                    @click="editMetadata('location', [photo.name])"
-                  >
-                    <template #icon><LucidePencil class="size-4" /></template>
-                  </Button>
-                </template>
-              </InfoRow>
-              <button
-                v-else-if="photo.write"
-                class="flex items-center gap-3 text-left text-ink-gray-5 hover:text-ink-gray-8"
-                @click="editMetadata('location', [photo.name])"
-              >
-                <LucideMapPin class="size-5 shrink-0" />
-                {{ __('Add a location') }}
-              </button>
-            </dl>
-          </section>
-          <section v-if="photoPeople.length">
-            <div class="mb-2 text-sm font-medium text-ink-gray-5">{{ __('People') }}</div>
-            <div class="flex flex-wrap gap-3">
-              <div
-                v-for="entry in photoPeople"
-                :key="entry.face"
-                class="flex w-16 flex-col items-center gap-1 text-center"
-              >
+        <aside
+          v-if="lightbox.showInfo"
+          class="flex w-full max-w-sm shrink-0 flex-col overflow-y-auto bg-surface-base text-ink-gray-8 max-sm:absolute max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-[45%] max-sm:z-20 max-sm:max-w-none max-sm:rounded-t-2xl max-sm:shadow-2xl"
+        >
+          <div class="flex items-center gap-2 px-5 py-4">
+            <button
+              class="rounded p-1 hover:bg-surface-gray-2"
+              :aria-label="__('Close')"
+              @click="lightbox.showInfo = false"
+            >
+              <LucideX class="size-5" />
+            </button>
+            <span class="text-lg font-medium">{{ __('Info') }}</span>
+          </div>
+          <div v-if="details" class="flex flex-col gap-5 px-5 pb-8 text-base">
+            <Textarea
+              v-if="photo.write"
+              v-model="caption"
+              :placeholder="__('Add a caption')"
+              :rows="2"
+              variant="ghost"
+              class="-mx-2"
+              @blur="saveCaption"
+            />
+            <p v-else-if="meta?.description" class="whitespace-pre-line text-ink-gray-8">
+              {{ meta.description }}
+            </p>
+            <section>
+              <div class="mb-2 text-sm font-medium text-ink-gray-5">
+                {{ __('Details') }}
+              </div>
+              <dl class="flex flex-col gap-3">
+                <InfoRow :icon="LucideCalendar" :title="takenTitle" :subtitle="takenSubtitle">
+                  <template v-if="photo.write" #action>
+                    <Button
+                      variant="ghost"
+                      :aria-label="__('Edit date')"
+                      @click="editMetadata('date', [photo.name])"
+                    >
+                      <template #icon><LucidePencil class="size-4" /></template>
+                    </Button>
+                  </template>
+                </InfoRow>
+                <InfoRow :icon="LucideImage" :title="details.file_name" :subtitle="sizeLine" />
+                <InfoRow v-if="meta?.camera" :icon="LucideAperture" :title="meta.camera" />
+                <InfoRow
+                  v-if="photo.added_by_name"
+                  :icon="LucideUserRound"
+                  :title="__('Added by {0}', [photo.added_by_name])"
+                  :subtitle="__('Through the album link')"
+                />
+                <InfoRow
+                  v-if="meta?.latitude"
+                  :icon="LucideMapPin"
+                  :title="meta.place || `${meta.latitude.toFixed(4)}, ${meta.longitude.toFixed(4)}`"
+                  :subtitle="
+                    meta.place ? `${meta.latitude.toFixed(4)}, ${meta.longitude.toFixed(4)}` : undefined
+                  "
+                  :href="`https://www.openstreetmap.org/?mlat=${meta.latitude}&mlon=${meta.longitude}#map=14/${meta.latitude}/${meta.longitude}`"
+                >
+                  <template v-if="photo.write" #action>
+                    <Button
+                      variant="ghost"
+                      :aria-label="__('Edit location')"
+                      @click="editMetadata('location', [photo.name])"
+                    >
+                      <template #icon><LucidePencil class="size-4" /></template>
+                    </Button>
+                  </template>
+                </InfoRow>
                 <button
-                  v-if="isVideo(photo)"
-                  class="relative"
-                  :aria-label="__('Jump to {0}', [entry.person_name || __('this person')])"
-                  @click="seek(entry.timestamp)"
+                  v-else-if="photo.write"
+                  class="flex items-center gap-3 text-left text-ink-gray-5 hover:text-ink-gray-8"
+                  @click="editMetadata('location', [photo.name])"
                 >
-                  <FaceAvatar :face="entry.face" class="size-12" />
-                  <span
-                    class="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-surface-gray-10 px-1 text-xs text-ink-base"
-                  >
-                    {{ formatTime(entry.timestamp) }}
-                  </span>
+                  <LucideMapPin class="size-5 shrink-0" />
+                  {{ __('Add a location') }}
                 </button>
-                <router-link v-else :to="{ name: 'photos-person', params: { person: entry.person } }">
-                  <FaceAvatar :face="entry.face" class="size-12" />
-                </router-link>
-                <Dropdown v-if="photo.write" :options="faceMenu(entry)" class="w-full">
-                  <button class="w-full truncate text-xs text-ink-gray-7 hover:underline">
-                    {{ entry.person_name || __('Add a name') }}
-                  </button>
-                </Dropdown>
-                <router-link
-                  v-else
-                  :to="{ name: 'photos-person', params: { person: entry.person } }"
-                  class="w-full truncate text-xs text-ink-gray-7 hover:underline"
+              </dl>
+            </section>
+            <section v-if="photoPeople.length">
+              <div class="mb-2 text-sm font-medium text-ink-gray-5">{{ __('People') }}</div>
+              <div class="flex flex-wrap gap-3">
+                <div
+                  v-for="entry in photoPeople"
+                  :key="entry.face"
+                  class="flex w-16 flex-col items-center gap-1 text-center"
                 >
-                  {{ entry.person_name || __('Add a name') }}
+                  <button
+                    v-if="isVideo(photo)"
+                    class="relative"
+                    :aria-label="__('Jump to {0}', [entry.person_name || __('this person')])"
+                    @click="seek(entry.timestamp)"
+                  >
+                    <FaceAvatar :face="entry.face" class="size-12" />
+                    <span
+                      class="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-surface-gray-10 px-1 text-xs text-ink-base"
+                    >
+                      {{ formatTime(entry.timestamp) }}
+                    </span>
+                  </button>
+                  <router-link v-else :to="{ name: 'photos-person', params: { person: entry.person } }">
+                    <FaceAvatar :face="entry.face" class="size-12" />
+                  </router-link>
+                  <Dropdown v-if="photo.write" :options="faceMenu(entry)" class="w-full">
+                    <button class="w-full truncate text-xs text-ink-gray-7 hover:underline">
+                      {{ entry.person_name || __('Add a name') }}
+                    </button>
+                  </Dropdown>
+                  <router-link
+                    v-else
+                    :to="{ name: 'photos-person', params: { person: entry.person } }"
+                    class="w-full truncate text-xs text-ink-gray-7 hover:underline"
+                  >
+                    {{ entry.person_name || __('Add a name') }}
+                  </router-link>
+                </div>
+              </div>
+            </section>
+            <section v-if="details.original">
+              <div class="mb-2 text-sm font-medium text-ink-gray-5">
+                {{ __('Edited copy') }}
+              </div>
+              <dl class="flex flex-col gap-3">
+                <InfoRow
+                  :icon="LucideImage"
+                  :title="details.original.file_name"
+                  :subtitle="__('The original is kept unchanged')"
+                >
+                  <template #action>
+                    <Button size="sm" @click="openOriginal">{{ __('Open original') }}</Button>
+                  </template>
+                </InfoRow>
+              </dl>
+            </section>
+            <section v-if="details.folder">
+              <div class="mb-2 text-sm font-medium text-ink-gray-5">
+                {{ __('In Drive') }}
+              </div>
+              <dl class="flex flex-col gap-3">
+                <InfoRow
+                  :icon="LucideFolder"
+                  :title="details.folder_title"
+                  :subtitle="__('Uploaded by {0}', [details.owner_name || details.owner])"
+                  :href="`/drive/d/${details.folder}`"
+                />
+              </dl>
+            </section>
+            <section v-if="photoAlbums.length">
+              <div class="mb-2 text-sm font-medium text-ink-gray-5">
+                {{ __('Albums') }}
+              </div>
+              <div class="flex flex-col gap-1">
+                <router-link
+                  v-for="album in photoAlbums"
+                  :key="album.name"
+                  :to="{ name: 'photos-album', params: { album: album.name } }"
+                  class="rounded px-2 py-1.5 hover:bg-surface-gray-2"
+                >
+                  {{ album.title }}
                 </router-link>
               </div>
-            </div>
-          </section>
-          <section v-if="details.original">
-            <div class="mb-2 text-sm font-medium text-ink-gray-5">
-              {{ __('Edited copy') }}
-            </div>
-            <dl class="flex flex-col gap-3">
-              <InfoRow
-                :icon="LucideImage"
-                :title="details.original.file_name"
-                :subtitle="__('The original is kept unchanged')"
-              >
-                <template #action>
-                  <Button size="sm" @click="openOriginal">{{ __('Open original') }}</Button>
-                </template>
-              </InfoRow>
-            </dl>
-          </section>
-          <section v-if="details.folder">
-            <div class="mb-2 text-sm font-medium text-ink-gray-5">
-              {{ __('In Drive') }}
-            </div>
-            <dl class="flex flex-col gap-3">
-              <InfoRow
-                :icon="LucideFolder"
-                :title="details.folder_title"
-                :subtitle="__('Uploaded by {0}', [details.owner_name || details.owner])"
-                :href="`/drive/d/${details.folder}`"
-              />
-            </dl>
-          </section>
-          <section v-if="photoAlbums.length">
-            <div class="mb-2 text-sm font-medium text-ink-gray-5">
-              {{ __('Albums') }}
-            </div>
-            <div class="flex flex-col gap-1">
-              <router-link
-                v-for="album in photoAlbums"
-                :key="album.name"
-                :to="{ name: 'photos-album', params: { album: album.name } }"
-                class="rounded px-2 py-1.5 hover:bg-surface-gray-2"
-              >
-                {{ album.title }}
-              </router-link>
-            </div>
-          </section>
-        </div>
-        <div v-else class="flex justify-center py-10">
-          <LoadingIndicator class="size-5" />
-        </div>
-      </aside>
+            </section>
+          </div>
+          <div v-else class="flex justify-center py-10">
+            <LoadingIndicator class="size-5" />
+          </div>
+        </aside>
+      </Transition>
     </div>
     <VideoTrimmer :photo="editing && photo && isVideo(photo) ? photo : null" @close="editing = false" />
     <PhotoEditor
@@ -434,6 +441,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useMediaQuery } from '@vueuse/core'
 import { Button, Dropdown, LoadingIndicator, Textarea, Tooltip, toast, useKeyboardShortcut } from 'frappe-ui'
 import dayjs from 'dayjs'
 import LucideAperture from '~icons/lucide/aperture'
@@ -598,6 +606,21 @@ async function saveCaption() {
   if (!photo.value || !meta.value || caption.value.trim() === (meta.value.description ?? '')) return
   meta.value.description = (await editCaption(photo.value.name, caption.value)) ?? ''
 }
+const phone = useMediaQuery('(max-width: 639px)')
+const INFO_TOP = 0.45
+const infoShift = computed(() => {
+  const current = photo.value
+  if (!phone.value || !current) return undefined
+  const base = { transition: 'transform 300ms cubic-bezier(0.05, 0.7, 0.1, 1)' }
+  if (!lightbox.showInfo) return base
+  const width = window.innerWidth
+  const height = window.innerHeight
+  const ratio = current.width && current.height ? current.width / current.height : 1
+  const fitHeight = Math.min(width, height * ratio) / ratio
+  const area = height * INFO_TOP
+  const scale = Math.min(1, area / fitHeight)
+  return { ...base, transform: `translateY(${area / 2 - height / 2}px) scale(${scale})` }
+})
 const lastInDrive = ref(false)
 watch(details, (value) => value && (lastInDrive.value = Boolean(value.folder)))
 const inDrive = computed(() => (details.value ? Boolean(details.value.folder) : lastInDrive.value))
@@ -790,7 +813,7 @@ const gestures = useViewerGestures({
   onPrevious: () => go(-1),
   onNext: () => go(1),
   onClose: finishClose,
-  onDismiss: close,
+  onDismiss: () => (phone.value && lightbox.showInfo ? (lightbox.showInfo = false) : close()),
   onInfo: () => (lightbox.showInfo = true),
   onTap: () => (chrome.value = !chrome.value),
   onBackdropClick: (event) => {
