@@ -22,7 +22,7 @@ def enqueue_extract(doc, method=None):
         doc.db_set({"mime_type": raw_mime(doc.file_name), "file_type": "Image"}, update_modified=False)
     if frappe.flags.photos_inline_extract:
         return
-    if doc.is_folder or not (doc.mime_type or "").startswith(("image/", "video/")):
+    if doc.is_folder or doc.attached_to_doctype or not (doc.mime_type or "").startswith(("image/", "video/")):
         return
     _enqueue(doc.name, enqueue_after_commit=True)
 
