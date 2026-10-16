@@ -17,6 +17,8 @@ interface Options {
 
 export const SWIPE_GAP = 16
 const SLOP = 8
+const PINCH_CLOSE_FLOOR = 0.5
+const PINCH_CLOSE_AT = 0.85
 const FLICK = 0.45
 const DOUBLE_TAP_MS = 280
 const MAX_SCALE = 4
@@ -76,8 +78,9 @@ export function useViewerGestures(options: Options) {
     if (!pointers.has(event.pointerId)) return
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
     if (mode === 'pinch' && pointers.size === 2) {
-      state.scale = Math.min(MAX_SCALE, Math.max(1, (pinch.scale * distance()) / pinch.distance))
-      if (state.scale === 1) Object.assign(state, { panX: 0, panY: 0 })
+      const floor = pinch.scale <= 1.01 && options.onDismiss ? PINCH_CLOSE_FLOOR : 1
+      state.scale = Math.min(MAX_SCALE, Math.max(floor, (pinch.scale * distance()) / pinch.distance))
+      if (state.scale <= 1) Object.assign(state, { panX: 0, panY: 0 })
       return
     }
     if (pointers.size !== 1) return
@@ -110,7 +113,11 @@ export function useViewerGestures(options: Options) {
     if (mode === 'pinch') {
       if (pointers.size === 0) {
         mode = null
-        if (state.scale < 1.05) animate(() => Object.assign(state, { scale: 1, panX: 0, panY: 0 }))
+        if (state.scale < PINCH_CLOSE_AT && options.onDismiss) {
+          const dismiss = options.onDismiss
+          animate(() => Object.assign(state, { scale: 1, panX: 0, panY: 0 }))
+          dismiss()
+        } else if (state.scale < 1.05) animate(() => Object.assign(state, { scale: 1, panX: 0, panY: 0 }))
       }
       return
     }
@@ -199,7 +206,11 @@ export function useViewerGestures(options: Options) {
     transform: `translate3d(${state.panX}px, ${state.panY}px, 0) scale(${state.scale})`,
     transition: transition.value,
   }))
-  const backdropOpacity = computed(() => 1 - Math.min(0.8, Math.max(0, state.dy) / height))
+  const backdropOpacity = computed(
+    () =>
+      (1 - Math.min(0.8, Math.max(0, state.dy) / height)) *
+      (state.scale < 1 ? Math.max(0.2, (state.scale - PINCH_CLOSE_FLOOR) / (1 - PINCH_CLOSE_FLOOR)) : 1),
+  )
 
   return {
     state,
