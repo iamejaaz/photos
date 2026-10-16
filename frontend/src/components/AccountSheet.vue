@@ -1,6 +1,6 @@
 <template>
   <BottomSheet v-model:open="accountSheet.open">
-    <div class="flex flex-col pb-4">
+    <div class="flex flex-col pb-[calc(1rem+var(--inset-bottom,0px))]">
       <div class="flex items-center gap-3 px-5 pb-4 pt-1">
         <Avatar size="3xl" :image="image" :label="fullName || user" />
         <div class="min-w-0">
