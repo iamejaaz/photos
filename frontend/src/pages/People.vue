@@ -62,11 +62,7 @@
       <div class="-mt-1.5 text-sm text-ink-gray-5">{{ itemCount(person.face_count) }}</div>
     </router-link>
   </div>
-  <div v-if="collapsed" class="flex justify-center pb-6">
-    <Button variant="ghost" @click="showAll = true">
-      {{ __('Show {0} more people', [fewPhotos.length]) }}
-    </Button>
-  </div>
+  <div ref="sentinel" class="h-px" />
   <div
     v-if="data?.enabled && !data.people.length"
     class="flex flex-col items-center gap-3 py-24 text-center text-base text-ink-gray-5"
@@ -76,7 +72,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useIntersectionObserver } from '@vueuse/core'
 import { Button, toast, usePageMeta } from 'frappe-ui'
 
 import { appPageMeta } from '@/utils/documentTitle'
@@ -89,19 +86,24 @@ import { mergedToast } from '../data/actions'
 
 const data = ref<{ enabled: boolean; people: Person[] }>()
 const showHidden = ref(false)
-const showAll = ref(false)
-const fewPhotos = computed(() =>
-  (data.value?.people ?? []).filter((person) => !person.person_name && person.face_count < 2),
+const PAGE = 60
+const limit = ref(PAGE)
+const sentinel = ref<HTMLElement | null>(null)
+const shownPeople = computed(() => (data.value?.people ?? []).slice(0, limit.value))
+useIntersectionObserver(
+  sentinel,
+  ([entry]) => {
+    if (entry?.isIntersecting && limit.value < (data.value?.people.length ?? 0)) limit.value += PAGE
+  },
+  { rootMargin: '600px' },
 )
-const collapsed = computed(
-  () =>
-    !showAll.value && fewPhotos.value.length > 0 && fewPhotos.value.length < (data.value?.people.length ?? 0),
-)
-const shownPeople = computed(() =>
-  collapsed.value
-    ? (data.value?.people ?? []).filter((person) => !fewPhotos.value.includes(person))
-    : (data.value?.people ?? []),
-)
+watch(limit, async () => {
+  await nextTick()
+  const box = sentinel.value?.getBoundingClientRect()
+  if (box && box.top < window.innerHeight + 600 && limit.value < (data.value?.people.length ?? 0))
+    limit.value += PAGE
+})
+watch(showHidden, () => (limit.value = PAGE))
 const suggestions = ref<Awaited<ReturnType<typeof mergeSuggestions>>>([])
 const suggestion = computed(() => suggestions.value[0])
 const answering = ref(false)
