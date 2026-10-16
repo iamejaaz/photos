@@ -15,6 +15,8 @@ SOURCE = "google:{}"
 RELAY = "https://photos.m.frappe.cloud"
 CONNECT = "photos:google-connect:{}"
 CONNECT_SECONDS = 15 * 60
+OFFERED = "photos:google-offered"
+OFFERED_SECONDS = 10 * 60
 APP_RETURN = "io.frappe.photos://open/settings/import"
 
 
@@ -44,6 +46,24 @@ def _access_token(user=None):
     return tokens["access_token"]
 
 
+def offered():
+    relay = _relay()
+    if relay is None:
+        return True
+    if get_url().rstrip("/") == relay:
+        return False
+    cached = frappe.cache.get_value(OFFERED)
+    if cached is not None:
+        return cached
+    try:
+        response = requests.get(f"{relay}/api/method/photos.api.google_relay.offered", timeout=10)
+        result = response.status_code == 200 and bool(response.json().get("message"))
+    except requests.RequestException, ValueError:
+        result = False
+    frappe.cache.set_value(OFFERED, result, expires_in_sec=OFFERED_SECONDS)
+    return result
+
+
 def _relay_call(relay, method, **data):
     response = requests.post(f"{relay}/api/method/photos.api.google_relay.{method}", data=data, timeout=30)
     if response.status_code != 200:
@@ -53,11 +73,15 @@ def _relay_call(relay, method, **data):
 
 @frappe.whitelist()
 def status():
-    return {"connected": bool(_refresh_token())}
+    return {"connected": bool(_refresh_token()), "available": offered()}
 
 
 @frappe.whitelist(methods=["POST"])
 def connect(native: bool = False):
+    if not offered():
+        frappe.throw(
+            frappe._("Importing from Google Photos is not set up on this site yet. Ask your administrator.")
+        )
     nonce, verifier = frappe.generate_hash(length=24), frappe.generate_hash(length=48)
     frappe.cache.set_value(
         CONNECT.format(nonce),
@@ -79,22 +103,34 @@ def connected(nonce: str, handoff: str | None = None, error: str | None = None):
     attempt = frappe.cache.get_value(key)
     frappe.cache.delete_value(key)
     if not attempt:
-        frappe.throw("This Google sign-in has expired. Please start again.")
-    outcome = "cancelled"
+        return _back_to_app(None, "expired")
+    outcome = error if error in ("cancelled", "failed") else "cancelled"
     if handoff and not error:
         relay = _relay()
-        tokens = (
-            _relay_call(relay, "claim", handoff=handoff, verifier=attempt["verifier"])
-            if relay
-            else google_relay.take_handoff(handoff, attempt["verifier"])
-        )
+        try:
+            tokens = (
+                _relay_call(relay, "claim", handoff=handoff, verifier=attempt["verifier"])
+                if relay
+                else google_relay.take_handoff(handoff, attempt["verifier"])
+            )
+        except Exception:
+            frappe.log_error("Photos could not finish connecting Google")
+            tokens = {}
         if tokens.get("refresh_token"):
             set_encrypted_password("User", attempt["user"], tokens["refresh_token"], TOKEN_FIELD)
             frappe.db.commit()
             outcome = "connected"
+        else:
+            outcome = "failed"
+    _back_to_app(attempt, outcome)
+
+
+def _back_to_app(attempt, outcome):
     frappe.local.response["type"] = "redirect"
     frappe.local.response["location"] = (
-        f"{APP_RETURN}?google={outcome}" if attempt["native"] else get_url(f"/photos?google={outcome}")
+        f"{APP_RETURN}?google={outcome}"
+        if attempt and attempt["native"]
+        else get_url(f"/photos/settings/import?google={outcome}")
     )
 
 

@@ -3,6 +3,7 @@ import { call } from 'frappe-ui'
 const GOOGLE = 'photos.api.google'
 export interface GoogleStatus {
   connected: boolean
+  available: boolean
 }
 export const googleStatus = () => call(`${GOOGLE}.status`) as Promise<GoogleStatus>
 export const connectGoogle = (native = false) => call(`${GOOGLE}.connect`, { native }) as Promise<string>

@@ -21,6 +21,11 @@ def available():
     return bool(settings.enable and settings.client_id and settings.client_secret)
 
 
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def offered():
+    return available()
+
+
 def challenge_for(verifier):
     return urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
 
@@ -28,11 +33,9 @@ def challenge_for(verifier):
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 @rate_limit(limit=30, seconds=60 * 10)
 def begin(challenge: str, return_to: str):
-    if not available():
-        frappe.throw("This site does not offer Google sign-in for Photos.")
     target = urlparse(return_to)
-    if target.scheme not in ("https", "http") or not target.netloc:
-        frappe.throw("Invalid return address.")
+    if target.scheme not in ("https", "http") or not target.netloc or not available():
+        return _stop()
     state = create_google_oauth_state({"challenge": challenge, "return_to": return_to})
     query = {
         "client_id": frappe.get_cached_doc("Google Settings").client_id,
@@ -50,11 +53,14 @@ def begin(challenge: str, return_to: str):
 def finish(code: str | None = None, state: str | None = None, error: str | None = None):
     attempt = consume_google_oauth_state(state)
     if not attempt:
-        frappe.throw("This sign-in link has expired. Please start again.")
+        return _stop()
     if error or not code:
-        _redirect(_with(attempt["return_to"], error=error or "cancelled"))
-        return
-    tokens = _token({"code": code, "grant_type": "authorization_code", "redirect_uri": _callback()})
+        return _redirect(_with(attempt["return_to"], error="cancelled"))
+    try:
+        tokens = _token({"code": code, "grant_type": "authorization_code", "redirect_uri": _callback()})
+    except Exception:
+        frappe.log_error("Photos could not finish Google sign-in")
+        return _redirect(_with(attempt["return_to"], error="failed"))
     handoff = frappe.generate_hash(length=32)
     frappe.cache.set_value(
         HANDOFF.format(handoff),
@@ -124,3 +130,12 @@ def _with(url, **params):
 def _redirect(url):
     frappe.local.response["type"] = "redirect"
     frappe.local.response["location"] = url
+
+
+def _stop():
+    frappe.respond_as_web_page(
+        frappe._("Google sign-in stopped"),
+        frappe._("Google sign-in is not available from this link. Go back to Photos and try again."),
+        http_status_code=400,
+        indicator_color="red",
+    )

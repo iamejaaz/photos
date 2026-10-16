@@ -11,6 +11,9 @@
         size="sm"
       />
     </template>
+    <p v-else-if="!status.available && !status.connected" class="text-base text-ink-gray-6">
+      {{ __('Importing from Google Photos is not set up on this site yet. Ask your administrator.') }}
+    </p>
     <template v-else>
       <p class="text-base text-ink-gray-6">
         {{ __('Choose photos and videos in Google Photos and bring copies of them here.') }}
@@ -32,6 +35,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Button, Progress, toast } from 'frappe-ui'
 
 import {
@@ -60,6 +64,21 @@ onBeforeUnmount(() => {
 })
 
 const native = Boolean(import.meta.env.VITE_NATIVE)
+
+const OUTCOMES: Record<string, () => void> = {
+  connected: () => toast.success(__('Google account connected. Choose photos to import.')),
+  cancelled: () => toast.info(__('Google sign-in was cancelled')),
+  failed: () => toast.error(__('Google did not finish signing you in. Please try again.')),
+  expired: () => toast.error(__('That Google sign-in took too long. Please start again.')),
+}
+const route = useRoute()
+const router = useRouter()
+const outcome = String(route.query.google ?? '')
+if (OUTCOMES[outcome]) {
+  OUTCOMES[outcome]()
+  const { google, ...query } = route.query
+  router.replace({ query })
+}
 
 async function openOutside(url: string) {
   const { photosShell } = await import('../../native/shell')
