@@ -8,6 +8,7 @@ import App from './App.vue'
 import { retryFailedImages } from './retryImages'
 import { watchProblems } from './data/problems'
 import router from './router'
+import { animatePageChanges } from './pageTransitions'
 
 configureFrappeUI()
 retryFailedImages()
@@ -17,6 +18,7 @@ if (getSessionUser()) userResource.fetch()
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)
+animatePageChanges(router)
 app.use(translationPlugin)
 
 router.isReady().then(() => {
