@@ -3,6 +3,7 @@ import { withPrefs } from './platform'
 export type Site = { url: string; name: string; sitename: string; clientId: string }
 
 const SITE_KEY = 'site'
+const LAST_ADDRESS_KEY = 'last-site-address'
 
 const isLocalHost = (host: string) =>
   /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(
@@ -86,10 +87,18 @@ export const savedSite = (): Promise<Site | null> =>
     }
   })
 
-export const saveSite = (site: Site | null) =>
-  withPrefs((p) =>
+export const rememberSiteAddress = (url: string) =>
+  withPrefs((p) => p.set({ key: LAST_ADDRESS_KEY, value: url.replace(/^https:\/\//, '') }))
+
+export const saveSite = async (site: Site | null) => {
+  if (site) await rememberSiteAddress(site.url)
+  return withPrefs((p) =>
     site ? p.set({ key: SITE_KEY, value: JSON.stringify(site) }) : p.remove({ key: SITE_KEY }),
   )
+}
+
+export const lastSiteAddress = (): Promise<string> =>
+  withPrefs(async (p) => (await p.get({ key: LAST_ADDRESS_KEY })).value ?? '')
 
 export type Account = Site & { user: string; fullName: string; image: string | null }
 

@@ -2,7 +2,7 @@ import { signOut as revoke } from './auth'
 import { photosBackup } from './backup'
 import { trimMediaCache } from './media'
 import { siteOrigin } from './site'
-import { forgetAccount, saveSite, savedAccounts, savedSite } from './sites'
+import { forgetAccount, rememberSiteAddress, saveSite, savedAccounts, savedSite } from './sites'
 
 export async function signOutOfThisSite() {
   const url = siteOrigin()
@@ -13,6 +13,7 @@ export async function signOutOfThisSite() {
   await trimMediaCache(0)
   await revoke(url, site?.clientId ?? '').catch(() => {})
   await forgetAccount(url)
+  await rememberSiteAddress(url)
   await saveSite((await savedAccounts())[0] ?? null)
   window.location.replace('/')
 }

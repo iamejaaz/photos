@@ -65,6 +65,7 @@ import { tokenStore } from './auth'
 import {
   type Account,
   type Site,
+  lastSiteAddress,
   normalizeSiteUrl,
   probeSite,
   siteProblem,
@@ -80,6 +81,12 @@ const error = ref('')
 const busy = ref(false)
 const others = ref<Account[]>([])
 const hostOf = (url: string) => new URL(url).host
+
+if (!address.value && !props.cancellable) {
+  lastSiteAddress().then((last) => {
+    if (!address.value) address.value = last
+  })
+}
 
 savedAccounts().then(async (accounts) => {
   const usable = await Promise.all(
