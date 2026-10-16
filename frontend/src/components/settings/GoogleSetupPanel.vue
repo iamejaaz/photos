@@ -1,63 +1,50 @@
 <template>
   <SettingsHeader
     :title="__('Google Photos import')"
-    :description="
-      __(
-        'Google needs Photos registered once before anyone can pick photos from their Google account. Every person still signs in with their own account.',
-      )
-    "
-  />
+    :description="__('Register Photos with Google once so people can pick from their own Google Photos.')"
+  >
+    <template v-if="setup" #actions>
+      <Badge
+        :theme="setup.working ? 'green' : 'amber'"
+        :label="setup.working ? __('Ready') : __('Not set up')"
+      />
+    </template>
+  </SettingsHeader>
   <SettingsBody>
     <div v-if="!setup" class="flex justify-center py-8"><LoadingIndicator class="size-5" /></div>
-    <div v-else class="flex flex-col gap-5">
-      <div class="flex items-center gap-2 rounded-lg bg-surface-gray-2 px-3 py-2 text-base text-ink-gray-8">
-        <component
-          :is="setup.working ? LucideCircleCheck : LucideCircleAlert"
-          class="size-4 shrink-0"
-          :class="setup.working ? 'text-ink-green-3' : 'text-ink-amber-3'"
-        />
-        {{
-          setup.working
-            ? __('Ready. People can connect their Google account in Import.')
-            : __('Not set up yet. Follow the steps below once.')
-        }}
-      </div>
-      <ol class="flex min-w-0 list-decimal flex-col gap-3 pl-5 text-base text-ink-gray-8">
-        <li>
-          {{ __('In Google Cloud, create a project and turn on the') }}
-          <a class="underline" :href="PICKER_API" target="_blank" rel="noopener">{{
-            __('Photos Picker API')
-          }}</a
-          >.
-        </li>
-        <li>
-          {{ __('Set up the') }}
-          <a class="underline" :href="CONSENT" target="_blank" rel="noopener">{{
-            __('OAuth consent screen')
-          }}</a>
-          {{ __('as External and add the Photos Picker scope.') }}
-        </li>
-        <li class="min-w-0">
-          <span>
-            {{ __('Create an') }}
-            <a class="underline" :href="CREDENTIALS" target="_blank" rel="noopener">{{
-              __('OAuth client')
-            }}</a>
-            {{ __('of type Web application with this redirect address:') }}
-          </span>
-          <div class="mt-2 flex items-center gap-2">
-            <code class="min-w-0 flex-1 break-all rounded bg-surface-gray-2 px-2 py-1.5 text-sm">{{
-              setup.redirect_url
-            }}</code>
-            <Button @click="copyRedirect">
-              <template #prefix><LucideCopy class="size-4" /></template>
-              {{ copied ? __('Copied') : __('Copy') }}
+    <template v-else>
+      <div class="divide-y divide-outline-gray-1">
+        <SettingsRow
+          :title="__('Turn on the Photos Picker API')"
+          :description="__('In a Google Cloud project you own.')"
+        >
+          <Button :href="PICKER_API">
+            <template #suffix><LucideArrowUpRight class="size-4" /></template>
+            {{ __('Open') }}
+          </Button>
+        </SettingsRow>
+        <SettingsRow
+          :title="__('Set up the consent screen')"
+          :description="__('Choose External and add the Photos Picker scope.')"
+        >
+          <Button :href="CONSENT">
+            <template #suffix><LucideArrowUpRight class="size-4" /></template>
+            {{ __('Open') }}
+          </Button>
+        </SettingsRow>
+        <SettingsRow
+          :title="__('Create a Web application client')"
+          :description="__('Paste the redirect address Photos copies for you.')"
+        >
+          <div class="flex gap-2">
+            <Button @click="copyRedirect">{{ copied ? __('Copied') : __('Copy address') }}</Button>
+            <Button :href="CREDENTIALS" :aria-label="__('Open Google Cloud credentials')">
+              <template #icon><LucideArrowUpRight class="size-4" /></template>
             </Button>
           </div>
-        </li>
-        <li>{{ __('Paste the client ID and secret here and save.') }}</li>
-      </ol>
-      <form class="flex flex-col gap-3" @submit.prevent="save">
+        </SettingsRow>
+      </div>
+      <form class="mt-6 flex flex-col gap-4" @submit.prevent="save">
         <FormControl
           v-model="clientId"
           :label="__('Client ID')"
@@ -67,7 +54,8 @@
           v-model="clientSecret"
           type="password"
           :label="__('Client secret')"
-          :placeholder="setup.has_secret ? __('Saved. Type a new one to replace it.') : ''"
+          :placeholder="setup.has_secret ? __('Saved') : ''"
+          :description="setup.has_secret ? __('Leave empty to keep the saved secret.') : undefined"
         />
         <ErrorMessage :message="error" />
         <div>
@@ -76,25 +64,25 @@
           </Button>
         </div>
       </form>
-    </div>
+    </template>
   </SettingsBody>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import {
+  Badge,
   Button,
   ErrorMessage,
   FormControl,
   LoadingIndicator,
   SettingsBody,
   SettingsHeader,
+  SettingsRow,
   call,
   toast,
 } from 'frappe-ui'
-import LucideCircleAlert from '~icons/lucide/circle-alert'
-import LucideCircleCheck from '~icons/lucide/circle-check'
-import LucideCopy from '~icons/lucide/copy'
+import LucideArrowUpRight from '~icons/lucide/arrow-up-right'
 
 import { errorText } from '../../resources/drive'
 
