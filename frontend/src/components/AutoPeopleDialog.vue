@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import { errorText } from '../resources/drive'
 import { ref, watch } from 'vue'
 import { Dialog, toast } from 'frappe-ui'
 import LucideCheck from '~icons/lucide/check'
@@ -83,7 +84,7 @@ async function save() {
         : __('This album will now add them automatically'),
     )
   } catch (error) {
-    toast.error((error as { messages?: string[] }).messages?.[0] ?? __('Could not save'))
+    toast.error(errorText(error) || __('Could not save'))
   } finally {
     saving.value = false
   }

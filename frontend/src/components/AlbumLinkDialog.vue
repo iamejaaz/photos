@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import { errorText } from '../resources/drive'
 import { reactive, ref, watch } from 'vue'
 import { Button, DatePicker, Dialog, Password, SettingsRow, Switch, toast } from 'frappe-ui'
 import LucideX from '~icons/lucide/x'
@@ -93,7 +94,7 @@ async function save() {
     open.value = false
     toast.success(__('Link settings saved'))
   } catch (error) {
-    toast.error((error as { messages?: string[] }).messages?.[0] ?? __('Could not save'))
+    toast.error(errorText(error) || __('Could not save'))
   } finally {
     saving.value = false
   }

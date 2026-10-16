@@ -35,6 +35,7 @@
 </template>
 
 <script setup lang="ts">
+import { errorText } from '../resources/drive'
 import { computed, ref, watch } from 'vue'
 import { Button, Dialog, TextInput, toast } from 'frappe-ui'
 import LucideLink from '~icons/lucide/link'
@@ -69,7 +70,7 @@ async function createLink() {
     link.value = `${window.location.origin}/photos/albums/${album}`
     clearSelection()
   } catch (error) {
-    toast.error((error as { messages?: string[] }).messages?.[0] ?? __('Could not create the link'))
+    toast.error(errorText(error) || __('Could not create the link'))
   } finally {
     creating.value = false
   }

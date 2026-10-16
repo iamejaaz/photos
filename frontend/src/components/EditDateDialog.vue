@@ -24,6 +24,7 @@
 </template>
 
 <script setup lang="ts">
+import { errorText } from '../resources/drive'
 import { computed, ref, watch } from 'vue'
 import { DateTimePicker, Dialog, FormControl, Radio, RadioGroup, toast } from 'frappe-ui'
 import dayjs from 'dayjs'
@@ -75,7 +76,7 @@ async function save() {
     )
     toast.success(__('Date updated'))
   } catch (error) {
-    toast.error((error as { messages?: string[] }).messages?.[0] ?? __('Could not update the date'))
+    toast.error(errorText(error) || __('Could not update the date'))
   } finally {
     saving.value = false
   }

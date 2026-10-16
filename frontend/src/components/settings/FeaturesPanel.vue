@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import { errorText } from '../../resources/drive'
 import { computed, reactive, ref, watchEffect } from 'vue'
 import {
   ErrorMessage,
@@ -98,7 +99,7 @@ async function toggle(key: Feature, value: boolean) {
     settings.data = await saveSettings({ ...form })
   } catch (error) {
     form[key] = !value
-    toast.error((error as { messages?: string[] }).messages?.[0] ?? __('Could not save settings'))
+    toast.error(errorText(error) || __('Could not save settings'))
   } finally {
     saving.value = false
   }

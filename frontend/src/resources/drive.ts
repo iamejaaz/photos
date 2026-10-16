@@ -42,5 +42,11 @@ export async function errorMessage(response: Response) {
     return response.statusText
   }
 }
-export const errorText = (error: unknown) =>
-  (error as { messages?: string[] }).messages?.find(Boolean) || (error as Error).message
+const OLDER_SITE = /Failed to get method for command|has no attribute/
+
+export const errorText = (error: unknown) => {
+  const text = (error as { messages?: string[] }).messages?.find(Boolean) || (error as Error)?.message
+  return text && OLDER_SITE.test(text)
+    ? __('Your site needs a newer version of Photos for this. Ask your administrator to update it.')
+    : text
+}

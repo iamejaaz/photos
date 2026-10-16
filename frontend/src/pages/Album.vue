@@ -158,6 +158,7 @@
 </template>
 
 <script setup lang="ts">
+import { errorText } from '../resources/drive'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, Dialog, Dropdown, ErrorMessage, Password, TextInput, toast, usePageMeta } from 'frappe-ui'
@@ -307,8 +308,7 @@ async function unlock() {
     await refresh()
     handle.reload()
   } catch (error) {
-    passwordError.value =
-      (error as { messages?: string[] }).messages?.[0] ?? __('That password is not right.')
+    passwordError.value = errorText(error) || __('That password is not right.')
   } finally {
     unlocking.value = false
   }

@@ -41,6 +41,7 @@
 </template>
 
 <script setup lang="ts">
+import { errorText } from '../resources/drive'
 import { onBeforeUnmount, ref } from 'vue'
 import { Button, ErrorMessage, Password, usePageMeta } from 'frappe-ui'
 import LucideEyeOff from '~icons/lucide/eye-off'
@@ -75,7 +76,7 @@ async function screenUnlock() {
     const { unlockWithScreenLock } = await import('../native/deviceUnlock')
     if (await unlockWithScreenLock(__('Unlock hidden photos'))) unlocked.value = true
   } catch (error) {
-    passwordError.value = (error as { messages?: string[] }).messages?.[0] ?? __('Enter your password.')
+    passwordError.value = errorText(error) || __('Enter your password.')
   } finally {
     unlocking.value = false
   }
@@ -94,8 +95,7 @@ async function unlock() {
     password.value = ''
     unlocked.value = true
   } catch (error) {
-    passwordError.value =
-      (error as { messages?: string[] }).messages?.[0] ?? __('That password is not right.')
+    passwordError.value = errorText(error) || __('That password is not right.')
   } finally {
     unlocking.value = false
   }

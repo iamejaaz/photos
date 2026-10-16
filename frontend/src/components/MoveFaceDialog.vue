@@ -28,6 +28,7 @@
 </template>
 
 <script setup lang="ts">
+import { errorText } from '../resources/drive'
 import { computed, ref, watch } from 'vue'
 import { Dialog, TextInput, toast } from 'frappe-ui'
 import LucidePlus from '~icons/lucide/plus'
@@ -62,7 +63,7 @@ async function save(person: string | null) {
     emit('moved')
     toast.success(__('Face moved'))
   } catch (error) {
-    toast.error((error as { messages?: string[] }).messages?.[0] ?? __('Could not move the face'))
+    toast.error(errorText(error) || __('Could not move the face'))
   }
 }
 </script>

@@ -18,7 +18,7 @@ export async function startExport(run: () => Promise<unknown>) {
     await run()
     toast.info(__('Preparing your export. You will get a message when it is ready.'))
   } catch (error) {
-    toast.error((error as { messages?: string[] }).messages?.[0] ?? __('Could not start the export'))
+    toast.error(errorText(error) || __('Could not start the export'))
   }
 }
 export const takeout = reactive({

@@ -34,6 +34,7 @@
 </template>
 
 <script setup lang="ts">
+import { errorText } from '../resources/drive'
 import { computed, ref, watch } from 'vue'
 import { Button, Dialog, TextInput, toast } from 'frappe-ui'
 import { useDebounceFn } from '@vueuse/core'
@@ -68,7 +69,7 @@ async function save(place: PlaceMatch | null) {
     metadataSaved()
     toast.success(place ? __('Location set to {0}', [place.label]) : __('Location removed'))
   } catch (error) {
-    toast.error((error as { messages?: string[] }).messages?.[0] ?? __('Could not update the location'))
+    toast.error(errorText(error) || __('Could not update the location'))
   }
 }
 </script>
