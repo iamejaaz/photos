@@ -43,7 +43,7 @@
   },
   {
    "fieldname": "page",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Page",
    "read_only": 1
   },
@@ -63,7 +63,7 @@
   },
   {
    "fieldname": "device",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Device",
    "read_only": 1
   },
@@ -76,7 +76,7 @@
   }
  ],
  "image_field": "screenshot",
- "modified": "2026-10-16 10:30:00.000000",
+ "modified": "2026-10-16 13:25:17.278843",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photo Problem Report",
