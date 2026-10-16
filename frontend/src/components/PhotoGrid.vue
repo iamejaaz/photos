@@ -89,7 +89,9 @@
                     selection.has(tile.photo.name)
                       ? 'bg-surface-gray-10 text-ink-base ring-2 ring-white'
                       : 'border-2 border-white/90 text-transparent hover:bg-white/30 hover:text-white',
-                    selection.size ? 'opacity-100' : 'opacity-0 group-hover/tile:opacity-100',
+                    selection.size
+                      ? 'opacity-100'
+                      : 'opacity-0 group-hover/tile:opacity-100 [@media(pointer:coarse)]:pointer-events-none',
                   ]"
                   :aria-label="selection.has(tile.photo.name) ? __('Deselect') : __('Select')"
                   @click.stop="toggle(tile.photo, $event)"
