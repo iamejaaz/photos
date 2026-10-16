@@ -152,7 +152,7 @@ function openReport() {
 
 function openPhotoSettings() {
   accountSheet.open = false
-  openSettings()
+  setTimeout(openSettings, SHEET_CLOSE_MS)
 }
 
 async function signOut() {
