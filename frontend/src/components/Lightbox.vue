@@ -1,12 +1,14 @@
 <template>
   <Teleport to="body">
     <div v-if="lightbox.open && photo" class="edge-to-edge fixed inset-0 z-50 flex text-white">
-      <div
+      <StyleLayer
         class="pointer-events-none absolute inset-0 -z-10 bg-black"
-        :style="{
-          opacity: gestures.backdropOpacity.value * hero.backdrop,
-          transition: hero.transition && `opacity ${HERO_MS}ms`,
-        }"
+        :style-of="
+          () => ({
+            opacity: gestures.backdropOpacity.value * hero.backdrop,
+            transition: hero.transition && `opacity ${HERO_MS}ms`,
+          })
+        "
       />
       <div class="relative flex min-w-0 flex-1 flex-col">
         <div
@@ -104,7 +106,10 @@
           v-on="gestures.handlers"
           @dragstart.prevent
         >
-          <div class="absolute inset-0 flex items-center justify-center" :style="gestures.trackStyle.value">
+          <StyleLayer
+            class="absolute inset-0 flex items-center justify-center"
+            :style-of="() => gestures.trackStyle.value"
+          >
             <template v-for="step in [-1, 1]" :key="step">
               <div
                 v-if="neighbour(step)"
@@ -127,7 +132,10 @@
                 transition: hero.transition,
               }"
             >
-              <div class="flex size-full items-center justify-center" :style="gestures.contentStyle.value">
+              <StyleLayer
+                class="flex size-full items-center justify-center"
+                :style-of="() => gestures.contentStyle.value"
+              >
                 <video
                   v-if="isVideo(photo)"
                   :key="photo.name"
@@ -186,9 +194,9 @@
                     {{ __('Live') }}
                   </button>
                 </div>
-              </div>
+              </StyleLayer>
             </div>
-          </div>
+          </StyleLayer>
         </div>
 
         <button
@@ -467,6 +475,7 @@ import { editMetadata, openShare, editing as metadataEdits } from '../data/dialo
 import { openLightbox, lightbox } from '../data/viewer'
 import { notifyUploaded } from '../data/uploads'
 import InfoRow from './InfoRow.vue'
+import StyleLayer from './StyleLayer.vue'
 import MoveFaceDialog from './MoveFaceDialog.vue'
 import FaceAvatar from './FaceAvatar.vue'
 import { formatBytes } from '../format'
@@ -589,7 +598,9 @@ async function saveCaption() {
   if (!photo.value || !meta.value || caption.value.trim() === (meta.value.description ?? '')) return
   meta.value.description = (await editCaption(photo.value.name, caption.value)) ?? ''
 }
-const inDrive = computed(() => Boolean(details.value?.folder))
+const lastInDrive = ref(false)
+watch(details, (value) => value && (lastInDrive.value = Boolean(value.folder)))
+const inDrive = computed(() => (details.value ? Boolean(details.value.folder) : lastInDrive.value))
 const photoAlbums = computed(() =>
   [...albums.value, ...sharedAlbums.value].filter((album) => details.value?.albums?.includes(album.name)),
 )
