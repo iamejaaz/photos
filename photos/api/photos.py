@@ -325,6 +325,8 @@ def memories():
         query = query.where(
             File.name.notin(frappe.qb.from_(Face).select(Face.file).where(Face.person.isin(hidden)))
         )
+    if removed := preferences["memory_removed"]:
+        query = query.where(File.name.notin(removed))
     query = query.where(fn.Abs(DayOfYear(taken) - today.timetuple().tm_yday) <= 3)
     rows = page(query, 0, 60)["rows"]
     years = {}

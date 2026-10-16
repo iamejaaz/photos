@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="story.open && memory && photo"
-      class="edge-to-edge fixed inset-0 z-[55] select-none bg-black text-white"
+      class="edge-to-edge fixed inset-0 z-50 select-none bg-black text-white"
       @pointerdown="onDown"
       @pointerup="onUp"
       @pointercancel="onCancel"
@@ -16,7 +16,7 @@
             :poster="thumbnailUrl(photo.name, undefined, true)"
             class="size-full object-contain"
             autoplay
-            muted
+            :muted="muted"
             playsinline
             @loadstart="buffering = true"
             @waiting="buffering = true"
@@ -65,11 +65,43 @@
             </div>
             <div class="text-xs text-white/80">{{ takenLabel }}</div>
           </div>
-          <button class="story-button" :aria-label="__('Close')" @pointerdown.stop @click="close">
-            <LucideX class="size-5" />
-          </button>
+          <div class="flex items-center gap-1" @pointerdown.stop @pointerup.stop>
+            <button
+              v-if="isVideo(photo)"
+              class="story-button"
+              :aria-label="muted ? __('Unmute') : __('Mute')"
+              @click="muted = !muted"
+            >
+              <component :is="muted ? LucideVolumeX : LucideVolume2" class="size-5" />
+            </button>
+            <button
+              class="story-button"
+              :aria-label="photo.is_favourite ? __('Remove from favourites') : __('Add to favourites')"
+              @click="toggleFavourite([photo])"
+            >
+              <LucideStar class="size-5" :class="{ 'fill-current': photo.is_favourite }" />
+            </button>
+            <button class="story-button" :aria-label="__('Share')" @click="share">
+              <LucideShare2 class="size-5" />
+            </button>
+            <Dropdown v-model:open="menuOpen" :options="menu" placement="right">
+              <button class="story-button" :aria-label="__('More options')">
+                <LucideEllipsisVertical class="size-5" />
+              </button>
+            </Dropdown>
+            <button class="story-button" :aria-label="__('Close')" @click="close">
+              <LucideX class="size-5" />
+            </button>
+          </div>
         </div>
       </div>
+      <HideFacesDialog
+        v-model:open="hidingFaces"
+        :people="uniquePeople"
+        @changed="onFacesHidden"
+        @pointerdown.stop
+        @pointerup.stop
+      />
     </div>
   </Teleport>
 </template>
@@ -77,13 +109,24 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import dayjs from 'dayjs'
-import { LoadingIndicator } from 'frappe-ui'
+import { Dropdown, LoadingIndicator, toast } from 'frappe-ui'
+import LucideEllipsisVertical from '~icons/lucide/ellipsis-vertical'
+import LucideShare2 from '~icons/lucide/share-2'
+import LucideStar from '~icons/lucide/star'
+import LucideVolume2 from '~icons/lucide/volume-2'
+import LucideVolumeX from '~icons/lucide/volume-x'
 import LucideX from '~icons/lucide/x'
 
 import { contentUrl, streamUrl, thumbnailUrl } from '../resources/media'
 import { isVideo } from '../resources/photos'
 import { useBackClose } from '../composables/useBackClose'
-import { memoryStory as story } from '../data/viewer'
+import { memoriesVersion, memoryStory as story } from '../data/viewer'
+import { type PhotoPerson, getPhotoPeople } from '../resources/people'
+import { removeFromMemories } from '../resources/settings'
+import HideFacesDialog from './HideFacesDialog.vue'
+import { toggleFavourite } from '../data/actions'
+import { openShare, sharePhotos } from '../data/dialogs'
+import { errorText } from '../resources/drive'
 
 const PHOTO_MS = 5000
 const HOLD_MS = 220
@@ -93,6 +136,16 @@ const buffering = ref(false)
 const photo = computed(() => memory.value?.photos[story.index])
 const progress = ref(0)
 const paused = ref(false)
+const muted = ref(true)
+const menuOpen = ref(false)
+const hidingFaces = ref(false)
+const people = ref<PhotoPerson[]>([])
+const uniquePeople = computed(() => {
+  const seen = new Set<string>()
+  return people.value
+    .filter((entry) => !seen.has(entry.person) && seen.add(entry.person))
+    .map((entry) => ({ name: entry.person, person_name: entry.person_name, face: entry.face }))
+})
 const takenLabel = computed(() => (photo.value ? dayjs(photo.value.taken).format('D MMM YYYY') : ''))
 
 let frame = 0
@@ -103,6 +156,74 @@ let downY = 0
 
 function close() {
   story.open = false
+}
+
+watch(
+  () => photo.value?.name,
+  async (name) => {
+    people.value = []
+    if (!name) return
+    const found = await getPhotoPeople(name).catch(() => [])
+    if (photo.value?.name === name) people.value = found
+  },
+  { immediate: true },
+)
+
+watch(
+  [menuOpen, hidingFaces, () => sharePhotos.open],
+  ([menu, faces, sharing]) => (paused.value = menu || faces || sharing),
+)
+
+function share() {
+  if (photo.value) openShare([photo.value.name])
+}
+
+const menu = computed(() => {
+  const current = photo.value
+  if (!current) return []
+  return [
+    {
+      label: isVideo(current) ? __('Remove video from this memory') : __('Remove photo from this memory'),
+      onClick: () => removeCurrent(current.name),
+    },
+    ...(people.value.length
+      ? [{ label: __('Hide faces from memories'), onClick: () => (hidingFaces.value = true) }]
+      : []),
+  ]
+})
+
+async function removeCurrent(name: string) {
+  try {
+    await removeFromMemories(name)
+  } catch (error) {
+    return toast.error(errorText(error) || __('Could not remove it'))
+  }
+  dropFromStory((item) => item.name === name)
+  toast.success(__('Removed from this memory'))
+}
+
+function onFacesHidden(hidden: Set<string>) {
+  const name = photo.value?.name
+  if (name && people.value.some((entry) => hidden.has(entry.person))) {
+    dropFromStory((item) => item.name === name)
+    hidingFaces.value = false
+  }
+}
+
+function dropFromStory(matches: (item: { name: string }) => boolean) {
+  memoriesVersion.value++
+  const current = memory.value
+  if (!current) return close()
+  current.photos = current.photos.filter((item) => !matches(item))
+  if (current.photos.length) {
+    story.index = Math.min(story.index, current.photos.length - 1)
+    progress.value = 0
+    return
+  }
+  story.memories.splice(story.memory, 1)
+  if (!story.memories.length) return close()
+  story.memory = Math.min(story.memory, story.memories.length - 1)
+  story.index = 0
 }
 useBackClose(() => story.open, close)
 
