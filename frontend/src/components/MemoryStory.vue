@@ -97,7 +97,7 @@
         </div>
       </div>
       <button
-        class="story-button absolute left-3 top-1/2 -translate-y-1/2 bg-black/30 [@media(pointer:coarse)]:hidden"
+        class="absolute left-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 max-sm:hidden [@media(pointer:coarse)]:hidden"
         :aria-label="__('Previous')"
         @pointerdown.stop
         @pointerup.stop
@@ -106,7 +106,7 @@
         <LucideChevronLeft class="size-6" />
       </button>
       <button
-        class="story-button absolute right-3 top-1/2 -translate-y-1/2 bg-black/30 [@media(pointer:coarse)]:hidden"
+        class="absolute right-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 max-sm:hidden [@media(pointer:coarse)]:hidden"
         :aria-label="__('Next')"
         @pointerdown.stop
         @pointerup.stop

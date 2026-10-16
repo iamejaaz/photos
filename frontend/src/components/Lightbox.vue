@@ -189,7 +189,7 @@
 
         <button
           v-if="lightbox.index > 0 && !lightbox.slideshow && chrome"
-          class="flex lightbox-button absolute left-3 top-1/2 -translate-y-1/2 bg-black/30 [@media(pointer:coarse)]:hidden"
+          class="flex lightbox-button absolute left-3 top-1/2 -translate-y-1/2 bg-black/30 max-sm:hidden [@media(pointer:coarse)]:hidden"
           :aria-label="__('Previous')"
           @click="go(-1)"
         >
@@ -197,7 +197,7 @@
         </button>
         <button
           v-if="(lightbox.index < rows.length - 1 || feed?.feed.hasNext) && !lightbox.slideshow && chrome"
-          class="flex lightbox-button absolute right-3 top-1/2 -translate-y-1/2 bg-black/30 [@media(pointer:coarse)]:hidden"
+          class="flex lightbox-button absolute right-3 top-1/2 -translate-y-1/2 bg-black/30 max-sm:hidden [@media(pointer:coarse)]:hidden"
           :aria-label="__('Next')"
           @click="go(1)"
         >
