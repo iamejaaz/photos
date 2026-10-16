@@ -58,8 +58,26 @@
           @click="signOut"
         />
       </div>
-      <div v-if="version" class="px-5 pt-2 text-center text-sm text-ink-gray-5">
-        {{ __('Photos {0}', [version]) }}
+      <div
+        v-if="availableUpdate"
+        class="mx-5 mt-2 flex items-center gap-3 rounded-xl bg-surface-gray-2 px-3 py-2.5"
+      >
+        <div class="min-w-0 flex-1">
+          <div class="text-base font-medium text-ink-gray-9">{{ __('Update available') }}</div>
+          <div class="text-sm text-ink-gray-6">
+            {{
+              updateProgress === null
+                ? __('Photos {0}', [availableUpdate.version_name])
+                : __('Downloading {0}%', [updateProgress])
+            }}
+          </div>
+        </div>
+        <Button variant="solid" :loading="updateProgress !== null" @click="installUpdate">
+          {{ __('Update') }}
+        </Button>
+      </div>
+      <div v-if="appVersion" class="px-5 pt-2 text-center text-sm text-ink-gray-5">
+        {{ __('Photos {0}', [appVersion]) }}
       </div>
     </div>
   </BottomSheet>
@@ -79,6 +97,7 @@ import { mediaUrl } from '../resources/media'
 import ListRow from './ListRow.vue'
 import { reportProblem } from '../data/problems'
 import { accountSheet, openSettings } from '../data/dialogs'
+import { appVersion, availableUpdate, checkForUpdate, installUpdate, updateProgress } from '../data/appUpdate'
 import type { Account } from '../native/sites'
 
 const native = Boolean(import.meta.env.VITE_NATIVE)
@@ -89,10 +108,8 @@ const hostOf = (url: string) => new URL(url).host
 const host = ref(window.location.host)
 const others = ref<Account[]>([])
 const signingOut = ref(false)
-const version = ref('')
 
-if (native)
-  import('@capacitor/app').then(({ App }) => App.getInfo()).then((info) => (version.value = info.version))
+checkForUpdate()
 
 watch(
   () => accountSheet.open,
