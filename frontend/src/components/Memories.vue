@@ -27,15 +27,25 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
+import { getSessionUser } from '@/boot/session'
+import { readJSON, writeJSON } from '@/utils/localStorage'
+
 import { type Memory, getMemories } from '../resources/photos'
 import { thumbnailUrl } from '../resources/media'
 import { memoriesVersion, playMemories } from '../data/viewer'
 import { itemCount } from '../utils'
 
-const memories = ref<Memory[]>([])
+const KEY = `photos-memories:${getSessionUser() ?? ''}`
+const today = () => new Date().toDateString()
+const saved = readJSON(KEY) as { day: string; memories: Memory[] } | null
+const memories = ref<Memory[]>(saved?.day === today() ? saved.memories : [])
 watch(
   () => memoriesVersion.value,
-  () => getMemories().then((data) => (memories.value = data)),
+  () =>
+    getMemories().then((data) => {
+      memories.value = data
+      writeJSON(KEY, { day: today(), memories: data })
+    }),
   { immediate: true },
 )
 
