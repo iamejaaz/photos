@@ -842,6 +842,7 @@ watch(
   () => lightbox.open,
   (open) => {
     if (open) heroIn()
+    else if (phone.value) lightbox.showInfo = false
     if (open &&!history.state?.photosViewer) {
       chrome.value = true
       history.pushState({ ...history.state, photosViewer: true }, '')
