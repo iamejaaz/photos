@@ -85,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { type Component, computed, onActivated, onDeactivated, ref } from 'vue'
+import { type Component, computed, onActivated, onDeactivated, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Button, Dialog, Dropdown, PageHeader, TextInput, Tooltip, toast } from 'frappe-ui'
 import LucideArchive from '~icons/lucide/archive'
@@ -158,6 +158,9 @@ const emit = defineEmits<{
 const route = useRoute()
 const router = useRouter()
 const query = ref(String(route.query.q || ''))
+watch(query, (value) => {
+  if (!value.trim() && route.name === 'photos-search' && route.query.q) router.replace({ name: 'photos-search' })
+})
 const confirmDelete = ref(false)
 const loggedIn = computed(() => useSessionStore().isLoggedIn)
 

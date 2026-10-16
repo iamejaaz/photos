@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { TextInput, usePageMeta } from 'frappe-ui'
 import LucideSearch from '~icons/lucide/search'
@@ -40,6 +40,9 @@ const params = {
 const hasQuery = Object.values(params).some(Boolean)
 const handle = createFeed('timeline', params)
 const query = ref(String(route.query.q || ''))
+watch(query, (value) => {
+  if (!value.trim() && route.query.q) router.replace({ name: 'photos-search' })
+})
 if (params.search) rememberSearch(String(params.search))
 
 const title = computed(() => {
