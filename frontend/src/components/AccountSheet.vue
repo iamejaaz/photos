@@ -58,6 +58,9 @@
           @click="signOut"
         />
       </div>
+      <div v-if="version" class="px-5 pt-2 text-center text-sm text-ink-gray-5">
+        {{ __('Photos {0}', [version]) }}
+      </div>
     </div>
   </BottomSheet>
 </template>
@@ -86,6 +89,10 @@ const hostOf = (url: string) => new URL(url).host
 const host = ref(window.location.host)
 const others = ref<Account[]>([])
 const signingOut = ref(false)
+const version = ref('')
+
+if (native)
+  import('@capacitor/app').then(({ App }) => App.getInfo()).then((info) => (version.value = info.version))
 
 watch(
   () => accountSheet.open,
