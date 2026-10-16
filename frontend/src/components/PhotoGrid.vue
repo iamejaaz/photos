@@ -3,9 +3,12 @@
     ref="container"
     class="pb-10 sm:px-5"
     :class="{ 'px-3': !square }"
+    :style="previewStyle"
     @wheel="onWheel"
     @touchstart="onPinchStart"
     @touchmove="onPinchMove"
+    @touchend="onPinchEnd"
+    @touchcancel="onPinchEnd"
   >
     <div :style="{ height: `${padTop}px` }" />
     <div v-for="line in visibleLines" :key="line.key" :ref="observeLine" :data-line="line.key">
@@ -345,25 +348,80 @@ function toggle(photo: Photo, event?: MouseEvent) {
   lastClicked = photo.name
 }
 
+const MIN_ZOOM = 0.5
+const MAX_ZOOM = 1.8
+const preview = ref(1)
+const previewOrigin = ref('50% 0px')
+const previewStyle = computed(() =>
+  preview.value === 1
+    ? undefined
+    : { transform: `scale(${preview.value})`, transformOrigin: previewOrigin.value, willChange: 'transform' },
+)
+let anchor: { name: string; top: number } | null = null
+let wheelTimer: ReturnType<typeof setTimeout> | undefined
+
+function beginPreview(x: number, y: number) {
+  const box = container.value?.getBoundingClientRect()
+  if (!box) return
+  previewOrigin.value = `${x - box.left}px ${y - box.top}px`
+  const tile = (document.elementFromPoint(x, y)?.closest('[data-photo]') as HTMLElement | null) ?? null
+  anchor = tile ? { name: tile.dataset.photo!, top: tile.getBoundingClientRect().top } : null
+}
+
+function setPreview(scale: number) {
+  preview.value = Math.min(MAX_ZOOM / zoom.value, Math.max(MIN_ZOOM / zoom.value, scale))
+}
+
+async function commitPreview() {
+  const scale = preview.value
+  if (scale === 1) return
+  const before = anchor
+  const target = zoom.value * scale
+  preview.value = 1
+  changeZoom((square.value ? 4 / Math.min(8, Math.max(2, Math.round(4 / target))) : target) - zoom.value)
+  if (!before) return
+  await nextTick()
+  requestAnimationFrame(() => {
+    const tile = container.value?.querySelector(`[data-photo="${CSS.escape(before.name)}"]`)
+    if (tile) scrollParent(container.value).scrollBy(0, tile.getBoundingClientRect().top - before.top)
+  })
+}
+
 function onWheel(event: WheelEvent) {
   if (!event.ctrlKey && !event.metaKey) return
   event.preventDefault()
-  changeZoom(event.deltaY < 0 ? 0.1 : -0.1)
+  if (preview.value === 1 && !wheelTimer) beginPreview(event.clientX, event.clientY)
+  setPreview(preview.value * Math.exp(-Math.max(-40, Math.min(40, event.deltaY)) * 0.01))
+  clearTimeout(wheelTimer)
+  wheelTimer = setTimeout(() => {
+    wheelTimer = undefined
+    commitPreview()
+  }, 160)
 }
 
-let pinch: { distance: number; zoom: number } | null = null
+let pinch: { distance: number } | null = null
 const touchDistance = (touches: TouchList) =>
   Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
 
 function onPinchStart(event: TouchEvent) {
-  pinch = event.touches.length === 2 ? { distance: touchDistance(event.touches), zoom: zoom.value } : null
+  if (event.touches.length !== 2) return
+  pinch = { distance: touchDistance(event.touches) }
+  beginPreview(
+    (event.touches[0].clientX + event.touches[1].clientX) / 2,
+    (event.touches[0].clientY + event.touches[1].clientY) / 2,
+  )
 }
 
 function onPinchMove(event: TouchEvent) {
   if (!pinch || event.touches.length !== 2) return
   event.preventDefault()
-  const target = pinch.zoom * (touchDistance(event.touches) / pinch.distance)
-  changeZoom(target - zoom.value)
+  setPreview(touchDistance(event.touches) / pinch.distance)
+}
+
+function onPinchEnd(event: TouchEvent) {
+  if (!pinch || event.touches.length >= 2) return
+  pinch = null
+  commitPreview()
 }
 
 function onTileClick(event: MouseEvent, photo: Photo) {
