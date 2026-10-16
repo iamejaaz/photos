@@ -768,7 +768,7 @@ const gestures = useViewerGestures({
   zoomable: () => Boolean(photo.value && !isVideo(photo.value)),
 })
 watch(
-  () => photo.value?.name,
+  () => [photo.value?.name, lightbox.open],
   () => gestures.reset(),
 )
 watch(
