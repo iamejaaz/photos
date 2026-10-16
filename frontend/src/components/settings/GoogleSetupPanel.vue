@@ -15,26 +15,21 @@
     <template v-else>
       <div class="divide-y divide-outline-gray-1">
         <SettingsRow
-          :title="__('Turn on the Photos Picker API')"
-          :description="__('In a Google Cloud project you own.')"
+          v-for="step in steps"
+          :key="step.title"
+          :title="step.title"
+          :description="step.description"
         >
-          <Button :href="PICKER_API">
-            <template #suffix><LucideArrowUpRight class="size-4" /></template>
-            {{ __('Open') }}
-          </Button>
-        </SettingsRow>
-        <SettingsRow
-          :title="__('Set up the consent screen')"
-          :description="__('Choose External and add the Photos Picker scope.')"
-        >
-          <Button :href="CONSENT">
+          <Button :href="step.link">
             <template #suffix><LucideArrowUpRight class="size-4" /></template>
             {{ __('Open') }}
           </Button>
         </SettingsRow>
         <SettingsRow
           :title="__('Create a Web application client')"
-          :description="__('Paste the redirect address Photos copies for you.')"
+          :description="
+            __('Clients: choose Web application and add the redirect address as an authorized redirect URI.')
+          "
         >
           <div class="flex gap-2">
             <Button @click="copyRedirect">{{ copied ? __('Copied') : __('Copy address') }}</Button>
@@ -94,9 +89,31 @@ type Setup = {
   working: boolean
 }
 
-const PICKER_API = 'https://console.cloud.google.com/apis/library/photospicker.googleapis.com'
-const CONSENT = 'https://console.cloud.google.com/auth/branding'
-const CREDENTIALS = 'https://console.cloud.google.com/auth/clients'
+const CREDENTIALS = 'https://console.cloud.google.com/auth/clients/create'
+const steps = [
+  {
+    title: __('Turn on the Photos Picker API'),
+    description: __('Pick or create a Google Cloud project, then click Enable.'),
+    link: 'https://console.cloud.google.com/apis/library/photospicker.googleapis.com',
+  },
+  {
+    title: __('Name the app'),
+    description: __('Branding: app name Photos and your email. The other fields can stay empty.'),
+    link: 'https://console.cloud.google.com/auth/branding',
+  },
+  {
+    title: __('Choose who can connect (optional)'),
+    description: __(
+      "Audience: skip if Google already set it. Internal allows only your company's Google accounts, External in testing allows the test users you add.",
+    ),
+    link: 'https://console.cloud.google.com/auth/audience',
+  },
+  {
+    title: __('Allow photo picking'),
+    description: __('Data access: add the scope photospicker.mediaitems.readonly.'),
+    link: 'https://console.cloud.google.com/auth/scopes',
+  },
+]
 
 const setup = ref<Setup | null>(null)
 const clientId = ref('')
