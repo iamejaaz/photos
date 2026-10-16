@@ -44,8 +44,11 @@ export async function errorMessage(response: Response) {
 }
 const OLDER_SITE = /Failed to get method for command|has no attribute/
 
+const NETWORK_FAILURE = /^(Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.?)$/
+
 export const errorText = (error: unknown) => {
   const text = (error as { messages?: string[] }).messages?.find(Boolean) || (error as Error)?.message
+  if (text && NETWORK_FAILURE.test(text)) return __("You're offline. Connect to the internet and try again.")
   return text && OLDER_SITE.test(text)
     ? __('Your site needs a newer version of Photos for this. Ask your administrator to update it.')
     : text

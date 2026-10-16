@@ -1,6 +1,7 @@
 import { signOut as revoke } from './auth'
 import { photosBackup } from './backup'
 import { trimMediaCache } from './media'
+import { clearOfflineData } from './offline'
 import { siteOrigin } from './site'
 import { forgetAccount, rememberSiteAddress, saveSite, savedAccounts, savedSite } from './sites'
 
@@ -11,6 +12,7 @@ export async function signOutOfThisSite() {
   const status = await plugin.getStatus().catch(() => null)
   if (status?.signedIn && status.site === url) await plugin.signOut().catch(() => {})
   await trimMediaCache(0)
+  await clearOfflineData()
   await revoke(url, site?.clientId ?? '').catch(() => {})
   await forgetAccount(url)
   await rememberSiteAddress(url)

@@ -1,3 +1,4 @@
+import { readThrough } from './offline'
 import { accessToken, onUnauthorized } from './session'
 import { APP_HEADERS, siteOrigin } from './site'
 
@@ -17,8 +18,11 @@ export const installFetch = () => {
       for (const [key, value] of Object.entries(APP_HEADERS)) headers.set(key, value)
       return original(url, { ...init, headers, credentials: 'omit' })
     }
-    const response = await send()
-    if (response.status === 401 && (await onUnauthorized())) return send()
-    return response
+    const body = typeof init.body === 'string' ? init.body : ''
+    return readThrough(url, body, async () => {
+      const response = await send()
+      if (response.status === 401 && (await onUnauthorized())) return send()
+      return response
+    })
   }
 }

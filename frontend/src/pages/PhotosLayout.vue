@@ -89,6 +89,7 @@
     <AccountSheet v-if="loggedIn && !isDesktop" />
     <InstallHint v-if="loggedIn && !isDesktop" />
     <UpdateBanner v-if="loggedIn && native" />
+    <OfflineNotice v-if="loggedIn && native" />
     <SharePhotosDialog />
     <ReportProblemDialog v-if="loggedIn" />
     <EditDateDialog />
@@ -117,6 +118,7 @@ import LucideUpload from '~icons/lucide/upload'
 
 const native = Boolean(import.meta.env.VITE_NATIVE)
 const UpdateBanner = defineAsyncComponent(() => import('../components/UpdateBanner.vue'))
+const OfflineNotice = defineAsyncComponent(() => import('../components/OfflineNotice.vue'))
 const KEEP_ALIVE = ['Timeline']
 
 import { initSocket } from '@/apps/drive/socket'

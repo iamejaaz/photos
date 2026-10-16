@@ -7,6 +7,7 @@ import { photosBackup } from './backup'
 import { installFetch } from './http'
 import { watchExternalLinks } from './links'
 import { setMediaSession, trimMediaCache } from './media'
+import { clearOfflineData, offline, savedBoot, saveBoot } from './offline'
 import { accessToken, setSessionLostHandler, setTokenRefreshedHandler, startSession } from './session'
 import { setActiveSite } from './site'
 import { getSocket, startSocket } from './socket'
@@ -58,6 +59,7 @@ export async function startNative(): Promise<boolean> {
   setSessionLostHandler(async () => {
     await tokenStore.remove(site.url)
     await trimMediaCache(0)
+    await clearOfflineData()
     window.location.replace('/')
   })
   await setMediaSession(accessToken())
@@ -69,8 +71,12 @@ export async function startNative(): Promise<boolean> {
     status = response.status
     if (!response.ok) throw new Error(String(response.status))
     boot = (await response.json()).message
+    saveBoot(site.url, boot)
   } catch {
-    return showPicker(site, siteProblem(site.url, status ?? (await siteStatus(site.url))))
+    const saved = (status === null || status >= 500) && (await savedBoot<Boot>(site.url))
+    if (!saved) return showPicker(site, siteProblem(site.url, status ?? (await siteStatus(site.url))))
+    boot = saved
+    offline.value = status === null ? 'network' : 'site'
   }
   setCookie('user_id', boot.user)
   setCookie('full_name', boot.full_name)
