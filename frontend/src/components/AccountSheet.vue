@@ -113,8 +113,8 @@ checkForUpdate()
 
 watch(
   () => accountSheet.open,
-  async (open) => {
-    if (!open || !native) return
+  async () => {
+    if (!native) return
     const [{ siteOrigin }, { savedAccounts }] = await Promise.all([
       import('../native/site'),
       import('../native/sites'),
@@ -122,6 +122,7 @@ watch(
     host.value = hostOf(siteOrigin())
     others.value = (await savedAccounts()).filter((account) => account.url !== siteOrigin())
   },
+  { immediate: true },
 )
 
 async function switchTo(account: Account) {
