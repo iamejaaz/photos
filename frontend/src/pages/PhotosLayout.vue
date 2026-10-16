@@ -88,6 +88,7 @@
     <PhotosSettings />
     <AccountSheet v-if="loggedIn && !isDesktop" />
     <InstallHint v-if="loggedIn && !isDesktop" />
+    <UpdateBanner v-if="loggedIn && native" />
     <SharePhotosDialog />
     <ReportProblemDialog v-if="loggedIn" />
     <EditDateDialog />
@@ -96,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
 import {
@@ -114,6 +115,8 @@ import LucideCompass from '~icons/lucide/compass'
 import LucideUsers from '~icons/lucide/users'
 import LucideUpload from '~icons/lucide/upload'
 
+const native = Boolean(import.meta.env.VITE_NATIVE)
+const UpdateBanner = defineAsyncComponent(() => import('../components/UpdateBanner.vue'))
 const KEEP_ALIVE = ['Timeline']
 
 import { initSocket } from '@/apps/drive/socket'

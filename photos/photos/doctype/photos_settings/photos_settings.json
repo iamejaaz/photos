@@ -12,7 +12,11 @@
   "smart_search",
   "setup_status",
   "setup_error",
-  "oauth_client"
+  "oauth_client",
+  "android_section",
+  "android_app",
+  "android_version_code",
+  "android_version_name"
  ],
  "fields": [
   {
@@ -64,9 +68,29 @@
    "options": "OAuth Client",
    "label": "Mobile App OAuth Client",
    "read_only": 1
+  },
+  {
+   "fieldname": "android_section",
+   "fieldtype": "Section Break",
+   "label": "Android app"
+  },
+  {
+   "fieldname": "android_app",
+   "fieldtype": "Attach",
+   "label": "App file (APK)"
+  },
+  {
+   "fieldname": "android_version_code",
+   "fieldtype": "Int",
+   "label": "Version code"
+  },
+  {
+   "fieldname": "android_version_name",
+   "fieldtype": "Data",
+   "label": "Version name"
   }
  ],
- "modified": "2026-10-15 04:00:00.000000",
+ "modified": "2026-10-16 10:45:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photos Settings",

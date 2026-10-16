@@ -56,6 +56,18 @@ def boot():
     }
 
 
+@frappe.whitelist()
+def app_update():
+    settings = frappe.get_cached_doc("Photos Settings")
+    if not settings.android_app or not settings.android_version_code:
+        return None
+    return {
+        "version_code": settings.android_version_code,
+        "version_name": settings.android_version_name,
+        "url": frappe.utils.get_url(settings.android_app),
+    }
+
+
 def _app_name():
     name = frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name")
     return name if name and name != "Frappe" else "Photos"
