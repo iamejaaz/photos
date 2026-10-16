@@ -39,7 +39,8 @@
           :class="{ 'translate-y-[150%]': selection.size || $route.name === 'photos-settings' }"
         >
           <div
-            class="pointer-events-auto flex items-center gap-1 rounded-full bg-surface-base/90 p-1.5 shadow-xl ring-1 ring-black/5 backdrop-blur-md"
+            class="pointer-events-auto flex items-center gap-1 rounded-full p-1.5 shadow-xl ring-1 ring-black/5"
+            :class="native ? 'bg-surface-base' : 'bg-surface-base/90 backdrop-blur-md'"
           >
             <router-link
               v-for="item in mobileNav"

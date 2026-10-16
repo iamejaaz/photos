@@ -5,10 +5,9 @@
     :class="{ 'px-3': !square }"
     :style="previewStyle"
     @wheel="onWheel"
-    @touchstart="onPinchStart"
-    @touchmove="onPinchMove"
-    @touchend="onPinchEnd"
-    @touchcancel="onPinchEnd"
+    @touchstart.passive="onPinchStart"
+    @touchend.passive="onPinchEnd"
+    @touchcancel.passive="onPinchEnd"
   >
     <div :style="{ height: `${padTop}px` }" />
     <div v-for="line in visibleLines" :key="line.key" :ref="observeLine" :data-line="line.key">
@@ -406,6 +405,7 @@ const touchDistance = (touches: TouchList) =>
 function onPinchStart(event: TouchEvent) {
   if (event.touches.length !== 2) return
   pinch = { distance: touchDistance(event.touches) }
+  container.value?.addEventListener('touchmove', onPinchMove, { passive: false })
   beginPreview(
     (event.touches[0].clientX + event.touches[1].clientX) / 2,
     (event.touches[0].clientY + event.touches[1].clientY) / 2,
@@ -421,6 +421,7 @@ function onPinchMove(event: TouchEvent) {
 function onPinchEnd(event: TouchEvent) {
   if (!pinch || event.touches.length >= 2) return
   pinch = null
+  container.value?.removeEventListener('touchmove', onPinchMove)
   commitPreview()
 }
 
@@ -503,10 +504,9 @@ function lineAt(y: number) {
   return Math.min(low, Math.max(0, lines.value.length - 1))
 }
 
-const range = computed(() => {
-  const buffer = view.height * OVERSCAN
-  return [lineAt(view.top - buffer), lineAt(view.top + view.height + buffer) + 1]
-})
+const rangeStart = computed(() => lineAt(view.top - view.height * OVERSCAN))
+const rangeEnd = computed(() => lineAt(view.top + view.height * (1 + OVERSCAN)) + 1)
+const range = computed(() => [rangeStart.value, rangeEnd.value])
 const visibleLines = computed(() => lines.value.slice(range.value[0], range.value[1]))
 const padTop = computed(() => offsets.value[range.value[0]] ?? 0)
 const padBottom = computed(() => {
