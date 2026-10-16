@@ -9,11 +9,22 @@ export const appVersion = ref('')
 export const availableUpdate = ref<AppUpdate | null>(null)
 export const updateProgress = ref<number | null>(null)
 
+const RECHECK_MS = 30 * 60_000
 let checked: Promise<void> | undefined
+let checkedAt = 0
+
+if (import.meta.env.VITE_NATIVE)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - checkedAt > RECHECK_MS) {
+      checked = undefined
+      checkForUpdate()
+    }
+  })
 
 export function checkForUpdate() {
   if (!import.meta.env.VITE_NATIVE) return Promise.resolve()
   return (checked ??= (async () => {
+    checkedAt = Date.now()
     const { App } = await import('@capacitor/app')
     const [latest, info] = await Promise.all([
       (call('photos.api.native.app_update') as Promise<AppUpdate | null>).catch(() => null),
