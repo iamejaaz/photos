@@ -144,7 +144,9 @@ public class PhotosShellPlugin extends Plugin {
                 HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
                 connection.setConnectTimeout(20_000);
                 connection.setReadTimeout(60_000);
-                if (connection.getResponseCode() != 200) throw new java.io.IOException("The update could not be downloaded");
+                int status = connection.getResponseCode();
+                if (status == 404) throw new java.io.IOException("The update file is not on the site right now. Try again in a minute.");
+                if (status != 200) throw new java.io.IOException("The update could not be downloaded (error " + status + ")");
                 long total = connection.getContentLengthLong();
                 long done = 0;
                 int lastPercent = -1;
@@ -169,6 +171,8 @@ public class PhotosShellPlugin extends Plugin {
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
                 getContext().startActivity(install);
                 call.resolve();
+            } catch (java.net.UnknownHostException | java.net.SocketTimeoutException | java.net.ConnectException e) {
+                call.reject("Could not reach the site. Check your connection and try again.");
             } catch (Exception e) {
                 call.reject(e.getMessage() == null ? "The update could not be downloaded" : e.getMessage());
             }
