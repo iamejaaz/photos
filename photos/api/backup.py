@@ -102,6 +102,9 @@ def _fingerprint_recent_uploads(user):
                 )
         except frappe.QueryDeadlockError, frappe.DuplicateEntryError:
             frappe.db.rollback()
+        except Exception:
+            frappe.db.rollback()
+            frappe.log_error(f"Photos could not fingerprint {row.name}")
 
 
 @frappe.whitelist(methods=["POST"])
