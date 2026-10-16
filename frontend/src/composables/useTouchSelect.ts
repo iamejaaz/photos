@@ -20,6 +20,8 @@ export function useTouchSelect({ names, selection }: Options) {
   let point = { x: 0, y: 0 }
   let frame = 0
   let suppressClick = false
+  let pressed = ''
+  let mouse = false
 
   const scroller = (element: Element | null): Element => {
     for (let node = element?.parentElement; node; node = node.parentElement) {
@@ -42,7 +44,10 @@ export function useTouchSelect({ names, selection }: Options) {
   }
 
   function blockScroll(event: TouchEvent) {
-    if (dragging) event.preventDefault()
+    const touch = event.touches[0]
+    const sideways =
+      selection.size > 0 && touch && Math.abs(touch.clientX - start.x) > Math.abs(touch.clientY - start.y)
+    if (dragging || sideways) event.preventDefault()
   }
 
   function nameAt(x: number, y: number) {
@@ -74,36 +79,47 @@ export function useTouchSelect({ names, selection }: Options) {
     frame = requestAnimationFrame(autoScroll)
   }
 
+  function begin(name: string) {
+    clearTimeout(timer)
+    dragging = true
+    suppressClick = true
+    anchor = names().indexOf(name)
+    base = new Set(selection)
+    adding = !selection.has(name)
+    if (adding) selection.add(name)
+    else selection.delete(name)
+    navigator.vibrate?.(15)
+    frame = requestAnimationFrame(autoScroll)
+  }
+
   function onMove(event: PointerEvent) {
     point = { x: event.clientX, y: event.clientY }
     if (!dragging) {
-      if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > SLOP) cancel()
+      const dx = Math.abs(event.clientX - start.x)
+      const dy = Math.abs(event.clientY - start.y)
+      if (Math.hypot(dx, dy) <= SLOP) return
+      if (selection.size && (mouse || dx > dy)) {
+        begin(pressed)
+        extend()
+      } else cancel()
       return
     }
     extend()
   }
 
   function onPress(event: PointerEvent, name: string) {
-    if (event.pointerType !== 'touch') return
+    mouse = event.pointerType === 'mouse'
+    if (mouse ? event.button !== 0 || !selection.size : event.pointerType !== 'touch') return
     suppressClick = false
     cancel()
+    pressed = name
     start = point = { x: event.clientX, y: event.clientY }
     scrollTarget = scroller(event.currentTarget as Element)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', cancel)
     window.addEventListener('pointercancel', cancel)
     document.addEventListener('touchmove', blockScroll, { passive: false })
-    timer = setTimeout(() => {
-      dragging = true
-      suppressClick = true
-      anchor = names().indexOf(name)
-      base = new Set(selection)
-      adding = !selection.has(name)
-      if (adding) selection.add(name)
-      else selection.delete(name)
-      navigator.vibrate?.(15)
-      frame = requestAnimationFrame(autoScroll)
-    }, HOLD_MS)
+    if (!mouse) timer = setTimeout(() => begin(name), HOLD_MS)
   }
 
   function takeClick() {
