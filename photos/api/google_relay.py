@@ -39,7 +39,7 @@ def begin(challenge: str, return_to: str):
     state = create_google_oauth_state({"challenge": challenge, "return_to": return_to})
     query = {
         "client_id": frappe.get_cached_doc("Google Settings").client_id,
-        "redirect_uri": _callback(),
+        "redirect_uri": callback_url(),
         "response_type": "code",
         "scope": SCOPE,
         "access_type": "offline",
@@ -57,7 +57,7 @@ def finish(code: str | None = None, state: str | None = None, error: str | None 
     if error or not code:
         return _redirect(_with(attempt["return_to"], error="cancelled"))
     try:
-        tokens = _token({"code": code, "grant_type": "authorization_code", "redirect_uri": _callback()})
+        tokens = _token({"code": code, "grant_type": "authorization_code", "redirect_uri": callback_url()})
     except Exception:
         frappe.log_error("Photos could not finish Google sign-in")
         return _redirect(_with(attempt["return_to"], error="failed"))
@@ -119,7 +119,7 @@ def _endpoint(name):
     }[name]
 
 
-def _callback():
+def callback_url():
     return get_url("/api/method/photos.api.google_relay.finish")
 
 

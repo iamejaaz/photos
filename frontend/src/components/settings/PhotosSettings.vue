@@ -38,6 +38,20 @@
           <template #prefix><span class="lucide-sparkles size-4 shrink-0 text-ink-gray-6" /></template>
           {{ __('Smart features') }}
         </SettingsNavItem>
+        <SettingsNavItem v-if="canSetUpGoogle" value="google">
+          <template #prefix><span class="lucide-key-round size-4 shrink-0 text-ink-gray-6" /></template>
+          {{ __('Google Photos import') }}
+        </SettingsNavItem>
+        <SettingsNavItem value="signups">
+          <template #prefix><span class="lucide-mail-warning size-4 shrink-0 text-ink-gray-6" /></template>
+          {{ __('Sign-up problems') }}
+        </SettingsNavItem>
+        <SettingsNavItem value="reports">
+          <template #prefix
+            ><span class="lucide-message-square-warning size-4 shrink-0 text-ink-gray-6"
+          /></template>
+          {{ __('Problem reports') }}
+        </SettingsNavItem>
       </SettingsNavGroup>
     </SettingsSidebar>
     <SettingsContent class="photos-settings">
@@ -48,7 +62,12 @@
       <SettingsPanel value="import"><ImportPanel /></SettingsPanel>
       <SettingsPanel value="export"><ExportPanel /></SettingsPanel>
       <SettingsPanel v-if="canDelete" value="data"><DataPanel /></SettingsPanel>
-      <SettingsPanel v-if="settings.data?.can_manage" value="features"><FeaturesPanel /></SettingsPanel>
+      <template v-if="settings.data?.can_manage">
+        <SettingsPanel value="features"><FeaturesPanel /></SettingsPanel>
+        <SettingsPanel v-if="canSetUpGoogle" value="google"><GoogleSetupPanel /></SettingsPanel>
+        <SettingsPanel value="signups"><SignupsPanel /></SettingsPanel>
+        <SettingsPanel value="reports"><ProblemReportsPanel /></SettingsPanel>
+      </template>
     </SettingsContent>
   </SettingsDialog>
 </template>
@@ -66,7 +85,7 @@ import {
 
 import LucideX from '~icons/lucide/x'
 
-import { settings } from '../../data/dialogs'
+import { settings, useGoogleSetupNeeded } from '../../data/dialogs'
 import FeaturesPanel from './FeaturesPanel.vue'
 import { defineAsyncComponent } from 'vue'
 
@@ -76,6 +95,10 @@ import MemoriesPanel from './MemoriesPanel.vue'
 import { getSessionUser } from '@/boot/session'
 
 const DataPanel = defineAsyncComponent(() => import('./DataPanel.vue'))
+const GoogleSetupPanel = defineAsyncComponent(() => import('./GoogleSetupPanel.vue'))
+const SignupsPanel = defineAsyncComponent(() => import('./SignupsPanel.vue'))
+const ProblemReportsPanel = defineAsyncComponent(() => import('./ProblemReportsPanel.vue'))
+const canSetUpGoogle = useGoogleSetupNeeded()
 const canDelete = (getSessionUser() ?? 'Administrator') !== 'Administrator'
 
 const native = Boolean(import.meta.env.VITE_NATIVE)

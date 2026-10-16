@@ -8,6 +8,7 @@ from frappe.utils import get_url
 from frappe.utils.password import get_decrypted_password, remove_encrypted_password, set_encrypted_password
 
 from photos.api import google_relay
+from photos.utils.managers import is_manager, only_managers
 
 PICKER = "https://photospicker.googleapis.com/v1"
 TOKEN_FIELD = "photos_google_refresh_token"
@@ -73,7 +74,12 @@ def _relay_call(relay, method, **data):
 
 @frappe.whitelist()
 def status():
-    return {"connected": bool(_refresh_token()), "available": offered()}
+    available = offered()
+    return {
+        "connected": bool(_refresh_token()),
+        "available": available,
+        "can_set_up": is_manager() and (not available or _relay() is None),
+    }
 
 
 @frappe.whitelist(methods=["POST"])
@@ -248,3 +254,34 @@ def _taken(item):
         return frappe.utils.now_datetime()
     taken = datetime.fromisoformat(value.replace("Z", "+00:00"))
     return frappe.utils.convert_utc_to_system_timezone(taken).replace(tzinfo=None)
+
+
+@frappe.whitelist()
+def google_setup():
+    only_managers()
+    settings = frappe.get_single("Google Settings")
+    return {
+        "enabled": bool(settings.enable),
+        "client_id": settings.client_id or "",
+        "has_secret": bool(settings.client_secret),
+        "redirect_url": google_relay.callback_url(),
+        "working": offered(),
+    }
+
+
+@frappe.whitelist(methods=["POST"])
+def save_google_setup(client_id: str, client_secret: str | None = None):
+    only_managers()
+    client_id = (client_id or "").strip()
+    if not client_id.endswith(".apps.googleusercontent.com"):
+        frappe.throw(frappe._("The client ID should end with .apps.googleusercontent.com"))
+    settings = frappe.get_single("Google Settings")
+    settings.client_id = client_id
+    if client_secret and client_secret.strip():
+        settings.client_secret = client_secret.strip()
+    if not settings.client_secret:
+        frappe.throw(frappe._("Add the client secret too."))
+    settings.enable = 1
+    settings.save(ignore_permissions=True)
+    frappe.cache.delete_value(OFFERED)
+    return google_setup()

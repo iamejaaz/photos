@@ -4,6 +4,7 @@ const GOOGLE = 'photos.api.google'
 export interface GoogleStatus {
   connected: boolean
   available: boolean
+  can_set_up: boolean
 }
 export const googleStatus = () => call(`${GOOGLE}.status`) as Promise<GoogleStatus>
 export const connectGoogle = (native = false) => call(`${GOOGLE}.connect`, { native }) as Promise<string>

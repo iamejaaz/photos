@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { toast } from 'frappe-ui'
 import { type Photo } from '../resources/photos'
 import { type Settings, getSettings } from '../resources/settings'
@@ -73,3 +73,18 @@ export function makeMovie(files: string[], album?: string) {
   movie.open = true
 }
 export const accountSheet = reactive({ open: false })
+
+export function useGoogleSetupNeeded() {
+  const needed = ref(false)
+  watch(
+    () => settings.data?.can_manage,
+    (canManage) => {
+      if (canManage)
+        import('../resources/google').then(({ googleStatus }) =>
+          googleStatus().then((status) => (needed.value = status.can_set_up)),
+        )
+    },
+    { immediate: true },
+  )
+  return needed
+}

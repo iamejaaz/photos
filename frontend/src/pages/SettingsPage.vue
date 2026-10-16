@@ -35,12 +35,13 @@ import LucideHistory from '~icons/lucide/history'
 import LucideShield from '~icons/lucide/shield'
 import LucideSparkles from '~icons/lucide/sparkles'
 import LucideMailWarning from '~icons/lucide/mail-warning'
+import LucideKeyRound from '~icons/lucide/key-round'
 import LucideMessageSquareWarning from '~icons/lucide/message-square-warning'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import { getSessionUser } from '@/boot/session'
 import ListRow from '../components/ListRow.vue'
-import { loadSettings, settings } from '../data/dialogs'
+import { loadSettings, settings, useGoogleSetupNeeded } from '../data/dialogs'
 
 const props = defineProps<{ section?: string }>()
 const router = useRouter()
@@ -50,6 +51,8 @@ if (!settings.data) loadSettings()
 
 type Section = { key: string; label: string; description: string; icon: Component; panel: Component }
 const panel = (load: () => Promise<{ default: Component }>) => defineAsyncComponent(load)
+
+const canSetUpGoogle = useGoogleSetupNeeded()
 
 const sections = computed(() => {
   const list: Section[] = []
@@ -99,6 +102,14 @@ const sections = computed(() => {
       description: __('People, places and search for this site'),
       icon: LucideSparkles,
       panel: panel(() => import('../components/settings/FeaturesPanel.vue')),
+    })
+  if (settings.data?.can_manage && canSetUpGoogle.value)
+    list.push({
+      key: 'google',
+      label: __('Google Photos import'),
+      description: __('Register Photos with Google once'),
+      icon: LucideKeyRound,
+      panel: panel(() => import('../components/settings/GoogleSetupPanel.vue')),
     })
   if (settings.data?.can_manage)
     list.push({

@@ -11,9 +11,18 @@
         size="sm"
       />
     </template>
-    <p v-else-if="!status.available && !status.connected" class="text-base text-ink-gray-6">
-      {{ __('Importing from Google Photos is not set up on this site yet. Ask your administrator.') }}
-    </p>
+    <div v-else-if="!status.available && !status.connected" class="flex flex-col items-start gap-2">
+      <p class="text-base text-ink-gray-6">
+        {{
+          status.can_set_up
+            ? __('Google needs Photos registered once before anyone can pick photos. You can do it now.')
+            : __('Importing from Google Photos is not set up on this site yet. Ask your administrator.')
+        }}
+      </p>
+      <Button v-if="status.can_set_up" variant="solid" @click="openSettings('google')">
+        {{ __('Set it up') }}
+      </Button>
+    </div>
     <template v-else>
       <p class="text-base text-ink-gray-6">
         {{ __('Choose photos and videos in Google Photos and bring copies of them here.') }}
@@ -48,6 +57,7 @@ import {
   startGooglePicking,
 } from '../../resources/google'
 import { googleImport } from '../../data/imports'
+import { openSettings } from '../../data/dialogs'
 import { errorText } from '../../resources/drive'
 
 const status = ref<GoogleStatus | null>(null)
