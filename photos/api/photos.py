@@ -276,6 +276,9 @@ def archived(start: int = 0, limit: int | None = None):
     return page(media_query(archived=True), start, limit)
 
 
+EMPTY_TRASH_INLINE = 100
+
+
 @frappe.whitelist()
 def trash(start: int = 0, limit: int | None = None):
     query = (
@@ -284,6 +287,41 @@ def trash(start: int = 0, limit: int | None = None):
         .where(File.owner == frappe.session.user)
     )
     return page(query, start, limit)
+
+
+@frappe.whitelist(methods=["POST"])
+def empty_trash():
+    names = (
+        frappe.qb.from_(File)
+        .select(File.name)
+        .where(File.owner == frappe.session.user)
+        .where(File.status == STATUS_TRASHED)
+        .where(File.is_folder == 0)
+        .where(File.attached_to_doctype.isnull())
+        .where(Criterion.any([File.mime_type.like("image/%"), File.mime_type.like("video/%")]))
+        .run(pluck="name")
+    )
+    queued = len(names) > EMPTY_TRASH_INLINE
+    if queued:
+        frappe.enqueue(
+            "photos.api.photos.delete_trashed",
+            queue="long",
+            timeout=60 * 60,
+            names=names,
+            user=frappe.session.user,
+        )
+    else:
+        delete_trashed(names, frappe.session.user)
+    return {"count": len(names), "queued": queued}
+
+
+def delete_trashed(names, user):
+    frappe.set_user(user)
+    for name in names:
+        doc = frappe.get_doc("File", name)
+        if doc.owner == user and doc.status == STATUS_TRASHED:
+            doc.permanent_delete()
+    frappe.publish_realtime("photos-trash-emptied", {"count": len(names)}, user=user, after_commit=True)
 
 
 @frappe.whitelist()

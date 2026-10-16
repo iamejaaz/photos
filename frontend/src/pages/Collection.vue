@@ -6,7 +6,21 @@
         __('Shared with Drive trash. Items are deleted forever after 30 days.')
       }}</span>
     </template>
+    <template v-if="kind === 'trash' && handle.feed.rows.length" #actions>
+      <Button variant="ghost" theme="red" :loading="emptying" @click="confirmEmpty = true">
+        {{ __('Empty trash') }}
+      </Button>
+    </template>
   </PhotosHeader>
+  <Dialog
+    v-model:open="confirmEmpty"
+    :title="__('Empty trash?')"
+    :message="__('All photos and videos in trash will be deleted forever. This cannot be undone.')"
+    icon="lucide-trash-2"
+    theme="red"
+    size="sm"
+    :actions="[{ label: __('Empty trash'), variant: 'solid', theme: 'red', onClick: emptyTrash }]"
+  />
   <PhotoGrid
     :handle="handle"
     :empty-icon="config.icon"
@@ -17,9 +31,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
-import { usePageMeta } from 'frappe-ui'
+import { Button, Dialog, call, toast, usePageMeta } from 'frappe-ui'
 import LucideArchive from '~icons/lucide/archive'
 import LucideStar from '~icons/lucide/star'
 import LucideTrash2 from '~icons/lucide/trash-2'
@@ -28,6 +42,7 @@ import { appPageMeta } from '@/utils/documentTitle'
 import type { Photo } from '../resources/photos'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
+import { errorText } from '../resources/drive'
 import { createFeed } from '../data/feed'
 
 const props = defineProps<{ kind: 'favourites' | 'archive' | 'trash' }>()
@@ -69,6 +84,27 @@ function daysLeft(photo: Photo) {
   return days <= 1 ? __('1 day') : __('{0} days', [days])
 }
 const handle = createFeed(configs[props.kind].method)
+const confirmEmpty = ref(false)
+const emptying = ref(false)
+
+async function emptyTrash() {
+  confirmEmpty.value = false
+  emptying.value = true
+  try {
+    const { count, queued } = (await call('photos.api.photos.empty_trash')) as {
+      count: number
+      queued: boolean
+    }
+    handle.feed.rows.splice(0)
+    handle.feed.hasNext = false
+    if (queued) toast.info(__('Emptying trash. {0} items are being deleted forever.', [count]))
+    else toast.success(count === 1 ? __('Deleted 1 item forever') : __('Deleted {0} items forever', [count]))
+  } catch (error) {
+    toast.error(errorText(error) || __('Could not empty trash'))
+  } finally {
+    emptying.value = false
+  }
+}
 
 usePageMeta(() => appPageMeta(config.value.title, 'Photos'))
 </script>
