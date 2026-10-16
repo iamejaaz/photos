@@ -3,7 +3,6 @@
     ref="container"
     class="pb-10 sm:px-5"
     :class="{ 'px-3': !square }"
-    :style="previewStyle"
     @wheel="onWheel"
     @touchstart.passive="onPinchStart"
     @touchend.passive="onPinchEnd"
@@ -347,66 +346,82 @@ function toggle(photo: Photo, event?: MouseEvent) {
   lastClicked = photo.name
 }
 
-const MIN_ZOOM = 0.5
-const MAX_ZOOM = 1.8
-const preview = ref(1)
-const previewOrigin = ref('50% 0px')
-const previewStyle = computed(() =>
-  preview.value === 1
-    ? undefined
-    : { transform: `scale(${preview.value})`, transformOrigin: previewOrigin.value, willChange: 'transform' },
-)
+const ZOOM_STEP = 0.2
+const MOVE_MS = 240
 let anchor: { name: string; top: number } | null = null
-let wheelTimer: ReturnType<typeof setTimeout> | undefined
+let busy = false
 
-function beginPreview(x: number, y: number) {
-  const box = container.value?.getBoundingClientRect()
-  if (!box) return
-  previewOrigin.value = `${x - box.left}px ${y - box.top}px`
+function anchorAt(x: number, y: number) {
   const tile = (document.elementFromPoint(x, y)?.closest('[data-photo]') as HTMLElement | null) ?? null
   anchor = tile ? { name: tile.dataset.photo!, top: tile.getBoundingClientRect().top } : null
 }
 
-function setPreview(scale: number) {
-  preview.value = Math.min(MAX_ZOOM / zoom.value, Math.max(MIN_ZOOM / zoom.value, scale))
+async function moveTo(target: number) {
+  if (busy) return
+  const tiles = () => [...(container.value?.querySelectorAll<HTMLElement>('[data-photo]') ?? [])]
+  const before = new Map(tiles().map((tile) => [tile.dataset.photo!, tile.getBoundingClientRect()]))
+  const previous = zoom.value
+  changeZoom(target - zoom.value)
+  if (zoom.value === previous) return
+  busy = true
+  await nextTick()
+  if (anchor) {
+    const tile = container.value?.querySelector(`[data-photo="${CSS.escape(anchor.name)}"]`)
+    if (tile) scrollParent(container.value).scrollBy(0, tile.getBoundingClientRect().top - anchor.top)
+  }
+  for (const tile of tiles()) {
+    const old = before.get(tile.dataset.photo!)
+    const now = tile.getBoundingClientRect()
+    tile.animate(
+      old
+        ? [
+            {
+              transformOrigin: '0 0',
+              transform: `translate(${old.left - now.left}px, ${old.top - now.top}px) scale(${old.width / now.width}, ${old.height / now.height})`,
+            },
+            { transformOrigin: '0 0', transform: 'none' },
+          ]
+        : [{ opacity: 0 }, { opacity: 1 }],
+      { duration: MOVE_MS, easing: 'cubic-bezier(0.2, 0, 0, 1)' },
+    )
+  }
+  setTimeout(() => (busy = false), MOVE_MS / 2)
 }
 
-async function commitPreview() {
-  const scale = preview.value
-  if (scale === 1) return
-  const before = anchor
-  const target = zoom.value * scale
-  preview.value = 1
-  changeZoom((square.value ? 4 / Math.min(8, Math.max(2, Math.round(4 / target))) : target) - zoom.value)
-  if (!before) return
-  await nextTick()
-  requestAnimationFrame(() => {
-    const tile = container.value?.querySelector(`[data-photo="${CSS.escape(before.name)}"]`)
-    if (tile) scrollParent(container.value).scrollBy(0, tile.getBoundingClientRect().top - before.top)
-  })
+function stepTarget(scale: number, from: number) {
+  if (square.value) {
+    const startColumns = Math.min(8, Math.max(2, Math.round(4 / from)))
+    return 4 / Math.min(8, Math.max(2, Math.round(startColumns / scale)))
+  }
+  return Math.round((from * scale) / ZOOM_STEP) * ZOOM_STEP
 }
+
+let wheel = { scale: 1, from: 1 }
+let wheelTimer: ReturnType<typeof setTimeout> | undefined
 
 function onWheel(event: WheelEvent) {
   if (!event.ctrlKey && !event.metaKey) return
   event.preventDefault()
-  if (preview.value === 1 && !wheelTimer) beginPreview(event.clientX, event.clientY)
-  setPreview(preview.value * Math.exp(-Math.max(-40, Math.min(40, event.deltaY)) * 0.01))
+  if (!wheelTimer) {
+    wheel = { scale: 1, from: zoom.value }
+    anchorAt(event.clientX, event.clientY)
+  }
+  wheel.scale *= Math.exp(-Math.max(-40, Math.min(40, event.deltaY)) * 0.01)
+  const target = stepTarget(wheel.scale, wheel.from)
+  if (Math.abs(target - zoom.value) > 0.01) moveTo(target)
   clearTimeout(wheelTimer)
-  wheelTimer = setTimeout(() => {
-    wheelTimer = undefined
-    commitPreview()
-  }, 160)
+  wheelTimer = setTimeout(() => (wheelTimer = undefined), 200)
 }
 
-let pinch: { distance: number } | null = null
+let pinch: { distance: number; from: number } | null = null
 const touchDistance = (touches: TouchList) =>
   Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
 
 function onPinchStart(event: TouchEvent) {
   if (event.touches.length !== 2) return
-  pinch = { distance: touchDistance(event.touches) }
+  pinch = { distance: touchDistance(event.touches), from: zoom.value }
   container.value?.addEventListener('touchmove', onPinchMove, { passive: false })
-  beginPreview(
+  anchorAt(
     (event.touches[0].clientX + event.touches[1].clientX) / 2,
     (event.touches[0].clientY + event.touches[1].clientY) / 2,
   )
@@ -415,14 +430,14 @@ function onPinchStart(event: TouchEvent) {
 function onPinchMove(event: TouchEvent) {
   if (!pinch || event.touches.length !== 2) return
   event.preventDefault()
-  setPreview(touchDistance(event.touches) / pinch.distance)
+  const target = stepTarget(touchDistance(event.touches) / pinch.distance, pinch.from)
+  if (Math.abs(target - zoom.value) > 0.01) moveTo(target)
 }
 
 function onPinchEnd(event: TouchEvent) {
   if (!pinch || event.touches.length >= 2) return
   pinch = null
   container.value?.removeEventListener('touchmove', onPinchMove)
-  commitPreview()
 }
 
 function onTileClick(event: MouseEvent, photo: Photo) {
