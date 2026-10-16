@@ -22,6 +22,15 @@
     </div>
     <template v-else>
       <div class="flex min-w-0 items-center gap-2">
+        <Button
+          v-if="!isTab"
+          class="-ml-2 shrink-0 sm:hidden"
+          variant="ghost"
+          :aria-label="__('Back')"
+          @click="goBack"
+        >
+          <template #icon><LucideArrowLeft class="size-5" /></template>
+        </Button>
         <slot name="title">
           <h1 class="truncate text-lg font-semibold text-ink-gray-9">{{ title }}</h1>
         </slot>
@@ -89,6 +98,7 @@ import { type Component, computed, onActivated, onDeactivated, ref, watch } from
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Button, Dialog, Dropdown, PageHeader, TextInput, Tooltip, toast } from 'frappe-ui'
 import LucideArchive from '~icons/lucide/archive'
+import LucideArrowLeft from '~icons/lucide/arrow-left'
 import LucideArchiveRestore from '~icons/lucide/archive-restore'
 import LucideCalendarClock from '~icons/lucide/calendar-clock'
 import LucideClapperboard from '~icons/lucide/clapperboard'
@@ -157,9 +167,18 @@ const emit = defineEmits<{
 
 const route = useRoute()
 const router = useRouter()
+
+const TABS = new Set(['photos-home', 'photos-explore', 'photos-sharing', 'photos-library'])
+const isTab = computed(() => TABS.has(String(route.name)))
+
+function goBack() {
+  if (window.history.state?.back) router.back()
+  else router.push({ name: 'photos-library' })
+}
 const query = ref(String(route.query.q || ''))
 watch(query, (value) => {
-  if (!value.trim() && route.name === 'photos-search' && route.query.q) router.replace({ name: 'photos-search' })
+  if (!value.trim() && route.name === 'photos-search' && route.query.q)
+    router.replace({ name: 'photos-search' })
 })
 const confirmDelete = ref(false)
 const loggedIn = computed(() => useSessionStore().isLoggedIn)
