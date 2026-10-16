@@ -47,7 +47,6 @@ final class BackupStore {
     int done() { return prefs.getInt("done", 0); }
 
     void signIn(String site, String user, String clientId, String accessToken, String refreshToken, long expiresIn) {
-        if (!site.equals(site()) || !user.equals(user())) clearDone();
         prefs.edit().putString("site", site).putString("user", user).putString("client_id", clientId).apply();
         saveTokens(accessToken, refreshToken, expiresIn);
     }
@@ -63,7 +62,6 @@ final class BackupStore {
     void signOut() {
         prefs.edit().remove("site").remove("user").remove("client_id").remove("access_token").remove("refresh_token")
             .remove("expires_at").putBoolean("enabled", false).putInt("total", 0).putInt("done", 0).apply();
-        clearDone();
     }
 
     void setOptions(Boolean enabled, Boolean wifiOnly, Boolean includeVideos) {
@@ -82,37 +80,51 @@ final class BackupStore {
 
     private Database db() {
         synchronized (BackupStore.class) {
-            if (database == null) database = new Database(context);
+            if (database == null) database = new Database(context, account());
             return database;
         }
     }
 
+    private String account() { return site() + " " + user(); }
+
     boolean isDone(String key) {
-        try (Cursor cursor = db().getReadableDatabase().rawQuery("select 1 from done where key = ?", new String[]{key})) {
+        try (Cursor cursor = db().getReadableDatabase().rawQuery("select 1 from done where account = ? and key = ?", new String[]{account(), key})) {
             return cursor.moveToFirst();
         }
     }
 
     void markDone(String key, String sha1) {
         ContentValues values = new ContentValues();
+        values.put("account", account());
         values.put("key", key);
         values.put("sha1", sha1);
         db().getWritableDatabase().insertWithOnConflict("done", null, values, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
     String hashOf(String key) {
-        try (Cursor cursor = db().getReadableDatabase().rawQuery("select sha1 from done where key = ?", new String[]{key})) {
+        try (Cursor cursor = db().getReadableDatabase().rawQuery("select sha1 from done where account = ? and key = ?", new String[]{account(), key})) {
             return cursor.moveToFirst() ? cursor.getString(0) : null;
         }
     }
 
-    private void clearDone() { db().getWritableDatabase().delete("done", null, null); }
-
     private static final class Database extends SQLiteOpenHelper {
-        Database(Context context) { super(context, "photos_backup.db", null, 2); }
-        @Override public void onCreate(SQLiteDatabase db) { db.execSQL("create table done (key text primary key, sha1 text)"); }
+        private final String account;
+
+        Database(Context context, String account) {
+            super(context, "photos_backup.db", null, 3);
+            this.account = account;
+        }
+
+        @Override public void onCreate(SQLiteDatabase db) {
+            db.execSQL("create table done (account text not null, key text not null, sha1 text, primary key (account, key))");
+        }
+
         @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             if (oldVersion < 2) db.execSQL("alter table done add column sha1 text");
+            db.execSQL("alter table done rename to done_old");
+            onCreate(db);
+            db.execSQL("insert into done (account, key, sha1) select ?, key, sha1 from done_old", new Object[]{account});
+            db.execSQL("drop table done_old");
         }
     }
 }
