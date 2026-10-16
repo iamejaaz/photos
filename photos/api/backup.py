@@ -120,6 +120,18 @@ def mark(file: str, sha1: str):
                 extract(file)
         except frappe.QueryDeadlockError, frappe.DuplicateEntryError:
             frappe.db.rollback()
+        except Exception:
+            frappe.db.rollback()
+            frappe.log_error(f"Photos could not read details of {file}")
+        if not frappe.db.exists("Photo Metadata", file):
+            frappe.get_doc(
+                {
+                    "doctype": "Photo Metadata",
+                    "file": file,
+                    "taken_on": frappe.db.get_value("File", file, "creation"),
+                    "date_from_file": 1,
+                }
+            ).insert(ignore_permissions=True, ignore_if_duplicate=True)
         frappe.db.set_value(
             "Photo Metadata", file, "source", SOURCE.format(sha1.lower()), update_modified=False
         )
