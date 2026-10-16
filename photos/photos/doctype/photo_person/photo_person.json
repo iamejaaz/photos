@@ -7,6 +7,7 @@
  "field_order": [
   "person_name",
   "cover_face",
+  "cover_chosen",
   "face_count",
   "hidden",
   "centroid"
@@ -23,6 +24,13 @@
    "fieldtype": "Link",
    "options": "Photo Face",
    "label": "Cover Face"
+  },
+  {
+   "default": "0",
+   "fieldname": "cover_chosen",
+   "fieldtype": "Check",
+   "label": "Cover Chosen",
+   "read_only": 1
   },
   {
    "fieldname": "face_count",
@@ -43,7 +51,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-14 19:00:00.000000",
+ "modified": "2026-10-16 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Photos",
  "name": "Photo Person",

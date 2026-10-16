@@ -54,3 +54,6 @@ export const mergePeople = (target: string, sources: string[]) =>
 export const undoMerge = (token: string) => call(`${PEOPLE}.undo_merge`, { token })
 export const removePhotosFromPerson = (person: string, files: string[]) =>
   call(`${PEOPLE}.remove_photos`, { person, files })
+export const personFaces = (person: string) =>
+  call(`${PEOPLE}.person_faces`, { person }) as Promise<{ name: string; file: string }[]>
+export const setCover = (person: string, face: string) => call(`${PEOPLE}.set_cover`, { person, face })

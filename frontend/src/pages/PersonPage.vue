@@ -35,6 +35,21 @@
       </Dropdown>
     </template>
   </PhotosHeader>
+  <Dialog v-model:open="choosingCover" :title="__('Change cover photo')" size="lg">
+    <div v-if="!coverFaces.length" class="flex justify-center py-8"><LoadingIndicator class="size-5" /></div>
+    <div v-else class="grid max-h-[60vh] grid-cols-4 gap-3 overflow-y-auto p-1 sm:grid-cols-6">
+      <button
+        v-for="face in coverFaces"
+        :key="face.name"
+        class="rounded-full"
+        :class="face.name === info?.cover_face ? 'ring-2 ring-outline-gray-5 ring-offset-2' : ''"
+        :aria-label="__('Use as cover photo')"
+        @click="chooseCover(face.name)"
+      >
+        <FaceAvatar :face="face.name" class="aspect-square w-full" />
+      </button>
+    </div>
+  </Dialog>
   <PhotoGrid
     :handle="handle"
     :empty-icon="LucideUserRound"
@@ -109,7 +124,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Dialog, Dropdown, TextInput, toast, usePageMeta } from 'frappe-ui'
+import { Button, Dialog, Dropdown, LoadingIndicator, TextInput, toast, usePageMeta } from 'frappe-ui'
 import LucideCheck from '~icons/lucide/check'
 import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideEllipsis from '~icons/lucide/ellipsis'
@@ -123,8 +138,10 @@ import {
   getPeople,
   getPerson,
   mergePeople,
+  personFaces,
   removePhotosFromPerson,
   renamePerson,
+  setCover,
   setPersonHidden,
 } from '../resources/people'
 import FaceAvatar from '../components/FaceAvatar.vue'
@@ -193,11 +210,33 @@ async function mergeIntoDuplicate() {
 
 const menu = computed(() => [
   { label: __('Rename'), icon: 'lucide-pencil', onClick: startEditing },
+  { label: __('Change cover photo'), icon: 'lucide-circle-user-round', onClick: openCovers },
   { label: __('Same person as…'), icon: 'lucide-users', onClick: openMerge },
   info.value?.hidden
     ? { label: __('Show in People'), icon: 'lucide-eye', onClick: () => hide(false) }
     : { label: __('Hide from People'), icon: 'lucide-eye-off', onClick: () => hide(true) },
 ])
+
+const choosingCover = ref(false)
+const coverFaces = ref<{ name: string; file: string }[]>([])
+
+async function openCovers() {
+  coverFaces.value = []
+  choosingCover.value = true
+  coverFaces.value = await personFaces(props.person)
+}
+
+async function chooseCover(face: string) {
+  choosingCover.value = false
+  if (info.value) info.value.cover_face = face
+  try {
+    await setCover(props.person, face)
+    toast.success(__('Cover photo updated'))
+  } catch (error) {
+    toast.error(errorText(error) || __('Could not change the cover photo'))
+    await refresh()
+  }
+}
 
 async function openMerge() {
   mergePicks.clear()

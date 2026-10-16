@@ -211,7 +211,9 @@ def _assign(face, owner):
 
 
 def _maybe_update_cover(person, face):
-    cover = frappe.db.get_value("Photo Person", person, "cover_face")
+    cover, chosen = frappe.db.get_value("Photo Person", person, ["cover_face", "cover_chosen"])
+    if chosen and cover:
+        return
     current = (
         frappe.db.get_value("Photo Face", cover, ["width", "height", "score"], as_dict=True)
         if cover

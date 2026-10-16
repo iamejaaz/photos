@@ -187,6 +187,32 @@ def not_same_people(first: str, second: str):
 
 
 @frappe.whitelist()
+def person_faces(person: str, limit: int = 300):
+    _own(person)
+    return frappe.db.sql(
+        """
+        select face.name, face.file from `tabPhoto Face` face
+        join `tabFile` file on file.name = face.file
+        where face.person = %(person)s and file.status = 'Active' and ifnull(face.not_a_face, 0) = 0
+        order by face.width * face.height * face.score desc
+        limit %(limit)s
+        """,
+        {"person": person, "limit": min(int(limit), 1000)},
+        as_dict=True,
+    )
+
+
+@frappe.whitelist(methods=["POST"])
+def set_cover(person: str, face: str):
+    _own(person)
+    if frappe.db.get_value("Photo Face", face, "person") != person:
+        frappe.throw("This face is not in this person's photos.")
+    frappe.db.set_value(
+        "Photo Person", person, {"cover_face": face, "cover_chosen": 1}, update_modified=False
+    )
+
+
+@frappe.whitelist()
 def set_hidden(person: str, hidden: bool = True):
     _own(person)
     frappe.db.set_value("Photo Person", person, "hidden", int(frappe.parse_json(hidden)))
@@ -198,7 +224,7 @@ def merge_people(target: str, sources: list[str] | str):
     sources = [s for s in (json.loads(sources) if isinstance(sources, str) else sources) if s != target]
     for source in sources:
         _own(source)
-    fields = ["name", "person_name", "cover_face", "face_count"]
+    fields = ["name", "person_name", "cover_face", "cover_chosen", "face_count"]
     people = [frappe.db.get_value("Photo Person", name, fields, as_dict=True) for name in [target, *sources]]
     undo = {
         "target": people[0],
@@ -210,7 +236,7 @@ def merge_people(target: str, sources: list[str] | str):
             for source in sources
         ],
     }
-    biggest = max(people, key=lambda person: person.face_count or 0)
+    biggest = max(people, key=lambda person: (person.cover_chosen or 0, person.face_count or 0))
     person_name = next((person.person_name for person in people if person.person_name), None)
     for source in sources:
         frappe.db.set_value("Photo Face", {"person": source}, "person", target, update_modified=False)
@@ -220,7 +246,7 @@ def merge_people(target: str, sources: list[str] | str):
     frappe.db.set_value(
         "Photo Person",
         target,
-        {"person_name": person_name, "cover_face": biggest.cover_face},
+        {"person_name": person_name, "cover_face": biggest.cover_face, "cover_chosen": biggest.cover_chosen},
         update_modified=False,
     )
     token = frappe.generate_hash(length=16)
@@ -251,7 +277,11 @@ def undo_merge(token: str):
     frappe.db.set_value(
         "Photo Person",
         target["name"],
-        {"person_name": target["person_name"], "cover_face": target["cover_face"]},
+        {
+            "person_name": target["person_name"],
+            "cover_face": target["cover_face"],
+            "cover_chosen": target.get("cover_chosen") or 0,
+        },
         update_modified=False,
     )
     frappe.cache.delete_value(_undo_key(token))
