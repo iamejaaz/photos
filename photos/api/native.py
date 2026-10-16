@@ -64,7 +64,7 @@ def app_update():
     return {
         "version_code": settings.android_version_code,
         "version_name": settings.android_version_name,
-        "url": frappe.utils.get_url(settings.android_app),
+        "url": f"{frappe.utils.get_url(settings.android_app)}?v={settings.android_version_code}",
     }
 
 
