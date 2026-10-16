@@ -68,8 +68,10 @@ def scan_file(file_name):
 def _image_faces(path):
     from PIL import Image, ImageOps
 
+    from photos.utils.formats import upright
+
     with Image.open(path) as image:
-        return _detect(ImageOps.exif_transpose(image).convert("RGB"))
+        return _detect(upright(image).convert("RGB"))
 
 
 def _video_faces(path):
@@ -279,6 +281,8 @@ def face_crop(face, size=256):
     import av
     from PIL import Image, ImageOps
 
+    from photos.utils.formats import upright
+
     file = frappe.db.get_value("File", face.file, ["file_url", "mime_type"], as_dict=True)
     path = FileManager().site_folder / storage_key(file.file_url or "")
     if (file.mime_type or "").startswith("video/"):
@@ -287,7 +291,7 @@ def face_crop(face, size=256):
             image = _upright(_frame_at(container, stream, face.timestamp or 0)).convert("RGB")
     else:
         with Image.open(path) as image:
-            image = ImageOps.exif_transpose(image).convert("RGB")
+            image = upright(image).convert("RGB")
     width, height = image.size
     side = max(face.width * width, face.height * height) * 1.6
     cx = (face.x + face.width / 2) * width
@@ -374,6 +378,8 @@ def _frame(file_name, timestamp):
     import av
     from PIL import Image, ImageOps
 
+    from photos.utils.formats import upright
+
     file = frappe.get_doc("File", file_name)
     manager = FileManager()
     path = manager.site_folder / (
@@ -384,7 +390,7 @@ def _frame(file_name, timestamp):
             stream = container.streams.video[0]
             return _upright(_frame_at(container, stream, timestamp)).convert("RGB")
     with Image.open(path) as image:
-        return ImageOps.exif_transpose(image).convert("RGB")
+        return upright(image).convert("RGB")
 
 
 def regroup(owner):

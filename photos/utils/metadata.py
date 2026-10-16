@@ -218,7 +218,9 @@ def _video_hash(container, stream, duration):
 def image_hash(image):
     from PIL import ImageOps
 
-    small = ImageOps.exif_transpose(image).convert("L").resize((HASH_SIZE + 1, HASH_SIZE))
+    from photos.utils.formats import upright
+
+    small = upright(image).convert("L").resize((HASH_SIZE + 1, HASH_SIZE))
     pixels = small.tobytes()
     bits = 0
     for row in range(HASH_SIZE):

@@ -36,9 +36,11 @@ def build_movie(files, title, seconds, user):
 def _load(name):
     from PIL import Image, ImageOps
 
+    from photos.utils.formats import upright
+
     file_url = frappe.db.get_value("File", name, "file_url")
     with Image.open(FileManager().site_folder / storage_key(file_url)) as image:
-        image = ImageOps.exif_transpose(image).convert("RGB")
+        image = upright(image).convert("RGB")
     canvas_w, canvas_h = int(WIDTH * (1 + ZOOM)), int(HEIGHT * (1 + ZOOM))
     scale = max(canvas_w / image.width, canvas_h / image.height)
     image = image.resize((round(image.width * scale), round(image.height * scale)))

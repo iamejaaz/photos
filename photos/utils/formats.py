@@ -43,13 +43,34 @@ def derived_path(name, suffix):
     return folder / f"{name}{suffix}"
 
 
+ORIENTATION = 0x0112
+
+
+def upright(image):
+    from PIL import Image, ImageOps
+
+    try:
+        return ImageOps.exif_transpose(image)
+    except Exception:
+        method = {
+            2: Image.Transpose.FLIP_LEFT_RIGHT,
+            3: Image.Transpose.ROTATE_180,
+            4: Image.Transpose.FLIP_TOP_BOTTOM,
+            5: Image.Transpose.TRANSPOSE,
+            6: Image.Transpose.ROTATE_270,
+            7: Image.Transpose.TRANSVERSE,
+            8: Image.Transpose.ROTATE_90,
+        }.get(image.getexif().get(ORIENTATION))
+        return image.transpose(method) if method else image
+
+
 def open_image(path, file_name=None):
     from PIL import Image, ImageOps
 
     if is_raw(file_name or str(path)):
         return _open_raw(path)
     image = Image.open(path)
-    return ImageOps.exif_transpose(image)
+    return upright(image)
 
 
 def _open_raw(path):
@@ -64,7 +85,7 @@ def _open_raw(path):
         except rawpy.LibRawNoThumbnailError, rawpy.LibRawUnsupportedThumbnailError:
             thumb = None
         if thumb is not None and thumb.format == rawpy.ThumbFormat.JPEG:
-            return ImageOps.exif_transpose(Image.open(BytesIO(thumb.data)))
+            return upright(Image.open(BytesIO(thumb.data)))
         return Image.fromarray(raw.postprocess(half_size=True, use_camera_wb=True))
 
 
@@ -92,7 +113,7 @@ def view_image(file):
     if not target.exists():
         with Image.open(source_path(file)) as image:
             image.draft("RGB", (DISPLAY_SIZE, DISPLAY_SIZE))
-            image = ImageOps.exif_transpose(image)
+            image = upright(image)
             image.thumbnail((DISPLAY_SIZE, DISPLAY_SIZE))
             image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
             image.save(target, "WEBP", quality=85, method=4)

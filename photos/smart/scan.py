@@ -41,6 +41,8 @@ def enrich(file_name):
 def _preview(file_name, size=512):
     from PIL import Image, ImageOps
 
+    from photos.utils.formats import upright
+
     file = frappe.db.get_value("File", file_name, ["file_url", "mime_type"], as_dict=True)
     path = FileManager().site_folder / storage_key(file.file_url or "") if file else None
     if not path or not path.exists():
@@ -50,7 +52,7 @@ def _preview(file_name, size=512):
             frames = list(faces._video_frames(path))
             return frames[len(frames) // 2][1] if frames else None
         with Image.open(path) as image:
-            image = ImageOps.exif_transpose(image)
+            image = upright(image)
             image.thumbnail((size, size))
             return image.convert("RGB")
     except Exception:
