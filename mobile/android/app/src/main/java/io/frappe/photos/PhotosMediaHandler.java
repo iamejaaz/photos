@@ -40,6 +40,8 @@ final class PhotosMediaHandler {
     }
 
     private static WebResourceResponse fromDisk(File file, String range) {
+        File folder = file.getParentFile();
+        if (folder != null) folder.setLastModified(System.currentTimeMillis());
         try {
             long length = file.length(), start = 0, end = length - 1;
             if (range != null && range.startsWith("bytes=")) {
