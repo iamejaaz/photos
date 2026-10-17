@@ -35,7 +35,7 @@
               :aria-label="__('Select all from {0}', [group.label])"
               @click.stop="toggleGroup(group)"
             >
-              <Checkbox class="pointer-events-none" :model-value="isGroupSelected(group)" />
+              <SelectCheck :selected="isGroupSelected(group)" />
             </button>
             <span class="text-sm font-medium text-ink-gray-7">{{ group.label }}</span>
           </div>
@@ -92,25 +92,6 @@
                   @load="onSharpLoad($event, tile.photo.name)"
                 />
                 <div
-                  class="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/40 to-transparent transition-opacity"
-                  :class="selection.size ? 'opacity-100' : 'opacity-0 group-hover/tile:opacity-100'"
-                />
-                <button
-                  class="absolute left-2 top-2 flex size-5 items-center justify-center rounded-full transition"
-                  :class="[
-                    selection.has(tile.photo.name)
-                      ? 'bg-surface-gray-10 text-ink-base ring-2 ring-white'
-                      : 'border-2 border-white/90 text-transparent hover:bg-white/30 hover:text-white',
-                    selection.size
-                      ? 'opacity-100'
-                      : 'opacity-0 group-hover/tile:opacity-100 [@media(pointer:coarse)]:pointer-events-none',
-                  ]"
-                  :aria-label="selection.has(tile.photo.name) ? __('Deselect') : __('Select')"
-                  @click.stop="toggle(tile.photo, $event)"
-                >
-                  <LucideCheck class="size-3.5" :stroke-width="3" />
-                </button>
-                <div
                   v-if="isVideo(tile.photo)"
                   class="absolute right-2 top-2 flex items-center gap-1 rounded bg-black/50 px-1.5 py-0.5 text-xs font-medium text-white"
                 >
@@ -128,6 +109,26 @@
                   class="absolute bottom-2 left-2 size-4 fill-white text-white drop-shadow"
                 />
               </div>
+              <div
+                class="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/40 to-transparent transition-opacity"
+                :class="
+                  selection.size && !selection.has(tile.photo.name)
+                    ? 'opacity-100'
+                    : 'opacity-0 group-hover/tile:opacity-100'
+                "
+              />
+              <button
+                class="absolute left-2 top-2 rounded-full transition-opacity"
+                :class="
+                  selection.size
+                    ? 'opacity-100'
+                    : 'opacity-0 group-hover/tile:opacity-100 [@media(pointer:coarse)]:pointer-events-none'
+                "
+                :aria-label="selection.has(tile.photo.name) ? __('Deselect') : __('Select')"
+                @click.stop="toggle(tile.photo, $event)"
+              >
+                <SelectCheck :selected="selection.has(tile.photo.name)" on-photo />
+              </button>
             </div>
           </div>
         </div>
@@ -168,14 +169,14 @@ import {
   watch,
 } from 'vue'
 import { useResizeObserver } from '@vueuse/core'
-import { Checkbox, ErrorMessage, LoadingIndicator, shellScrollContainer } from 'frappe-ui'
+import { ErrorMessage, LoadingIndicator, shellScrollContainer } from 'frappe-ui'
 import dayjs from 'dayjs'
-import LucideCheck from '~icons/lucide/check'
 import LucidePlay from '~icons/lucide/play'
 import LucideStar from '~icons/lucide/star'
 
 import { type Photo, isVideo } from '../resources/photos'
 import { thumbnailUrl } from '../resources/media'
+import SelectCheck from './SelectCheck.vue'
 import { useTouchSelect } from '../composables/useTouchSelect'
 import { type FeedHandle, activeFeed, gridNav } from '../data/feed'
 import { changeZoom, zoom } from '../data/prefs'
