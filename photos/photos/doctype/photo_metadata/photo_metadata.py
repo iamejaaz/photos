@@ -3,6 +3,8 @@
 
 from frappe.model.document import Document
 
+from photos.utils.privacy import PrivateRow
 
-class PhotoMetadata(Document):
+
+class PhotoMetadata(PrivateRow, Document):
     pass

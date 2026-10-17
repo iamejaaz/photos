@@ -53,5 +53,17 @@ has_permission = {
     "Photo Album": "suite.drive.overrides.file.content_has_permission",
 }
 
+permission_query_conditions = {
+    doctype: "photos.utils.privacy.private_rows_condition"
+    for doctype in (
+        "Photo Metadata",
+        "Photo Person",
+        "Photo Face",
+        "Photo Import",
+        "Photo Archive",
+        "Photo Hidden",
+    )
+}
+
 export_python_type_annotations = True
 require_type_annotated_api_methods = True

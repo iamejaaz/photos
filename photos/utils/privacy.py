@@ -132,3 +132,37 @@ def guard_file_url():
 
     if frappe.session.user == "Guest" or not can_access(file.name, "read"):
         frappe.throw(_("You don't have access to this photo."), frappe.PermissionError)
+
+
+def in_request():
+    return getattr(frappe.local, "request", None) is not None
+
+
+class PrivateRow:
+    owner_field = "owner"
+
+    def belongs_to(self):
+        return self.get(self.owner_field)
+
+    def has_permission(self, permtype="read", *, debug=False, user=None):
+        user = user or frappe.session.user
+        if in_request() and not self.flags.ignore_permissions and self.belongs_to() != user:
+            return False
+        return super().has_permission(permtype, debug=debug, user=user)
+
+
+PRIVATE_ROWS = {
+    "Photo Metadata": "owner",
+    "Photo Person": "owner",
+    "Photo Import": "owner",
+    "Photo Archive": "user",
+    "Photo Hidden": "user",
+}
+
+
+def private_rows_condition(user=None, doctype=None):
+    user = frappe.db.escape(user or frappe.session.user)
+    if doctype == "Photo Face":
+        return f"`tabPhoto Face`.`file` in (select `name` from `tabFile` where `owner` = {user})"
+    return f"`tab{doctype}`.`{PRIVATE_ROWS[doctype]}` = {user}"
+

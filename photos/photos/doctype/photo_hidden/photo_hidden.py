@@ -3,6 +3,8 @@
 
 from frappe.model.document import Document
 
+from photos.utils.privacy import PrivateRow
 
-class PhotoHidden(Document):
-    pass
+
+class PhotoHidden(PrivateRow, Document):
+    owner_field = "user"
