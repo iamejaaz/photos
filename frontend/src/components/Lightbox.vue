@@ -807,18 +807,20 @@ watch(
     }
   },
 )
+const dismiss = () => (phone.value && lightbox.showInfo ? (lightbox.showInfo = false) : close())
 const gestures = useViewerGestures({
   canPrevious: () => lightbox.index > 0,
   canNext: () => lightbox.index < rows.value.length - 1 || Boolean(feed.value?.feed.hasNext),
   onPrevious: () => go(-1),
   onNext: () => go(1),
   onClose: finishClose,
-  onDismiss: () => (phone.value && lightbox.showInfo ? (lightbox.showInfo = false) : close()),
+  onDismiss: dismiss,
   onInfo: () => (lightbox.showInfo = true),
-  onTap: () => (chrome.value = !chrome.value),
+  onTap: () =>
+    phone.value && lightbox.showInfo ? (lightbox.showInfo = false) : (chrome.value = !chrome.value),
   onBackdropClick: (event) => {
     if (!outsidePhoto(event.clientX, event.clientY)) return false
-    close()
+    dismiss()
     return true
   },
   zoomable: () => Boolean(photo.value && !isVideo(photo.value)),
