@@ -55,6 +55,30 @@ def missing(hashes: list[str] | str):
     return [h for h in hashes if SOURCE.format(h) not in found]
 
 
+@frappe.whitelist(methods=["POST"])
+def backed_up(files: list | str):
+    files = json.loads(files) if isinstance(files, str) else files
+    wanted = {}
+    for index, entry in enumerate(files[:2000]):
+        if isinstance(entry, list) and len(entry) == 2 and isinstance(entry[0], str) and cint(entry[1]) > 0:
+            wanted.setdefault((entry[0], cint(entry[1])), []).append(index)
+    if not wanted:
+        return []
+    File = frappe.qb.DocType("File")
+    Metadata = frappe.qb.DocType("Photo Metadata")
+    rows = (
+        frappe.qb.from_(File)
+        .join(Metadata)
+        .on(Metadata.file == File.name)
+        .select(File.file_name, File.file_size)
+        .where(File.owner == frappe.session.user)
+        .where(Metadata.source.like(SOURCE.format("%")))
+        .where(File.file_name.isin(list({name for name, _size in wanted})))
+        .run()
+    )
+    return sorted(index for row in rows for index in wanted.get((row[0], cint(row[1])), []))
+
+
 RECENT_DAYS = 7
 FINGERPRINT_LIMIT = 200
 

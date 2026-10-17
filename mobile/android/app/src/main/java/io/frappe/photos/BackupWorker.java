@@ -31,7 +31,9 @@ import java.nio.channels.FileChannel;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -48,6 +50,7 @@ public class BackupWorker extends Worker {
     private static final int BATCH = 25;
     private static final int MAX_DROPS_IN_ROW = 3;
     private static final int PARALLEL = 3;
+    private static final int LOOKUP_BATCH = 1000;
     static volatile boolean running;
     private static final ReentrantLock LOCK = new ReentrantLock();
     private volatile String skipped;
@@ -122,8 +125,9 @@ public class BackupWorker extends Worker {
         List<Item> items = new ArrayList<>(query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image"));
         if (store.includeVideos()) items.addAll(query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, "video"));
         items.sort((a, b) -> Long.compare(b.modified, a.modified));
-        List<Item> pending = new ArrayList<>();
-        for (Item item : items) if (!store.isDone(item.key)) pending.add(item);
+        List<Item> unchecked = new ArrayList<>();
+        for (Item item : items) if (!store.isDone(item.key)) unchecked.add(item);
+        List<Item> pending = skipBackedUp(unchecked);
         AtomicInteger done = new AtomicInteger(items.size() - pending.size());
         AtomicInteger dropsInRow = new AtomicInteger();
         AtomicReference<IOException> fatal = new AtomicReference<>();
@@ -184,6 +188,28 @@ public class BackupWorker extends Worker {
         } finally {
             pool.shutdownNow();
         }
+    }
+
+    private List<Item> skipBackedUp(List<Item> items) throws IOException {
+        List<Item> unknown = new ArrayList<>();
+        for (int start = 0; start < items.size(); start += LOOKUP_BATCH) {
+            List<Item> batch = items.subList(start, Math.min(items.size(), start + LOOKUP_BATCH));
+            JSONArray request = new JSONArray();
+            for (Item item : batch) request.put(new JSONArray().put(item.name).put(item.size));
+            Set<Integer> found = new HashSet<>();
+            try {
+                JSONArray answer = client.backedUp(request);
+                for (int i = 0; answer != null && i < answer.length(); i++) found.add(answer.optInt(i));
+            } catch (BackupClient.Refused e) {
+                unknown.addAll(items.subList(start, items.size()));
+                return unknown;
+            }
+            for (int i = 0; i < batch.size(); i++) {
+                if (found.contains(i)) store.markDone(batch.get(i).key, null);
+                else unknown.add(batch.get(i));
+            }
+        }
+        return unknown;
     }
 
     private static <T> List<T> results(List<Future<T>> futures) throws IOException, InterruptedException {

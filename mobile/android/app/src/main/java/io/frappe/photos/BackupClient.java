@@ -111,6 +111,12 @@ final class BackupClient {
         return retrying(tried -> call("POST", "/api/method/photos.api.backup.missing", body.toString(), "application/json")).optJSONArray("message");
     }
 
+    JSONArray backedUp(JSONArray files) throws IOException {
+        JSONObject body = new JSONObject();
+        try { body.put("files", files); } catch (JSONException e) { throw new IOException(e); }
+        return retrying(tried -> call("POST", "/api/method/photos.api.backup.backed_up", body.toString(), "application/json")).optJSONArray("message");
+    }
+
     void mark(String file, String sha1) throws IOException {
         JSONObject body = new JSONObject();
         try { body.put("file", file); body.put("sha1", sha1); } catch (JSONException e) { throw new IOException(e); }
