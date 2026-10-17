@@ -511,3 +511,26 @@ def _absorb(keep, drop):
     recompute(keep.name)
     if drop.get("person_name") and not keep.person_name:
         frappe.db.set_value("Photo Person", keep.name, "person_name", drop.person_name, update_modified=False)
+
+
+def regroup_recent():
+    if not available():
+        return
+    since = frappe.utils.add_days(frappe.utils.now_datetime(), -1)
+    owners = frappe.db.sql_list(
+        """
+        select distinct person.owner from `tabPhoto Face` face
+        join `tabPhoto Person` person on person.name = face.person
+        where face.creation > %s
+        """,
+        since,
+    )
+    for owner in owners:
+        frappe.enqueue(
+            "photos.smart.faces.regroup",
+            owner=owner,
+            queue="long",
+            timeout=3600,
+            job_id=f"photos-regroup-{owner}",
+            deduplicate=True,
+        )

@@ -41,7 +41,10 @@ before_request = [
 ]
 before_job = ["photos.utils.privacy.install"]
 
-scheduler_events = {"cron": {"*/10 * * * *": ["photos.api.signups.notify_failed_emails"]}}
+scheduler_events = {
+    "cron": {"*/10 * * * *": ["photos.api.signups.notify_failed_emails"]},
+    "daily_long": ["photos.smart.faces.regroup_recent"],
+}
 after_install = ["photos.api.native.ensure_oauth_client", "photos.utils.managers.ensure_role"]
 after_migrate = [
     "photos.api.native.ensure_oauth_client",
