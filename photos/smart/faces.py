@@ -12,7 +12,10 @@ MIN_FACE = 48
 MIN_FACE_SHARE = 0.03
 MIN_SCORE = 0.85
 SAME_PERSON = 0.45
+SAME_PERSON_UNCLEAR = 0.55
 SAME_PEOPLE = 0.5
+CLEAR_FACE = 0.1
+NOT_SAME = "photos_not_same_people"
 VIDEO_SAMPLES = 12
 EMBEDDER = "auraface-v1"
 GOOD_COVER_PIXELS = 160
@@ -204,10 +207,14 @@ def _assign(face, owner):
     import numpy as np
 
     vector = _decode(face.embedding)
-    best, best_score = None, SAME_PERSON
-    for person in frappe.get_all(
-        "Photo Person", filters={"owner": owner}, fields=["name", "centroid", "face_count"]
-    ):
+    clear = (face.quality or 0) >= CLEAR_FACE
+    people = frappe.get_all(
+        "Photo Person",
+        filters={"owner": owner},
+        fields=["name", "person_name", "centroid", "face_count", "cover_face"],
+    )
+    best, best_score = None, SAME_PERSON if clear else SAME_PERSON_UNCLEAR
+    for person in people:
         centroid = _decode(person.centroid)
         if centroid.shape != vector.shape:
             continue
@@ -219,23 +226,71 @@ def _assign(face, owner):
         count = best.face_count or 1
         centroid = _decode(best.centroid) * count + vector
         centroid /= np.linalg.norm(centroid) or 1
+        best.centroid, best.face_count = _encode(centroid), count + 1
         frappe.db.set_value(
             "Photo Person",
             best.name,
-            {"centroid": _encode(centroid), "face_count": count + 1},
+            {"centroid": best.centroid, "face_count": best.face_count},
             update_modified=False,
         )
-        person = best.name
-    else:
+        person = best
+    elif clear:
         doc = frappe.get_doc(
             {"doctype": "Photo Person", "centroid": face.embedding, "face_count": 1, "cover_face": face.name}
         )
         doc.insert(ignore_permissions=True)
         doc.db_set("owner", owner, update_modified=False)
-        person = doc.name
-    face.db_set("person", person, update_modified=False)
-    auto_albums.add_face(person, face.file)
-    _maybe_update_cover(person, face)
+        person = frappe._dict(name=doc.name, person_name=None, centroid=doc.centroid, face_count=1)
+        people.append(person)
+    else:
+        return
+    face.db_set("person", person.name, update_modified=False)
+    auto_albums.add_face(person.name, face.file)
+    _maybe_update_cover(person.name, face)
+    _merge_close(person, people, owner)
+
+
+def _merge_close(person, people, owner):
+    import numpy as np
+
+    vector = _decode(person.centroid)
+    dismissed = dismissed_pairs(owner)
+    for other in people:
+        if other.name == person.name or not can_merge(person, other, dismissed):
+            continue
+        centroid = _decode(other.centroid)
+        if centroid.shape == vector.shape and float(np.dot(vector, centroid)) >= SAME_PEOPLE:
+            keep, drop = sorted([person, other], key=lambda row: -(row.face_count or 0))
+            _absorb(keep, drop)
+            return
+
+
+def can_merge(first, second, dismissed):
+    return (
+        "|".join(sorted([first.name, second.name])) not in dismissed
+        and not (first.person_name and second.person_name and first.person_name != second.person_name)
+        and not share_photo(first.name, second.name)
+    )
+
+
+def share_photo(first, second):
+    return bool(
+        frappe.db.sql(
+            """
+            select 1 from `tabPhoto Face` a
+            join `tabPhoto Face` b on b.file = a.file
+            where a.person = %s and b.person = %s
+            limit 1
+            """,
+            (first, second),
+        )
+    )
+
+
+def dismissed_pairs(owner=None):
+    import json
+
+    return set(json.loads(frappe.defaults.get_user_default(NOT_SAME, owner or frappe.session.user) or "[]"))
 
 
 def _maybe_update_cover(person, face):
@@ -394,14 +449,11 @@ def _frame(file_name, timestamp):
 
 
 def regroup(owner):
-    import json
-
     import numpy as np
 
-    people = frappe.get_all("Photo Person", filters={"owner": owner}, pluck="name")
-    for person in people:
+    for person in frappe.get_all("Photo Person", filters={"owner": owner}, pluck="name"):
         recompute(person)
-    dismissed = set(json.loads(frappe.defaults.get_user_default("photos_not_same_people", owner) or "[]"))
+    dismissed = dismissed_pairs(owner)
     while True:
         rows = frappe.get_all(
             "Photo Person",
@@ -417,14 +469,7 @@ def regroup(owner):
             zip(*np.where(np.triu(scores) >= SAME_PEOPLE), strict=True), key=lambda pair: -scores[pair]
         )
         pair = next(
-            (
-                (rows[a], rows[b])
-                for a, b in pairs
-                if "|".join(sorted([rows[a].name, rows[b].name])) not in dismissed
-                and not (
-                    rows[a].person_name and rows[b].person_name and rows[a].person_name != rows[b].person_name
-                )
-            ),
+            ((rows[a], rows[b]) for a, b in pairs if can_merge(rows[a], rows[b], dismissed)),
             None,
         )
         if not pair:
@@ -434,23 +479,29 @@ def regroup(owner):
     for row in frappe.get_all(
         "Photo Person",
         filters={"owner": owner, "face_count": 1, "person_name": ["is", "not set"]},
-        fields=["name"],
+        fields=["name", "person_name", "cover_face", "face_count"],
     ):
-        face = frappe.db.get_value("Photo Face", {"person": row.name}, ["name", "embedding"], as_dict=True)
+        face = frappe.db.get_value(
+            "Photo Face", {"person": row.name}, ["name", "embedding", "quality"], as_dict=True
+        )
         if not face:
             continue
         vector = _decode(face.embedding)
-        best, best_score = None, SAME_PERSON
+        clear = (face.quality or 0) >= CLEAR_FACE
+        best, best_score = None, SAME_PERSON if clear else SAME_PERSON_UNCLEAR
         for other in frappe.get_all(
             "Photo Person",
             filters={"owner": owner, "name": ["!=", row.name], "face_count": [">", 1]},
             fields=["name", "person_name", "centroid", "face_count", "cover_face"],
         ):
             score = float(np.dot(vector, _decode(other.centroid)))
-            if score > best_score and "|".join(sorted([row.name, other.name])) not in dismissed:
+            if score > best_score and can_merge(row, other, dismissed):
                 best, best_score = other, score
         if best:
-            _absorb(best, frappe._dict(name=row.name, cover_face=face.name, face_count=1))
+            _absorb(best, frappe._dict(row, cover_face=face.name))
+        elif not clear:
+            frappe.db.set_value("Photo Face", face.name, "person", None, update_modified=False)
+            frappe.delete_doc("Photo Person", row.name, ignore_permissions=True, force=True)
 
 
 def _absorb(keep, drop):
