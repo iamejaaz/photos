@@ -1,13 +1,35 @@
-### Photos
+<div align="center" markdown="1">
 
-Google Photos style library for Frappe. It runs on top of [Frappe Suite](https://github.com/frappe/suite): photos and videos live in Drive, albums are shared with Drive permissions, and the UI is built with frappe-ui.
+<img src="frontend/public/logo.svg" alt="Photos logo" width="80" height="80" />
+<h1>Photos</h1>
 
-- Timeline, favourites, archive, trash, folders and duplicates for everything you upload to Drive
+**Open source photo and video library for Frappe**
+
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](license.txt)
+
+</div>
+
+## Photos
+
+Photos keeps every photo and video you own in one private library on your own server. It runs on top of [Frappe Suite](https://github.com/frappe/suite), so your media lives in Drive and albums are shared with Drive permissions.
+
+### Key Features
+
+- Timeline, favourites, archive, trash, folders and duplicates for everything you upload
+- Memories from the same day in past years
 - Albums with sharing, comments and likes
 - People, places and things, found on your own server with OpenCV
 - Collages, slideshow movies and a photo editor
+- Android app that backs up your phone's gallery in the background
 
-### Installation
+### Under the Hood
+
+- [**Frappe Framework**](https://github.com/frappe/frappe): the full-stack web framework the app is built on.
+- [**Frappe Suite**](https://github.com/frappe/suite): Drive stores the files and handles sharing.
+- [**Frappe UI**](https://github.com/frappe/frappe-ui): the Vue component library for the interface.
+- [**Capacitor**](https://capacitorjs.com): wraps the same frontend as the Android app.
+
+## Installation
 
 Photos needs Suite on the same bench.
 
@@ -23,15 +45,7 @@ Load demo photos, people and shared albums:
 bench --site your.site photos-demo-data
 ```
 
-### Pick from Google Photos
-
-1. In Google Cloud, enable the Google Photos Picker API and create an OAuth client of type Web application.
-2. Add `https://your.site/api/method/frappe.integrations.google_oauth.callback` as a redirect URI.
-3. Enter the client ID and secret in Google Settings on your site and enable it.
-
-Each user then connects their account under Settings → Import and picks photos in Google Photos.
-
-### Android app
+## Android App
 
 The app in `mobile/` bundles the same frontend with Capacitor. It signs in with OAuth, backs up the phone's gallery in the background, and accepts photos shared from other apps.
 
@@ -43,6 +57,6 @@ cd mobile/android && ./gradlew assembleDebug
 
 The APK is at `mobile/android/app/build/outputs/apk/debug/app-debug.apk`. To use a plain `http://` bench while developing, add `mobile/capacitor.config.local.json` with `{"android": {"allowMixedContent": true}}` and sync again.
 
-### License
+## License
 
-agpl-3.0
+[AGPL-3.0](license.txt)
