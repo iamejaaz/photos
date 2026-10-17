@@ -65,5 +65,7 @@ permission_query_conditions = {
     )
 }
 
+override_doctype_class = {"File": "photos.utils.privacy.File"}
+
 export_python_type_annotations = True
 require_type_annotated_api_methods = True

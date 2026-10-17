@@ -4,6 +4,7 @@ from urllib.parse import unquote
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Coalesce
+from suite.drive.overrides.file import File as DriveFile
 
 MEDIA = ("image/", "video/")
 FIELDS = ("name", "owner", "is_folder", "attached_to_doctype", "mime_type")
@@ -166,3 +167,18 @@ def private_rows_condition(user=None, doctype=None):
         return f"`tabPhoto Face`.`file` in (select `name` from `tabFile` where `owner` = {user})"
     return f"`tab{doctype}`.`{PRIVATE_ROWS[doctype]}` = {user}"
 
+
+class File(DriveFile):
+    def has_permission(self, permtype="read", *, debug=False, user=None):
+        user = user or frappe.session.user
+        if (
+            user == "Administrator"
+            and in_request()
+            and not self.flags.ignore_permissions
+            and self.owner != user
+            and is_library_media(self)
+        ):
+            from photos.utils.permissions import can_access
+
+            return can_access(self, permtype, user)
+        return super().has_permission(permtype, debug=debug, user=user)
