@@ -347,45 +347,84 @@ function toggle(photo: Photo, event?: MouseEvent) {
 }
 
 const ZOOM_STEP = 0.2
-const MOVE_MS = 240
-let anchor: { name: string; top: number } | null = null
+const MOVE_MS = 200
+const SETTLE_MS = 180
+const EASE = 'cubic-bezier(0.2, 0, 0, 1)'
+let gesture: { start: number; from: number; x: number; y: number } | null = null
 let busy = false
 
-function anchorAt(x: number, y: number) {
-  const tile = (document.elementFromPoint(x, y)?.closest('[data-photo]') as HTMLElement | null) ?? null
-  anchor = tile ? { name: tile.dataset.photo!, top: tile.getBoundingClientRect().top } : null
+function setLive(scale: number, settle = false) {
+  const el = container.value
+  if (!el) return
+  el.style.transition = settle ? `transform ${SETTLE_MS}ms ${EASE}` : ''
+  el.style.transform = scale === 1 ? '' : `scale(${scale})`
+  el.style.willChange = scale === 1 && !settle ? '' : 'transform'
 }
 
-async function moveTo(target: number) {
-  if (busy) return
-  const tiles = () => [...(container.value?.querySelectorAll<HTMLElement>('[data-photo]') ?? [])]
+function beginZoom(start: number, x: number, y: number) {
+  const el = container.value
+  if (!el) return
+  setLive(1)
+  const rect = el.getBoundingClientRect()
+  el.style.transformOrigin = `${x - rect.left}px ${y - rect.top}px`
+  gesture = { start, from: zoom.value, x, y }
+}
+
+function updateZoom(current: number) {
+  if (!gesture || busy) return
+  const ratio = current / gesture.start
+  const target = stepTarget(ratio, gesture.from)
+  if (Math.abs(target - zoom.value) > 0.01 && commitZoom(target))
+    gesture = { ...gesture, start: current, from: zoom.value }
+  else setLive(Math.min(1.6, Math.max(0.6, ratio)))
+}
+
+function endZoom() {
+  if (!gesture) return
+  gesture = null
+  setLive(1, true)
+  setTimeout(() => !gesture && container.value && (container.value.style.willChange = ''), SETTLE_MS)
+}
+
+function commitZoom(target: number) {
+  const el = container.value
+  if (!el || !gesture) return false
+  const { x, y } = gesture
+  const tiles = () => [...el.querySelectorAll<HTMLElement>('[data-photo]')]
   const before = new Map(tiles().map((tile) => [tile.dataset.photo!, tile.getBoundingClientRect()]))
+  const anchor = [...before].find(([, r]) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)
   const previous = zoom.value
   changeZoom(target - zoom.value)
-  if (zoom.value === previous) return
+  if (zoom.value === previous) return false
   busy = true
-  await nextTick()
-  if (anchor) {
-    const tile = container.value?.querySelector(`[data-photo="${CSS.escape(anchor.name)}"]`)
-    if (tile) scrollParent(container.value).scrollBy(0, tile.getBoundingClientRect().top - anchor.top)
-  }
-  for (const tile of tiles()) {
-    const old = before.get(tile.dataset.photo!)
-    const now = tile.getBoundingClientRect()
-    tile.animate(
-      old
-        ? [
-            {
-              transformOrigin: '0 0',
-              transform: `translate(${old.left - now.left}px, ${old.top - now.top}px) scale(${old.width / now.width}, ${old.height / now.height})`,
-            },
-            { transformOrigin: '0 0', transform: 'none' },
-          ]
-        : [{ opacity: 0 }, { opacity: 1 }],
-      { duration: MOVE_MS, easing: 'cubic-bezier(0.2, 0, 0, 1)' },
-    )
-  }
-  setTimeout(() => (busy = false), MOVE_MS / 2)
+  setLive(1)
+  nextTick(() => {
+    const tile = anchor && el.querySelector(`[data-photo="${CSS.escape(anchor[0])}"]`)
+    if (tile) scrollParent(el).scrollBy(0, tile.getBoundingClientRect().top - anchor[1].top)
+    const visible = tiles()
+      .map((tile) => [tile, tile.getBoundingClientRect()] as const)
+      .filter(([, now]) => now.bottom > 0 && now.top < window.innerHeight)
+    for (const [tile, now] of visible) {
+      const old = before.get(tile.dataset.photo!)
+      const near = old && Math.hypot(old.left - now.left, old.top - now.top) < now.height * 1.5
+      tile.animate(
+        near
+          ? [
+              {
+                transformOrigin: '0 0',
+                transform: `translate(${old.left - now.left}px, ${old.top - now.top}px) scale(${old.width / now.width}, ${old.height / now.height})`,
+              },
+              { transformOrigin: '0 0', transform: 'none' },
+            ]
+          : [{ opacity: 0 }, { opacity: 1 }],
+        { duration: MOVE_MS, easing: EASE },
+      )
+    }
+    const rect = el.getBoundingClientRect()
+    el.style.transformOrigin = `${x - rect.left}px ${y - rect.top}px`
+    busy = false
+  })
+  return true
 }
 
 function stepTarget(scale: number, from: number) {
@@ -396,48 +435,45 @@ function stepTarget(scale: number, from: number) {
   return Math.round((from * scale) / ZOOM_STEP) * ZOOM_STEP
 }
 
-let wheel = { scale: 1, from: 1 }
+let wheelScale = 1
 let wheelTimer: ReturnType<typeof setTimeout> | undefined
 
 function onWheel(event: WheelEvent) {
   if (!event.ctrlKey && !event.metaKey) return
   event.preventDefault()
-  if (!wheelTimer) {
-    wheel = { scale: 1, from: zoom.value }
-    anchorAt(event.clientX, event.clientY)
+  if (!gesture) {
+    wheelScale = 1
+    beginZoom(1, event.clientX, event.clientY)
   }
-  wheel.scale *= Math.exp(-Math.max(-40, Math.min(40, event.deltaY)) * 0.01)
-  const target = stepTarget(wheel.scale, wheel.from)
-  if (Math.abs(target - zoom.value) > 0.01) moveTo(target)
+  wheelScale *= Math.exp(-Math.max(-40, Math.min(40, event.deltaY)) * 0.01)
+  updateZoom(wheelScale)
   clearTimeout(wheelTimer)
-  wheelTimer = setTimeout(() => (wheelTimer = undefined), 200)
+  wheelTimer = setTimeout(endZoom, 150)
 }
 
-let pinch: { distance: number; from: number } | null = null
 const touchDistance = (touches: TouchList) =>
   Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
 
 function onPinchStart(event: TouchEvent) {
   if (event.touches.length !== 2) return
-  pinch = { distance: touchDistance(event.touches), from: zoom.value }
-  container.value?.addEventListener('touchmove', onPinchMove, { passive: false })
-  anchorAt(
+  beginZoom(
+    touchDistance(event.touches),
     (event.touches[0].clientX + event.touches[1].clientX) / 2,
     (event.touches[0].clientY + event.touches[1].clientY) / 2,
   )
+  container.value?.addEventListener('touchmove', onPinchMove, { passive: false })
 }
 
 function onPinchMove(event: TouchEvent) {
-  if (!pinch || event.touches.length !== 2) return
+  if (!gesture || event.touches.length !== 2) return
   event.preventDefault()
-  const target = stepTarget(touchDistance(event.touches) / pinch.distance, pinch.from)
-  if (Math.abs(target - zoom.value) > 0.01) moveTo(target)
+  updateZoom(touchDistance(event.touches))
 }
 
 function onPinchEnd(event: TouchEvent) {
-  if (!pinch || event.touches.length >= 2) return
-  pinch = null
+  if (!gesture || event.touches.length >= 2) return
   container.value?.removeEventListener('touchmove', onPinchMove)
+  endZoom()
 }
 
 function onTileClick(event: MouseEvent, photo: Photo) {
