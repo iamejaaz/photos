@@ -71,7 +71,7 @@
                 "
               >
                 <img
-                  :src="thumbnailUrl(tile.photo.name, tile.photo.album, needsLarge(tile))"
+                  :src="thumbnailUrl(tile.photo.name, tile.photo.album)"
                   :alt="tile.photo.file_name"
                   loading="lazy"
                   decoding="async"
@@ -79,6 +79,17 @@
                   class="size-full select-none object-cover transition-opacity duration-300 [-webkit-touch-callout:none]"
                   :class="loadedThumbs.has(tile.photo.name) ? 'opacity-100' : 'opacity-0'"
                   @load="onThumbLoad($event, tile.photo.name)"
+                />
+                <img
+                  v-if="needsLarge(tile) || sharpThumbs.has(tile.photo.name)"
+                  :src="thumbnailUrl(tile.photo.name, tile.photo.album, true)"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  draggable="false"
+                  class="absolute inset-0 size-full select-none object-cover transition-opacity duration-300 [-webkit-touch-callout:none]"
+                  :class="sharpThumbs.has(tile.photo.name) ? 'opacity-100' : 'opacity-0'"
+                  @load="onSharpLoad($event, tile.photo.name)"
                 />
                 <div
                   class="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/40 to-transparent transition-opacity"
@@ -208,6 +219,7 @@ const container = ref<HTMLElement>()
 const sentinel = ref<HTMLElement>()
 const width = ref(0)
 const loadedThumbs = new Set<string>()
+const sharpThumbs = new Set<string>()
 let lastClicked: string | null = null
 
 useResizeObserver(container, (entries) => {
@@ -479,12 +491,7 @@ function onPinchEnd(event: TouchEvent) {
 function onTileClick(event: MouseEvent, photo: Photo) {
   if (touchSelect.takeClick()) return
   if (selection.size) return toggle(photo, event)
-  openLightbox(
-    props.handle,
-    photo.name,
-    false,
-    (event.currentTarget as HTMLElement | null)?.querySelector('img')?.currentSrc || undefined,
-  )
+  openLightbox(props.handle, photo.name, false, sharpestSrc(event.currentTarget as HTMLElement | null))
 }
 
 const LARGE_FROM = 640
@@ -505,6 +512,20 @@ function selectedScale(tile: Tile) {
 
 function onThumbLoad(event: Event, name: string) {
   loadedThumbs.add(name)
+  ;(event.target as HTMLElement).classList.replace('opacity-0', 'opacity-100')
+}
+
+function sharpestSrc(tile: HTMLElement | null) {
+  return (
+    (
+      tile?.querySelector<HTMLImageElement>('img.opacity-100:last-of-type') ??
+      tile?.querySelector<HTMLImageElement>('img')
+    )?.currentSrc || undefined
+  )
+}
+
+function onSharpLoad(event: Event, name: string) {
+  sharpThumbs.add(name)
   ;(event.target as HTMLElement).classList.replace('opacity-0', 'opacity-100')
 }
 
