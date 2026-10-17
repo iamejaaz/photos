@@ -102,6 +102,7 @@
         <div
           ref="stage"
           class="relative flex min-h-0 flex-1 touch-none select-none items-center justify-center overflow-hidden"
+          :class="{ 'cursor-grab active:cursor-grabbing': gestures.state.scale > 1 }"
           :style="infoShift"
           v-on="gestures.handlers"
           @dragstart.prevent
@@ -824,6 +825,7 @@ const gestures = useViewerGestures({
     return true
   },
   zoomable: () => Boolean(photo.value && !isVideo(photo.value)),
+  stage: () => stage.value,
 })
 watch(
   () => [photo.value?.name, lightbox.open],
@@ -929,6 +931,27 @@ useKeyboardShortcut([
     handler: () => (lightbox.slideshow = true),
   },
   { combo: 'Escape', description: __('Close'), group: __('Viewer'), enabled: viewing, handler: close },
+  {
+    combo: 'Equal',
+    description: __('Zoom in'),
+    group: __('Viewer'),
+    enabled: viewing,
+    handler: () => gestures.zoomIn(),
+  },
+  {
+    combo: 'Minus',
+    description: __('Zoom out'),
+    group: __('Viewer'),
+    enabled: viewing,
+    handler: () => gestures.zoomOut(),
+  },
+  {
+    combo: 'Digit0',
+    description: __('Fit to screen'),
+    group: __('Viewer'),
+    enabled: viewing,
+    handler: () => gestures.zoomReset(),
+  },
 ])
 
 onMounted(() => {

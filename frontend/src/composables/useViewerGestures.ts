@@ -13,7 +13,10 @@ interface Options {
   onTap: () => void
   onBackdropClick?: (event: PointerEvent) => boolean
   zoomable: () => boolean
+  stage: () => HTMLElement | undefined
 }
+
+type SafariGesture = UIEvent & { scale: number; clientX: number; clientY: number }
 
 export const SWIPE_GAP = 16
 const SLOP = 8
@@ -23,6 +26,9 @@ const FLICK = 0.45
 const DOUBLE_TAP_MS = 280
 const MAX_SCALE = 4
 const DOUBLE_TAP_SCALE = 2.5
+const WHEEL_ZOOM = 0.01
+const WHEEL_STEP_LIMIT = 25
+const KEY_ZOOM = 1.5
 
 export function useViewerGestures(options: Options) {
   const state = reactive({ dx: 0, dy: 0, scale: 1, panX: 0, panY: 0, animating: false })
@@ -34,6 +40,7 @@ export function useViewerGestures(options: Options) {
   let tapTimer: ReturnType<typeof setTimeout> | undefined
   let width = 1
   let height = 1
+  let gestureScale = 1
 
   const distance = () => {
     const [a, b] = [...pointers.values()]
@@ -93,10 +100,9 @@ export function useViewerGestures(options: Options) {
       else mode = y > 0 ? 'dismiss' : 'info'
     }
     if (mode === 'pan') {
-      const limitX = (width * (state.scale - 1)) / 2
-      const limitY = (height * (state.scale - 1)) / 2
-      state.panX = Math.max(-limitX, Math.min(limitX, start.panX + x))
-      state.panY = Math.max(-limitY, Math.min(limitY, start.panY + y))
+      state.panX = start.panX + x
+      state.panY = start.panY + y
+      clampPan()
     } else if (mode === 'swipe') {
       const blocked = (x > 0 && !options.canPrevious()) || (x < 0 && !options.canNext())
       state.dx = blocked ? x * 0.25 : x
@@ -166,6 +172,59 @@ export function useViewerGestures(options: Options) {
     mode = null
   }
 
+  function clampPan() {
+    const limitX = (width * (state.scale - 1)) / 2
+    const limitY = (height * (state.scale - 1)) / 2
+    state.panX = Math.max(-limitX, Math.min(limitX, state.panX))
+    state.panY = Math.max(-limitY, Math.min(limitY, state.panY))
+  }
+
+  function zoomAt(next: number, x?: number, y?: number) {
+    const stage = options.stage()
+    if (!stage || !options.zoomable()) return
+    const rect = stage.getBoundingClientRect()
+    width = rect.width || 1
+    height = rect.height || 1
+    const scale = Math.min(MAX_SCALE, Math.max(1, next))
+    const offsetX = x === undefined ? 0 : x - rect.left - rect.width / 2
+    const offsetY = y === undefined ? 0 : y - rect.top - rect.height / 2
+    const ratio = scale / state.scale
+    Object.assign(state, {
+      scale,
+      panX: offsetX - ratio * (offsetX - state.panX),
+      panY: offsetY - ratio * (offsetY - state.panY),
+    })
+    clampPan()
+  }
+
+  function zoomBy(factor: number) {
+    animate(() => zoomAt(state.scale * factor))
+  }
+
+  function onWheel(event: WheelEvent) {
+    if (event.ctrlKey) {
+      event.preventDefault()
+      const delta = Math.max(-WHEEL_STEP_LIMIT, Math.min(WHEEL_STEP_LIMIT, event.deltaY))
+      zoomAt(state.scale * Math.exp(-delta * WHEEL_ZOOM), event.clientX, event.clientY)
+    } else if (state.scale > 1) {
+      event.preventDefault()
+      state.panX -= event.deltaX
+      state.panY -= event.deltaY
+      clampPan()
+    }
+  }
+
+  function onGestureStart(event: Event) {
+    event.preventDefault()
+    gestureScale = state.scale
+  }
+
+  function onGestureChange(event: Event) {
+    event.preventDefault()
+    const gesture = event as SafariGesture
+    zoomAt(gestureScale * gesture.scale, gesture.clientX, gesture.clientY)
+  }
+
   function tap(event: PointerEvent) {
     if (event.pointerType === 'mouse' && state.scale === 1 && options.onBackdropClick?.(event)) return
     const now = Date.now()
@@ -218,11 +277,17 @@ export function useViewerGestures(options: Options) {
     trackStyle,
     contentStyle,
     backdropOpacity,
+    zoomIn: () => zoomBy(KEY_ZOOM),
+    zoomOut: () => zoomBy(1 / KEY_ZOOM),
+    zoomReset: () => animate(() => Object.assign(state, { scale: 1, panX: 0, panY: 0 })),
     handlers: {
       pointerdown: onPointerDown,
       pointermove: onPointerMove,
       pointerup: onPointerUp,
       pointercancel: onPointerUp,
+      wheel: onWheel,
+      gesturestart: onGestureStart,
+      gesturechange: onGestureChange,
     },
   }
 }
