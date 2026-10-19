@@ -1,6 +1,15 @@
 <template>
   <button
-    v-if="status"
+    v-if="status && !label"
+    class="flex items-center gap-2"
+    :aria-label="__('Backup complete')"
+    @click="openSettings('backup')"
+  >
+    <span class="text-lg font-semibold text-ink-gray-9">{{ __('Photos') }}</span>
+    <LucideCloudCheck class="size-4 text-ink-gray-5" />
+  </button>
+  <button
+    v-else-if="status"
     class="flex items-center gap-2 rounded-full bg-surface-gray-2 px-3.5 py-2 text-base font-medium text-ink-gray-8"
     @click="openSettings('backup')"
   >
@@ -34,16 +43,16 @@ const label = computed(() => {
   if (!value.enabled) return __('Backup is off')
   if (value.permission !== 'granted' && value.permission !== 'partial') return __('Allow photo access')
   if (value.running && value.total) return __('Backing up {0} of {1}', [value.done, value.total])
+  if (value.running) return __('Backing up')
   if (waitingFor(value) === 'wifi') return __('Waiting for Wi-Fi')
   if (waitingFor(value) === 'internet') return __('No internet')
   if (value.lastError) return __('Backup paused')
-  return __('Backup complete')
+  return ''
 })
 const icon = computed(() => {
   const value = status.value!
   if (value.running) return LucideCloudUpload
   if (waitingFor(value)) return LucideWifiOff
-  if (!value.enabled || value.lastError) return LucideCloudOff
-  return LucideCloudCheck
+  return LucideCloudOff
 })
 </script>
