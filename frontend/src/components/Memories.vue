@@ -12,12 +12,15 @@
           class="size-full object-cover transition-transform duration-500 group-hover:scale-105"
           alt=""
         />
-        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-        <div class="absolute inset-x-3 bottom-3 text-white">
+        <div
+          class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"
+          :class="{ 'bg-black/40': memory.seen }"
+        />
+        <div class="absolute inset-x-3 bottom-3" :class="memory.seen ? 'text-white/60' : 'text-white'">
           <div class="text-lg font-semibold leading-tight sm:text-base">
             {{ memory.years_ago === 1 ? __('1 year ago') : __('{0} years ago', [memory.years_ago]) }}
           </div>
-          <div class="text-xs text-white/80">{{ itemCount(memory.photos.length) }}</div>
+          <div class="text-xs opacity-80">{{ itemCount(memory.photos.length) }}</div>
         </div>
       </button>
     </div>

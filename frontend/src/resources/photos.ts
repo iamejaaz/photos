@@ -36,6 +36,7 @@ export interface Memory {
   year: number
   years_ago: number
   photos: Photo[]
+  seen?: boolean
 }
 export interface Place {
   place: string | null
@@ -57,6 +58,7 @@ export const getDetails = (name: string, album?: string) =>
   call(`${PHOTOS}.get_details`, { name, album }) as Promise<any>
 export const getPhotoRow = (name: string) => call(`${PHOTOS}.photo_row`, { name }) as Promise<Photo | null>
 export const getMemories = () => call(`${PHOTOS}.memories`) as Promise<Memory[]>
+export const markMemoriesSeen = (files: string[]) => call(`${PHOTOS}.mark_memories_seen`, { files })
 export const getPlaces = () => call(`${PHOTOS}.places`) as Promise<Place[]>
 export const getMonths = () => call(`${PHOTOS}.months`) as Promise<MonthCount[]>
 export interface Folder {

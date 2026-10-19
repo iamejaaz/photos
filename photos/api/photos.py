@@ -370,13 +370,37 @@ def memories():
     for name in picked:
         if row := rows.get(name):
             years.setdefault(row["taken"].year, []).append(row)
-    return [
-        {"year": year, "years_ago": today.year - year, "photos": photos[:12]}
+    seen = _seen_memories()
+    found = [
+        {
+            "year": year,
+            "years_ago": today.year - year,
+            "photos": photos[:12],
+            "seen": all(photo["name"] in seen for photo in photos[:12]),
+        }
         for year, photos in sorted(years.items(), reverse=True)
     ]
+    return sorted(found, key=lambda memory: memory["seen"])
+
+
+@frappe.whitelist(methods=["POST"])
+def mark_memories_seen(files: list[str] | str):
+    files = json.loads(files) if isinstance(files, str) else files
+    seen = _seen_memories()
+    today = str(frappe.utils.getdate())
+    seen.update({name: today for name in files[:100] if isinstance(name, str)})
+    frappe.defaults.set_user_default(MEMORIES_SEEN, json.dumps(seen))
+
+
+def _seen_memories():
+    seen = json.loads(frappe.defaults.get_user_default(MEMORIES_SEEN) or "{}")
+    since = str(frappe.utils.add_days(frappe.utils.getdate(), -SEEN_DAYS))
+    return {name: day for name, day in seen.items() if day >= since}
 
 
 MEMORIES_SECONDS = 24 * 60 * 60
+MEMORIES_SEEN = "photos_memories_seen"
+SEEN_DAYS = 7
 
 
 def memories_key(user, day):

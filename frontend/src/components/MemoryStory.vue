@@ -143,7 +143,7 @@ import LucideVolumeX from '~icons/lucide/volume-x'
 import LucideX from '~icons/lucide/x'
 
 import { contentUrl, streamUrl, thumbnailUrl } from '../resources/media'
-import { isVideo } from '../resources/photos'
+import { isVideo, markMemoriesSeen } from '../resources/photos'
 import { useBackClose } from '../composables/useBackClose'
 import { memoriesVersion, memoryStory as story } from '../data/viewer'
 import { type PhotoPerson, getPhotoPeople } from '../resources/people'
@@ -180,9 +180,26 @@ let downAt = 0
 let downX = 0
 let downY = 0
 
+const watched = new Set<string>()
+
 function close() {
   story.open = false
 }
+
+watch(
+  () => story.open && photo.value?.name,
+  (name) => name && watched.add(name),
+)
+watch(
+  () => story.open,
+  async (open) => {
+    if (open || !watched.size) return
+    const files = [...watched]
+    watched.clear()
+    await markMemoriesSeen(files).catch(() => {})
+    memoriesVersion.value++
+  },
+)
 
 watch(
   () => photo.value?.name,
