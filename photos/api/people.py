@@ -137,7 +137,7 @@ def rename_person(person: str, person_name: str, merge: bool = False, separate: 
     frappe.db.set_value("Photo Person", person, "person_name", person_name)
 
 
-ASK_FROM = 0.4
+ASK_FROM = 0.6
 MIN_PHOTOS = 3
 UNDO_SECONDS = 60 * 60
 
