@@ -75,7 +75,7 @@ def content(entity_name: str, album: str | None = None, download: int = 0, displ
     if int(download or 0):
         if not can_access(entity_name, "read") and not album_access(album)["download"]:
             frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
-        return drive._serve_resumable(manager, storage_key(file.file_url), file.file_name, file.mime_type)
+        return drive._serve_resumable(manager, formats.source_key(file), file.file_name, file.mime_type)
     if (
         album
         and file.file_type == "Image"
@@ -93,6 +93,8 @@ def content(entity_name: str, album: str | None = None, download: int = 0, displ
                 return _send(clip, "video/mp4")
             if formats.needs_display_video(formats.source_path(file)):
                 formats.enqueue_display_video(file.name)
+    if file.status == STATUS_TRASHED:
+        return _send(formats.source_path(file), file.mime_type)
     return send_file(
         manager.get_file(file),
         mimetype=file.mime_type,
@@ -149,7 +151,7 @@ def _first_frame(file):
 
 
 def _preview(manager, file, size=1600):
-    with formats.open_image(manager.site_folder / storage_key(file.file_url), file.file_name) as image:
+    with formats.open_image(formats.source_path(file), file.file_name) as image:
         image.thumbnail((size, size))
         output = BytesIO()
         image.convert("RGB").save(output, "JPEG", quality=85)

@@ -2,6 +2,7 @@ from fractions import Fraction
 from pathlib import Path, PurePosixPath
 
 import frappe
+from suite.drive.utils import STATUS_TRASHED
 from suite.drive.utils.files import FileManager, storage_key
 
 RAW = {"cr2", "cr3", "nef", "arw", "dng", "raf", "orf", "rw2", "pef", "srw"}
@@ -33,8 +34,14 @@ def raw_mime(file_name):
     return f"image/x-{extension(file_name)}"
 
 
+def source_key(file):
+    if file.get("status") == STATUS_TRASHED:
+        return str(FileManager().get_trash_path(file))
+    return storage_key(file.file_url or "")
+
+
 def source_path(file):
-    return FileManager().site_folder / storage_key(file.file_url or "")
+    return FileManager().site_folder / source_key(file)
 
 
 def derived_path(name, suffix):

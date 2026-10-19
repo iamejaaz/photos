@@ -6,6 +6,7 @@ from suite.drive.utils.files import FileManager, storage_key
 from photos.smart import assets
 from photos.smart.settings import enabled
 from photos.utils import auto_albums
+from photos.utils.formats import source_path
 
 DETECT_SIDE = 1280
 MIN_FACE = 48
@@ -436,10 +437,7 @@ def _frame(file_name, timestamp):
     from photos.utils.formats import upright
 
     file = frappe.get_doc("File", file_name)
-    manager = FileManager()
-    path = manager.site_folder / (
-        manager.get_trash_path(file) if file.status == "Trashed" else storage_key(file.file_url or "")
-    )
+    path = source_path(file)
     if (file.mime_type or "").startswith("video/"):
         with av.open(str(path)) as container:
             stream = container.streams.video[0]
