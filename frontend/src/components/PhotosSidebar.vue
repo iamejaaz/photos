@@ -40,7 +40,6 @@
         :icon="LucideMessageSquareWarning"
         :on-click="reportProblem"
       />
-      <SidebarItem :label="__('Open Drive')" :icon="LucideHardDrive" href="/drive" />
       <SidebarCollapseToggle />
     </div>
   </Sidebar>
@@ -62,7 +61,6 @@ import LucideUsersRound from '~icons/lucide/users-round'
 import LucideUsers from '~icons/lucide/users'
 import LucideCheck from '~icons/lucide/check'
 import LucideFolder from '~icons/lucide/folder'
-import LucideHardDrive from '~icons/lucide/hard-drive'
 import LucideMessageSquareWarning from '~icons/lucide/message-square-warning'
 import LucideImages from '~icons/lucide/images'
 import LucideMonitor from '~icons/lucide/monitor'

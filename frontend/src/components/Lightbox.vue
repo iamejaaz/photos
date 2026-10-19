@@ -76,11 +76,6 @@
                   <component :is="details?.archived ? LucideArchiveRestore : LucideArchive" class="size-5" />
                 </button>
               </Tooltip>
-              <Tooltip :text="__('Open in Drive')">
-                <button class="flex lightbox-button max-sm:hidden" @click="openInDrive">
-                  <LucideFolderOpen class="size-5" />
-                </button>
-              </Tooltip>
             </template>
             <Dropdown :options="moreActions" placement="right">
               <button class="flex lightbox-button sm:hidden" :aria-label="__('More')">
@@ -420,14 +415,15 @@
             </section>
             <section v-if="details.folder">
               <div class="mb-2 text-sm font-medium text-ink-gray-5">
-                {{ __('In Drive') }}
+                {{ __('Folder') }}
               </div>
               <dl class="flex flex-col gap-3">
                 <InfoRow
                   :icon="LucideFolder"
                   :title="details.folder_title"
                   :subtitle="__('Uploaded by {0}', [details.owner_name || details.owner])"
-                  :href="`/drive/d/${details.folder}`"
+                  :to="{ name: 'photos-folder', params: { folder: details.folder } }"
+                  @click="close"
                 />
               </dl>
             </section>
@@ -505,7 +501,6 @@ import LucideDownload from '~icons/lucide/download'
 import LucideShare2 from '~icons/lucide/share-2'
 import LucideEllipsisVertical from '~icons/lucide/ellipsis-vertical'
 import LucideFolder from '~icons/lucide/folder'
-import LucideFolderOpen from '~icons/lucide/folder-open'
 import LucideImage from '~icons/lucide/image'
 import LucideImagePlus from '~icons/lucide/image-plus'
 import LucideHeart from '~icons/lucide/heart'
@@ -578,7 +573,6 @@ const moreActions = computed(() => {
       icon: 'lucide-archive',
       onClick: toggleArchive,
     })
-    items.push({ label: __('Open in Drive'), icon: 'lucide-folder-open', onClick: openInDrive })
   }
   return items
 })
@@ -934,12 +928,6 @@ function openOriginal() {
   if (!details.value?.original) return
   lightbox.showInfo = false
   openLightbox(createStaticFeed([details.value.original]), details.value.original.name)
-}
-
-function openInDrive() {
-  if (!photo.value) return
-  close()
-  window.location.assign(`/drive/f/${photo.value.name}`)
 }
 
 async function removeCurrent() {

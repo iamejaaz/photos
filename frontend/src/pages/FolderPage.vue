@@ -13,12 +13,6 @@
         folder.owner_name
       }}</span>
     </template>
-    <template #actions>
-      <Button :href="`/drive/d/${props.folder}`">
-        <template #prefix><LucideHardDrive class="size-4" /></template>
-        {{ __('Open in Drive') }}
-      </Button>
-    </template>
   </PhotosHeader>
   <PhotoGrid
     :handle="handle"
@@ -30,10 +24,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Button, usePageMeta } from 'frappe-ui'
+import { usePageMeta } from 'frappe-ui'
 import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideFolder from '~icons/lucide/folder'
-import LucideHardDrive from '~icons/lucide/hard-drive'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import { type Folder, getFolders } from '../resources/photos'
