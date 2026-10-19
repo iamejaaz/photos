@@ -21,9 +21,12 @@
           {{ __('View all') }}
         </router-link>
       </div>
-      <div class="flex gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        ref="peopleRow"
+        class="flex gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         <router-link
-          v-for="person in people.slice(0, 12)"
+          v-for="person in shownPeople"
           :key="person.name"
           :to="{ name: 'photos-person', params: { person: person.name } }"
           class="group flex w-24 shrink-0 flex-col items-center gap-1.5 text-center"
@@ -138,6 +141,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useElementSize } from '@vueuse/core'
 import { Button, usePageMeta } from 'frappe-ui'
 import LucideCompass from '~icons/lucide/compass'
 import LucideUpload from '~icons/lucide/upload'
@@ -169,6 +173,17 @@ const empty = computed(
 )
 const namedPlaces = computed(() => allPlaces.value.filter((place) => place.place).slice(0, 16))
 const people = ref<Person[]>([])
+const PERSON_WIDTH = 96
+const PERSON_GAP = 16
+const MIN_PEOPLE = 12
+const peopleRow = ref<HTMLElement>()
+const { width: rowWidth } = useElementSize(peopleRow)
+const shownPeople = computed(() =>
+  people.value.slice(
+    0,
+    Math.max(MIN_PEOPLE, Math.floor((rowWidth.value + PERSON_GAP) / (PERSON_WIDTH + PERSON_GAP))),
+  ),
+)
 const peopleLoaded = ref(false)
 getPeople()
   .then((result) => (people.value = result.people))
