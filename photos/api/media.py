@@ -67,22 +67,26 @@ def thumbnail(entity_name: str, album: str | None = None, large: int = 0):
 def content(entity_name: str, album: str | None = None, download: int = 0, display: int = 0, motion: int = 0):
     file = _file(entity_name, album)
     manager = FileManager()
+    gated = bool(album) and not can_access(entity_name, "read") and not album_access(album)["download"]
+    if int(download or 0):
+        if not can_access(entity_name, "read") and not album_access(album)["download"]:
+            frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
+        return drive._serve_resumable(manager, formats.source_key(file), file.file_name, file.mime_type)
+    if gated:
+        if int(motion or 0):
+            clip = formats.derived_path(file.name, ".motion.mp4")
+            if clip.exists():
+                return _send(_reduced_video(file, clip), "video/mp4")
+        if (file.mime_type or "").startswith("video/"):
+            return _send(_reduced_video(file), "video/mp4")
+        if (file.mime_type or "").startswith("image/"):
+            return _preview(manager, file)
+        frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
     if int(motion or 0):
         clip = formats.derived_path(file.name, ".motion.mp4")
         if not clip.exists():
             frappe.throw("Not found", frappe.DoesNotExistError)
         return _send(clip, "video/mp4")
-    if int(download or 0):
-        if not can_access(entity_name, "read") and not album_access(album)["download"]:
-            frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
-        return drive._serve_resumable(manager, formats.source_key(file), file.file_name, file.mime_type)
-    if (
-        album
-        and file.file_type == "Image"
-        and not can_access(entity_name, "read")
-        and not album_access(album)["download"]
-    ):
-        return _preview(manager, file)
     if int(display or 0):
         if formats.needs_display_image(file):
             return _send(formats.display_image(file), "image/jpeg")
@@ -110,6 +114,19 @@ def _send(path, mimetype):
     return send_file(
         str(path), mimetype=mimetype, conditional=True, max_age=3600, environ=frappe.request.environ
     )
+
+
+def _reduced_video(file, source=None, suffix=".mp4"):
+    target = formats.derived_path(file.name, suffix)
+    if not target.exists():
+        partial = target.with_name(f"{target.stem}.{frappe.generate_hash(6)}.part.mp4")
+        try:
+            formats.transcode(source or formats.source_path(file), partial, max_height=formats.VIDEO_HEIGHT)
+        except Exception:
+            partial.unlink(missing_ok=True)
+            frappe.throw("This video cannot be played here.", frappe.PermissionError)
+        partial.rename(target)
+    return target
 
 
 def _large_thumbnail(file):
