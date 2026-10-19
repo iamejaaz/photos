@@ -28,6 +28,9 @@ def upload(album: str, name: str | None = None):
         frappe.throw("That file is too large.")
     if not _looks_valid(content, suffix):
         frappe.throw("Only photos and videos can be added.")
+    sniffed = _sniffed_type(content, suffix) or ""
+    if not sniffed.startswith(("image/", "video/")):
+        frappe.throw("Only photos and videos can be added.")
 
     guest = frappe.session.user == "Guest"
     added_by = (name or "").strip()[:80] if guest else None
@@ -101,3 +104,13 @@ def _looks_valid(content, suffix):
     except Exception:
         return False
     return True
+
+
+def _sniffed_type(content, suffix):
+    import mimemapper
+
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / f"upload{suffix}"
+        path.write_bytes(content)
+        return mimemapper.get_mime_type(str(path), native_first=False)
+
