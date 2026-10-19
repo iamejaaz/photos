@@ -3,9 +3,15 @@ import { toast } from 'frappe-ui'
 
 const KEEP_ERRORS = 15
 const SCREENSHOT_SIDE = 1280
+const DIALOG_OPEN_MS = 250
 
 export const recentErrors: string[] = []
-export const problemReport = reactive({ open: false, page: '', screenshot: null as string | null })
+export const problemReport = reactive({
+  open: false,
+  page: '',
+  screenshot: null as string | null,
+  capturing: false,
+})
 
 export function recordError(text: unknown) {
   if (!text) return
@@ -15,16 +21,27 @@ export function recordError(text: unknown) {
 
 export async function reportProblem() {
   problemReport.page = window.location.pathname + window.location.search
-  problemReport.screenshot = await captureScreen().catch(() => null)
+  problemReport.screenshot = null
+  if (import.meta.env.VITE_NATIVE) {
+    problemReport.screenshot = await captureNative().catch(() => null)
+    problemReport.open = true
+    return
+  }
+  const onScreen = new Set(document.body.children)
+  problemReport.capturing = true
   problemReport.open = true
+  await new Promise((painted) => setTimeout(painted, DIALOG_OPEN_MS))
+  problemReport.screenshot = await capturePage(onScreen).catch(() => null)
+  problemReport.capturing = false
 }
 
-async function captureScreen() {
-  if (import.meta.env.VITE_NATIVE) {
-    const { photosShell } = await import('../native/shell')
-    const { plugin } = await photosShell()
-    return (await plugin.captureScreen()).dataUrl
-  }
+async function captureNative() {
+  const { photosShell } = await import('../native/shell')
+  const { plugin } = await photosShell()
+  return (await plugin.captureScreen()).dataUrl
+}
+
+async function capturePage(onScreen: Set<Element>) {
   const { toJpeg } = await import('html-to-image')
   const scale = Math.min(1, SCREENSHOT_SIDE / Math.max(window.innerWidth, window.innerHeight))
   return toJpeg(document.body, {
@@ -33,6 +50,9 @@ async function captureScreen() {
     width: window.innerWidth,
     height: window.innerHeight,
     backgroundColor: getComputedStyle(document.body).backgroundColor,
+    filter: (node) =>
+      !(node instanceof HTMLElement && node.parentElement === document.body) ||
+      (onScreen.has(node) && !node.querySelector('[data-problem-report]')),
   })
 }
 

@@ -1,12 +1,19 @@
 <template>
   <Dialog v-model:open="problemReport.open" :title="__('Report a problem')" size="md">
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-4" data-problem-report>
       <Textarea
         v-model="description"
         :rows="3"
         :placeholder="__('What went wrong? This is optional, the screenshot often says enough.')"
       />
-      <div v-if="problemReport.screenshot" class="flex flex-col items-start gap-2">
+      <div
+        v-if="problemReport.capturing"
+        class="flex h-32 w-48 items-center justify-center gap-2 rounded-lg border border-outline-gray-2 text-sm text-ink-gray-5"
+      >
+        <LoadingIndicator class="size-4" />
+        {{ __('Taking a screenshot') }}
+      </div>
+      <div v-else-if="problemReport.screenshot" class="flex flex-col items-start gap-2">
         <img
           :src="problemReport.screenshot"
           class="max-h-48 w-auto rounded-lg border border-outline-gray-2 object-contain"
@@ -27,14 +34,16 @@
       </p>
     </div>
     <template #actions>
-      <Button variant="solid" class="w-full" :loading="sending" @click="send">{{ __('Send report') }}</Button>
+      <Button variant="solid" class="w-full" :loading="sending || problemReport.capturing" @click="send">{{
+        __('Send report')
+      }}</Button>
     </template>
   </Dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Button, Dialog, Textarea, call, toast } from 'frappe-ui'
+import { Button, Dialog, LoadingIndicator, Textarea, call, toast } from 'frappe-ui'
 import LucideImagePlus from '~icons/lucide/image-plus'
 
 import { problemReport, recentErrors, shrinkImage } from '../data/problems'
