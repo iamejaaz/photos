@@ -25,7 +25,7 @@
         <Button
           v-if="!isTab"
           class="-ml-2 shrink-0"
-          :class="{ 'sm:hidden': !isDetail }"
+          :class="{ 'sm:hidden': !showsOnDesktop }"
           variant="ghost"
           :aria-label="__('Back')"
           @click="goBack"
@@ -186,6 +186,11 @@ watch(query, (value) => {
 const confirmDelete = ref(false)
 const loggedIn = computed(() => useSessionStore().isLoggedIn)
 
+const BREADCRUMB_PAGES = new Set(['photos-person', 'photos-album', 'photos-folder'])
+const hasBreadcrumb = computed(
+  () => BREADCRUMB_PAGES.has(String(route.name)) && (route.name !== 'photos-album' || loggedIn.value),
+)
+const showsOnDesktop = computed(() => isDetail.value && !hasBreadcrumb.value)
 const rowFor = (name: string) => (activeFeed.value?.feed.rows ?? []).find((row) => row.name === name) as Photo
 const selected = () => (activeFeed.value?.feed.rows ?? []).filter((row) => selection.has(row.name))
 const writable = () =>
