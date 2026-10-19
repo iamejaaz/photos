@@ -600,7 +600,7 @@ def get_details(name: str, album: str | None = None):
         as_dict=True,
     )
     if frappe.session.user == "Guest" or not photo_access(name).get("read"):
-        file.update(folder=None, owner=None, albums=[])
+        file.update(folder=None, owner=None, owner_name=None, albums=[])
         if file.metadata:
             file.metadata.update(latitude=None, longitude=None, place=None)
         return file
