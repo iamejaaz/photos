@@ -23,7 +23,7 @@ export async function reportProblem() {
   problemReport.page = window.location.pathname + window.location.search
   problemReport.screenshot = null
   if (import.meta.env.VITE_NATIVE) {
-    problemReport.screenshot = await captureNative().catch(() => null)
+    problemReport.screenshot = await captureNative().catch(screenshotFailed)
     problemReport.open = true
     return
   }
@@ -31,8 +31,15 @@ export async function reportProblem() {
   problemReport.capturing = true
   problemReport.open = true
   await new Promise((painted) => setTimeout(painted, DIALOG_OPEN_MS))
-  problemReport.screenshot = await capturePage(onScreen).catch(() => null)
+  problemReport.screenshot = await capturePage(onScreen).catch(screenshotFailed)
   problemReport.capturing = false
+}
+
+function screenshotFailed(error: unknown) {
+  recordError(
+    `Screenshot failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}`,
+  )
+  return null
 }
 
 async function captureNative() {
