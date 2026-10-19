@@ -445,6 +445,8 @@ def activity(album: str):
     if link_only(album):
         for row in rows:
             row.owner = None
+            row.full_name = row.owner
+            row.user_image = None
     return rows
 
 
