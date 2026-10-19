@@ -3,7 +3,10 @@ from photos.smart.settings import enabled
 
 MIN_CONFIDENCE = 0.2
 CATEGORY_CONFIDENCE = 0.15
+ANIMAL_CONFIDENCE = 0.5
 TOP_LABELS = 3
+PRIMATES = range(365, 385)
+ANIMALS = {"Dogs", "Cats", "Birds", "Animals"}
 
 CATEGORIES = {
     "Dogs": [range(151, 269)],
@@ -15,7 +18,8 @@ CATEGORIES = {
         range(101, 127),
         range(147, 151),
         range(269, 281),
-        range(286, 398),
+        range(286, 365),
+        range(385, 398),
     ],
     "Food": [range(923, 968), [969]],
     "Flowers": [[985, 986]],
@@ -46,7 +50,7 @@ def _model():
     return _engine
 
 
-def classify(image):
+def classify(image, people=False):
     import numpy as np
 
     net, labels = _model()
@@ -59,13 +63,17 @@ def classify(image):
     logits = net.forward().flatten()
     probabilities = np.exp(logits - logits.max())
     probabilities /= probabilities.sum()
+    probabilities[list(PRIMATES)] = 0
 
-    top = probabilities.argsort()[::-1][:TOP_LABELS]
-    picked = [int(i) for i in top if probabilities[i] >= MIN_CONFIDENCE] or [int(top[0])]
+    def allowed(index):
+        if LABEL_CATEGORY.get(index) not in ANIMALS:
+            return True
+        return not people and probabilities[index] >= ANIMAL_CONFIDENCE
+
+    top = [int(i) for i in probabilities.argsort()[::-1] if allowed(int(i))][:TOP_LABELS]
+    picked = [i for i in top if probabilities[i] >= MIN_CONFIDENCE] or top[:1]
     names = [labels[i].split(",")[0] for i in picked]
     categories = {
-        LABEL_CATEGORY[int(i)]
-        for i in top
-        if probabilities[i] >= CATEGORY_CONFIDENCE and int(i) in LABEL_CATEGORY
+        LABEL_CATEGORY[i] for i in top if probabilities[i] >= CATEGORY_CONFIDENCE and i in LABEL_CATEGORY
     }
     return {"labels": ", ".join(names), "things": ", ".join(sorted(categories))}

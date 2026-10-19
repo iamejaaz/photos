@@ -6,6 +6,7 @@
 # Patches added in this section will be executed after doctypes are migrated
 photos.patches.store_file_dates
 photos.patches.regroup_people
+photos.patches.reclassify_animal_things
 
 [post_fixture_sync]
 # Patches added in this section will be executed after fixtures and customizations

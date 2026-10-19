@@ -18,10 +18,11 @@ def enrich(file_name):
         found = places.lookup(meta.latitude, meta.longitude)
         if found:
             updates.update(place=f"{found['city']}, {found['country']}", country=found["country"])
+    faces.scan_file(file_name)
     if not meta.things_scanned and things.available():
         image = _preview(file_name)
         if image is not None:
-            updates.update(things.classify(image))
+            updates.update(things.classify(image, people=frappe.db.exists("Photo Face", {"file": file_name})))
         updates["things_scanned"] = 1
     if not meta.text_scanned and text.available():
         image = _preview(file_name, 1280)
@@ -35,7 +36,6 @@ def enrich(file_name):
         updates["embedded"] = 1
     if updates:
         frappe.db.set_value("Photo Metadata", meta.name, updates, update_modified=False)
-    faces.scan_file(file_name)
 
 
 def _preview(file_name, size=512):
