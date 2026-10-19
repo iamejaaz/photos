@@ -34,7 +34,10 @@ def challenge_for(verifier):
 @rate_limit(limit=30, seconds=60 * 10)
 def begin(challenge: str, return_to: str):
     target = urlparse(return_to)
+    our = urlparse(get_url())
     if target.scheme not in ("https", "http") or not target.netloc or not available():
+        return _stop()
+    if target.netloc != our.netloc or target.scheme != our.scheme:
         return _stop()
     state = create_google_oauth_state({"challenge": challenge, "return_to": return_to})
     query = {
