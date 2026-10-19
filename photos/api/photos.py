@@ -632,6 +632,7 @@ def _as_list(value):
 
 @frappe.whitelist()
 def duplicates(threshold: int = 8):
+    threshold = min(24, max(4, cint(threshold)))
     rows = (
         media_base(archived=None)
         .where(File.owner == frappe.session.user)
