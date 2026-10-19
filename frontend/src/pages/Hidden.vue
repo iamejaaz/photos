@@ -14,13 +14,35 @@
   >
     <LucideLock class="size-6 text-ink-gray-6" />
     <div class="text-lg font-medium text-ink-gray-8">{{ __('Hidden photos are locked') }}</div>
-    <div class="text-base text-ink-gray-5">{{ __('Enter your account password to see them.') }}</div>
-    <Password v-model="password" class="w-full" :autofocus="!screenLock" />
+    <template v-if="codeSentTo">
+      <div class="text-base text-ink-gray-5">
+        {{ __('Enter the 6 digit code we sent to {0}.', [codeSentTo]) }}
+      </div>
+      <TextInput
+        v-model="code"
+        class="w-full"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        :maxlength="6"
+        autofocus
+      />
+    </template>
+    <template v-else>
+      <div class="text-base text-ink-gray-5">{{ __('Enter your account password to see them.') }}</div>
+      <Password v-model="password" class="w-full" :autofocus="!screenLock" />
+    </template>
     <ErrorMessage :message="passwordError" />
     <Button variant="solid" class="w-full" type="submit" :loading="unlocking">{{ __('Unlock') }}</Button>
     <Button v-if="screenLock" variant="ghost" class="w-full" :loading="unlocking" @click="screenUnlock">
       <template #prefix><LucideFingerprint class="size-4" /></template>
       {{ __('Use screen lock') }}
+    </Button>
+    <Button variant="ghost" class="w-full" :loading="sendingCode" @click="sendCode">
+      <template #prefix><LucideMail class="size-4" /></template>
+      {{ codeSentTo ? __('Send a new code') : __('Email me a code') }}
+    </Button>
+    <Button v-if="codeSentTo" variant="ghost" class="w-full" @click="codeSentTo = ''">
+      {{ __('Use password instead') }}
     </Button>
   </form>
   <template v-else-if="unlocked">
@@ -43,13 +65,21 @@
 <script setup lang="ts">
 import { errorText } from '../resources/drive'
 import { onBeforeUnmount, ref } from 'vue'
-import { Button, ErrorMessage, Password, usePageMeta } from 'frappe-ui'
+import { Button, ErrorMessage, Password, TextInput, usePageMeta } from 'frappe-ui'
 import LucideEyeOff from '~icons/lucide/eye-off'
 import LucideFingerprint from '~icons/lucide/fingerprint'
 import LucideLock from '~icons/lucide/lock'
+import LucideMail from '~icons/lucide/mail'
 
 import { appPageMeta } from '@/utils/documentTitle'
-import { HIDDEN_PHOTOS, hiddenState, lockHidden, unlockHidden } from '../resources/hidden'
+import {
+  HIDDEN_PHOTOS,
+  emailUnlockCode,
+  hiddenState,
+  lockHidden,
+  unlockHidden,
+  unlockWithCode,
+} from '../resources/hidden'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { createFeed } from '../data/feed'
@@ -58,6 +88,9 @@ const unlocked = ref<boolean | null>(null)
 const password = ref('')
 const passwordError = ref('')
 const unlocking = ref(false)
+const code = ref('')
+const codeSentTo = ref('')
+const sendingCode = ref(false)
 const handle = createFeed(HIDDEN_PHOTOS)
 
 const screenLock = ref(false)
@@ -91,13 +124,29 @@ async function unlock() {
   unlocking.value = true
   passwordError.value = ''
   try {
-    await unlockHidden(password.value)
+    if (codeSentTo.value) await unlockWithCode(code.value)
+    else await unlockHidden(password.value)
     password.value = ''
+    code.value = ''
+    codeSentTo.value = ''
     unlocked.value = true
   } catch (error) {
     passwordError.value = errorText(error) || __('That password is not right.')
   } finally {
     unlocking.value = false
+  }
+}
+
+async function sendCode() {
+  sendingCode.value = true
+  passwordError.value = ''
+  try {
+    codeSentTo.value = (await emailUnlockCode()).email
+    code.value = ''
+  } catch (error) {
+    passwordError.value = errorText(error) || __('Could not send the code. Try again in a bit.')
+  } finally {
+    sendingCode.value = false
   }
 }
 
