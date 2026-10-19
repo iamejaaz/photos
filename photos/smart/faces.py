@@ -1,4 +1,5 @@
 import base64
+import json
 
 import frappe
 from suite.drive.utils.files import FileManager, storage_key
@@ -289,8 +290,6 @@ def share_photo(first, second):
 
 
 def dismissed_pairs(owner=None):
-    import json
-
     return set(json.loads(frappe.defaults.get_user_default(NOT_SAME, owner or frappe.session.user) or "[]"))
 
 
@@ -502,10 +501,23 @@ def regroup(owner):
             frappe.delete_doc("Photo Person", row.name, ignore_permissions=True, force=True)
 
 
+def merge_person(source, target):
+    owner = frappe.db.get_value("Photo Person", target, "owner")
+    frappe.db.set_value("Photo Face", {"person": source}, "person", target, update_modified=False)
+    auto_albums.replace_person(source, target)
+    frappe.delete_doc("Photo Person", source, ignore_permissions=True, force=True)
+    dismissed = dismissed_pairs(owner)
+    carried = {
+        "|".join(sorted(people))
+        for pair in dismissed
+        if len(people := {target if person == source else person for person in pair.split("|")}) == 2
+    }
+    if not carried <= dismissed:
+        frappe.defaults.set_user_default(NOT_SAME, json.dumps(sorted(dismissed | carried)), owner)
+
+
 def _absorb(keep, drop):
-    frappe.db.set_value("Photo Face", {"person": drop.name}, "person", keep.name, update_modified=False)
-    auto_albums.replace_person(drop.name, keep.name)
-    frappe.delete_doc("Photo Person", drop.name, ignore_permissions=True, force=True)
+    merge_person(drop.name, keep.name)
     recompute(keep.name)
     if drop.get("person_name") and not keep.person_name:
         frappe.db.set_value("Photo Person", keep.name, "person_name", drop.person_name, update_modified=False)

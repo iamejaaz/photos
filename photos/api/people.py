@@ -237,9 +237,7 @@ def merge_people(target: str, sources: list[str] | str):
     chosen = next((person for person in people if person.cover_chosen), None)
     person_name = next((person.person_name for person in people if person.person_name), None)
     for source in sources:
-        frappe.db.set_value("Photo Face", {"person": source}, "person", target, update_modified=False)
-        auto_albums.replace_person(source, target)
-        frappe.delete_doc("Photo Person", source, ignore_permissions=True, force=True)
+        engine.merge_person(source, target)
     engine.recompute(target)
     frappe.db.set_value(
         "Photo Person",
