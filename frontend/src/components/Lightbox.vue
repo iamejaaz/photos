@@ -170,7 +170,7 @@
                 />
                 <div v-else :key="photo.name" class="relative flex size-full items-center justify-center">
                   <img
-                    v-if="!loaded"
+                    v-if="!loaded || broken"
                     :src="
                       lightbox.placeholder?.name === photo.name
                         ? lightbox.placeholder.src
@@ -180,7 +180,7 @@
                     alt=""
                   />
                   <img
-                    v-if="loaded"
+                    v-if="loaded && !broken"
                     :src="contentUrl(photo.name, photo.album)"
                     :alt="photo.file_name"
                     decoding="async"
@@ -547,6 +547,7 @@ const feed = computed(() => activeFeed.value)
 const rows = computed(() => feed.value?.feed.rows ?? [])
 const photo = computed(() => rows.value[lightbox.index])
 const loaded = ref(false)
+const broken = ref(false)
 const sharp = ref(false)
 const editing = ref(false)
 const photoPeople = ref<PhotoPerson[]>([])
@@ -713,6 +714,7 @@ watch(
   async ([name], previous) => {
     if (name !== previous?.[0]) {
       loaded.value = false
+      broken.value = false
       sharp.value = false
       details.value = null
     }
@@ -738,9 +740,14 @@ watch(
     if (isVideo(current)) return void (loaded.value = true)
     const image = new Image()
     image.src = contentUrl(current.name, current.album)
-    await image.decode().catch(() => {})
+    const decoded = await image.decode().then(
+      () => true,
+      () => false,
+    )
     await settled()
-    if (photo.value?.name === current.name) loaded.value = true
+    if (photo.value?.name !== current.name) return
+    broken.value = !decoded
+    loaded.value = true
   },
   { immediate: true },
 )
