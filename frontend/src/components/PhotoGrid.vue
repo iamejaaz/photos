@@ -71,7 +71,11 @@
                 "
               >
                 <img
-                  :src="thumbnailUrl(tile.photo.name, tile.photo.album)"
+                  :src="
+                    flinging && !loadedThumbs.has(tile.photo.name)
+                      ? undefined
+                      : thumbnailUrl(tile.photo.name, tile.photo.album)
+                  "
                   :alt="tile.photo.file_name"
                   loading="lazy"
                   decoding="async"
@@ -81,7 +85,7 @@
                   @load="onThumbLoad($event, tile.photo.name)"
                 />
                 <img
-                  v-if="needsLarge(tile) || sharpThumbs.has(tile.photo.name)"
+                  v-if="sharpThumbs.has(tile.photo.name) || (needsLarge(tile) && !flinging)"
                   :src="thumbnailUrl(tile.photo.name, tile.photo.album, true)"
                   alt=""
                   loading="lazy"
@@ -531,12 +535,17 @@ function onSharpLoad(event: Event, name: string) {
 }
 
 const OVERSCAN = 1.5
+const FLING_SPEED = 3
+const FLING_SETTLE_MS = 120
 const MONTH_HEADER = 56
 const DAY_HEADER = 36
 const measured = new Map<string, number>()
 const measuredVersion = ref(0)
 const view = reactive({ top: 0, height: window.innerHeight })
 let measureFrame = 0
+const flinging = ref(false)
+let lastView = { top: 0, time: 0 }
+let flingTimer: ReturnType<typeof setTimeout> | undefined
 let savedScroll = 0
 let lastScroll = 0
 
@@ -625,6 +634,13 @@ function updateView() {
   if (!container.value) return
   view.top = -container.value.getBoundingClientRect().top
   view.height = window.innerHeight
+  const now = performance.now()
+  if (Math.abs(view.top - lastView.top) / Math.max(1, now - lastView.time) > FLING_SPEED) {
+    flinging.value = true
+    clearTimeout(flingTimer)
+    flingTimer = setTimeout(() => (flinging.value = false), FLING_SETTLE_MS)
+  }
+  lastView = { top: view.top, time: now }
   if (activeFeed.value === props.handle) gridNav.month = lines.value[lineAt(view.top + 80)]?.monthKey ?? ''
 }
 
@@ -686,6 +702,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('scroll', onScroll, { capture: true })
   window.removeEventListener('resize', onScroll)
   cancelAnimationFrame(measureFrame)
+  clearTimeout(flingTimer)
   if (gridNav.jump === jumpToMonth) gridNav.jump = null
 })
 watch(() => lines.value.length, onScroll)
