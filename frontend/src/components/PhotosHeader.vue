@@ -24,7 +24,8 @@
       <div class="flex min-w-0 items-center gap-2">
         <Button
           v-if="!isTab"
-          class="-ml-2 shrink-0 sm:hidden"
+          class="-ml-2 shrink-0"
+          :class="{ 'sm:hidden': !isDetail }"
           variant="ghost"
           :aria-label="__('Back')"
           @click="goBack"
@@ -170,6 +171,8 @@ const router = useRouter()
 
 const TABS = new Set(['photos-home', 'photos-explore', 'photos-sharing', 'photos-library'])
 const isTab = computed(() => TABS.has(String(route.name)))
+const DETAILS = new Set(['photos-search', 'photos-person', 'photos-album', 'photos-folder'])
+const isDetail = computed(() => DETAILS.has(String(route.name)))
 
 function goBack() {
   if (window.history.state?.back) router.back()
