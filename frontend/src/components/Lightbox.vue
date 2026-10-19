@@ -87,7 +87,27 @@
                 <LucideEllipsisVertical class="size-5" />
               </button>
             </Dropdown>
-            <Tooltip v-if="photo.write" :text="__('Move to trash')">
+            <template v-if="trashed && photo.write">
+              <Tooltip :text="__('Restore')">
+                <button
+                  class="flex lightbox-button max-sm:hidden"
+                  :aria-label="__('Restore')"
+                  @click="restore([photo.name])"
+                >
+                  <LucideRotateCcw class="size-5" />
+                </button>
+              </Tooltip>
+              <Tooltip :text="__('Delete forever')">
+                <button
+                  class="flex lightbox-button max-sm:hidden"
+                  :aria-label="__('Delete forever')"
+                  @click="confirmForever = true"
+                >
+                  <LucideTrash2 class="size-5" />
+                </button>
+              </Tooltip>
+            </template>
+            <Tooltip v-else-if="photo.write" :text="__('Move to trash')">
               <button
                 class="flex lightbox-button max-sm:hidden"
                 :aria-label="__('Move to trash')"
@@ -232,7 +252,17 @@
             <LucideInfo class="size-5" />
             {{ __('Info') }}
           </button>
-          <button v-if="photo.write" class="viewer-action" @click="removeCurrent">
+          <template v-if="trashed && photo.write">
+            <button class="viewer-action" @click="restore([photo.name])">
+              <LucideRotateCcw class="size-5" />
+              {{ __('Restore') }}
+            </button>
+            <button class="viewer-action" @click="confirmForever = true">
+              <LucideTrash2 class="size-5" />
+              {{ __('Delete forever') }}
+            </button>
+          </template>
+          <button v-else-if="photo.write" class="viewer-action" @click="removeCurrent">
             <LucideTrash2 class="size-5" />
             {{ __('Delete') }}
           </button>
@@ -430,6 +460,15 @@
       @close="editing = false"
       @saved="notifyUploaded"
     />
+    <Dialog
+      v-model:open="confirmForever"
+      :title="__('Delete forever?')"
+      :message="__('This item will be removed from Drive for good. This cannot be undone.')"
+      icon="lucide-trash-2"
+      theme="red"
+      size="sm"
+      :actions="[{ label: __('Delete forever'), variant: 'solid', theme: 'red', onClick: deleteForever }]"
+    />
   </Teleport>
   <MoveFaceDialog
     v-model="moveOpen"
@@ -443,7 +482,16 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
-import { Button, Dropdown, LoadingIndicator, Textarea, Tooltip, toast, useKeyboardShortcut } from 'frappe-ui'
+import {
+  Button,
+  Dialog,
+  Dropdown,
+  LoadingIndicator,
+  Textarea,
+  Tooltip,
+  toast,
+  useKeyboardShortcut,
+} from 'frappe-ui'
 import dayjs from 'dayjs'
 import LucideAperture from '~icons/lucide/aperture'
 import LucideArchive from '~icons/lucide/archive'
@@ -468,6 +516,7 @@ import LucideUserRound from '~icons/lucide/user-round'
 import LucidePlay from '~icons/lucide/play'
 import LucideSlidersHorizontal from '~icons/lucide/sliders-horizontal'
 import LucideStar from '~icons/lucide/star'
+import LucideRotateCcw from '~icons/lucide/rotate-ccw'
 import LucideTrash2 from '~icons/lucide/trash-2'
 import LucideX from '~icons/lucide/x'
 
@@ -479,7 +528,7 @@ import { contentUrl, downloadUrl, liveUrl, originalUrl, streamUrl, thumbnailUrl 
 import { editCaption } from '../resources/edit'
 import { activeFeed, createStaticFeed } from '../data/feed'
 import { albums, pickAlbumFor, sharedAlbums } from '../data/albums'
-import { archive, download, toggleFavourite, trash } from '../data/actions'
+import { archive, download, removeForever, restore, toggleFavourite, trash } from '../data/actions'
 import { editMetadata, openShare, editing as metadataEdits } from '../data/dialogs'
 import { openLightbox, lightbox } from '../data/viewer'
 import { notifyUploaded } from '../data/uploads'
@@ -624,7 +673,11 @@ const infoShift = computed(() => {
 })
 const lastInDrive = ref(false)
 watch(details, (value) => value && (lastInDrive.value = Boolean(value.folder)))
-const inDrive = computed(() => (details.value ? Boolean(details.value.folder) : lastInDrive.value))
+const trashed = computed(() => Boolean(photo.value?.trashed_on))
+const inDrive = computed(
+  () => !trashed.value && (details.value ? Boolean(details.value.folder) : lastInDrive.value),
+)
+const confirmForever = ref(false)
 const photoAlbums = computed(() =>
   [...albums.value, ...sharedAlbums.value].filter((album) => details.value?.albums?.includes(album.name)),
 )
@@ -884,6 +937,11 @@ function openInDrive() {
 
 async function removeCurrent() {
   if (photo.value) await trash([photo.value.name])
+}
+
+async function deleteForever() {
+  confirmForever.value = false
+  if (photo.value) await removeForever([photo.value.name])
 }
 
 function stopSlideshow(event: KeyboardEvent) {
