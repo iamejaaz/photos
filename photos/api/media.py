@@ -116,12 +116,16 @@ def _send(path, mimetype):
     )
 
 
-def _reduced_video(file, source=None, suffix=".mp4"):
+def _reduced_video(file, source=None, suffix=".reduced.mp4"):
     target = formats.derived_path(file.name, suffix)
     if not target.exists():
+        path = source or formats.source_path(file)
+        source_height = formats.source_height(path) or formats.REDUCED_HEIGHT
+        if source_height <= formats.REDUCED_HEIGHT:
+            return path
         partial = target.with_name(f"{target.stem}.{frappe.generate_hash(6)}.part.mp4")
         try:
-            formats.transcode(source or formats.source_path(file), partial, max_height=formats.VIDEO_HEIGHT)
+            formats.transcode(path, partial, max_height=formats.REDUCED_HEIGHT)
         except Exception:
             partial.unlink(missing_ok=True)
             frappe.throw("This video cannot be played here.", frappe.PermissionError)

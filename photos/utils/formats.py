@@ -12,6 +12,7 @@ DISPLAY_SIZE = 2560
 VIEW_MIN_BYTES = 1_500_000
 VIEW_IMAGES = {"image/jpeg", "image/png", "image/webp", "image/avif", "image/bmp"}
 VIDEO_HEIGHT = 1080
+REDUCED_HEIGHT = 720
 
 
 def register():
@@ -133,6 +134,17 @@ def video_codec(path):
     with av.open(str(path)) as container:
         stream = next((s for s in container.streams if s.type == "video"), None)
         return stream.codec_context.name if stream else None
+
+
+def source_height(path):
+    import av
+
+    try:
+        with av.open(str(path)) as container:
+            stream = next((s for s in container.streams if s.type == "video"), None)
+            return stream.codec_context.height if stream else None
+    except Exception:
+        return None
 
 
 def needs_display_video(path):
