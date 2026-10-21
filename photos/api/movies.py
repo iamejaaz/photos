@@ -9,7 +9,7 @@ from photos.utils.movies import MAX_PHOTOS
 def create_movie(
     files: list[str] | str, title: str | None = None, seconds: float = 3, album: str | None = None
 ):
-    from photos.api.albums import can_read
+    from photos.api.albums import can_read, can_take
 
     files = json.loads(files) if isinstance(files, str) else files
     seconds = min(8.0, max(1.5, float(seconds)))
@@ -17,6 +17,8 @@ def create_movie(
     for name in files:
         if not can_read(name, album):
             frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
+        if not can_take(name, album):
+            frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
         if (frappe.db.get_value("File", name, "mime_type") or "").startswith("image/"):
             photos.append(name)
     if len(photos) < 2:

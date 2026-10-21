@@ -262,11 +262,11 @@ const actions = computed<Action[]>(() => {
   if (props.mode === 'album') {
     const canDownload = props.album?.access?.download !== 0
     const list: Action[] = loggedIn.value
-      ? [addToAlbum, ...(canDownload ? [save] : []), movie]
+      ? [addToAlbum, ...(canDownload ? [save, movie] : [])]
       : canDownload
         ? [save]
         : []
-    if (loggedIn.value && !props.album?.access?.owner)
+    if (loggedIn.value && canDownload && !props.album?.access?.owner)
       list.push({
         label: __('Save to your photos'),
         icon: LucideImageDown,
