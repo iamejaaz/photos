@@ -1,3 +1,4 @@
+import hashlib
 import json
 
 import frappe
@@ -14,7 +15,7 @@ def export_files(files: list[str] | str, album: str | None = None):
             frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
     if album and not album_access(album)["download"]:
         frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
-    _enqueue(files, _title("Photos"))
+    return _enqueue(files, _title("Photos"))
 
 
 @frappe.whitelist()
@@ -24,7 +25,7 @@ def export_album(album: str):
         frappe.throw("You don't have access to this album.", frappe.PermissionError)
     title = frappe.db.get_value("Photo Album", album, "title")
     files = frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file")
-    _enqueue(files, _title(title), by_album=title)
+    return _enqueue(files, _title(title), by_album=title)
 
 
 @frappe.whitelist()
@@ -38,7 +39,7 @@ def export_library():
         .where(File.owner == frappe.session.user)
         .run()
     ]
-    _enqueue(files, _title("Photos library"))
+    return _enqueue(files, _title("Photos library"))
 
 
 def _title(prefix):
@@ -46,14 +47,30 @@ def _title(prefix):
 
 
 def _enqueue(files, title, by_album=None):
+    from photos.utils.export import running, track
+
     if not files:
         frappe.throw("There is nothing to export.")
+    user = frappe.session.user
+    export_id = hashlib.sha1(json.dumps([sorted(files), by_album]).encode()).hexdigest()[:12]
+    if export_id in running(user):
+        return {"id": export_id}
+    track(user, export_id, title=title, done=0, total=len(files))
     frappe.enqueue(
         "photos.utils.export.build_export",
         queue="long",
         timeout=6 * 60 * 60,
-        user=frappe.session.user,
+        user=user,
         files=files,
         title=title,
         by_album=by_album,
+        export_id=export_id,
     )
+    return {"id": export_id}
+
+
+@frappe.whitelist()
+def active_exports():
+    from photos.utils.export import running
+
+    return running(frappe.session.user)

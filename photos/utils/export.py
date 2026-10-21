@@ -1,5 +1,6 @@
 import io
 import json
+import secrets
 import tempfile
 import time
 import zipfile
@@ -13,27 +14,56 @@ JPEG = {".jpg", ".jpeg"}
 PROGRESS_SECONDS = 1
 
 
-def build_export(user, files, title, by_album=None):
+STALE_SECONDS = 30 * 60
+
+
+def _exports_key(user):
+    return f"photos-exports:{user}"
+
+
+def track(user, export_id, **state):
+    frappe.cache.hset(_exports_key(user), export_id, {**state, "updated": time.time()})
+
+
+def running(user):
+    exports = frappe.cache.hgetall(_exports_key(user)) or {}
+    fresh = {}
+    for export_id, state in exports.items():
+        export_id = frappe.safe_decode(export_id)
+        if time.time() - state.get("updated", 0) < STALE_SECONDS:
+            fresh[export_id] = state
+        else:
+            frappe.cache.hdel(_exports_key(user), export_id)
+    return fresh
+
+
+def build_export(user, files, title, by_album=None, export_id=None):
     frappe.set_user(user)
     try:
-        name = _build(user, files, title, by_album)
+        token, file_name = _build(user, files, title, by_album, export_id)
     except Exception as error:
-        frappe.db.rollback()
         frappe.log_error("Photos export failed")
-        frappe.publish_realtime("photos-export-failed", {"error": str(error)}, user=user)
+        _finish(user, export_id)
+        frappe.publish_realtime("photos-export-failed", {"id": export_id, "error": str(error)}, user=user)
         return
-    frappe.db.commit()
+    _finish(user, export_id)
     frappe.publish_realtime(
-        "photos-export-ready", {"file": name, "title": title}, user=user, after_commit=True
+        "photos-export-ready", {"id": export_id, "token": token, "title": file_name}, user=user
     )
 
 
-def _build(user, files, title, by_album):
-    from photos.utils.library import safe_name, store_file
+def _finish(user, export_id):
+    if export_id:
+        frappe.cache.hdel(_exports_key(user), export_id)
 
-    title = safe_name(title, "Photos export")
+
+def _build(user, files, title, by_album, export_id=None):
+    from suite.drive.api.files import ARCHIVE_DIR, DOWNLOAD_TTL, _download_cache_key
+
+    from photos.utils.library import safe_name
+
+    file_name = f"{safe_name(title, 'Photos export')}.zip"
     by_album = by_album and safe_name(by_album, "Album")
-    manager = FileManager()
     rows = frappe.db.sql(
         """
         select file.name, file.file_name, file.file_url,
@@ -45,32 +75,62 @@ def _build(user, files, title, by_album):
         {"files": files or [""]},
         as_dict=True,
     )
+    manager = FileManager()
+    token = secrets.token_urlsafe(24)
+    if manager.s3_enabled:
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "export.zip"
+            _write_zip(target, manager, rows, user, by_album, export_id, file_name)
+            key, size = f".drive-downloads/{token}.zip", target.stat().st_size
+            manager.conn.upload_file(str(target), manager.bucket, key)
+    else:
+        key = f"{ARCHIVE_DIR}/{token}.zip"
+        target = manager.site_folder / key
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _write_zip(target, manager, rows, user, by_album, export_id, file_name)
+        size = target.stat().st_size
+    frappe.cache.set_value(
+        _download_cache_key(token),
+        {"status": "ready", "owner": user, "key": key, "file_name": file_name, "size": size},
+        expires_in_sec=DOWNLOAD_TTL,
+    )
+    return token, file_name
+
+
+def _write_zip(target, manager, rows, user, by_album, export_id, file_name):
+    from photos.utils.library import safe_name
+
     used = set()
     albums = {}
-    with tempfile.TemporaryDirectory() as folder:
-        target = Path(folder) / f"{title}.zip"
-        with zipfile.ZipFile(target, "w", zipfile.ZIP_STORED, allowZip64=True) as archive:
-            shown = 0
-            for done, row in enumerate(rows):
-                if time.monotonic() - shown > PROGRESS_SECONDS:
-                    shown = time.monotonic()
-                    frappe.publish_realtime(
-                        "photos-export-progress", {"done": done, "total": len(rows)}, user=user
-                    )
-                source = manager.site_folder / storage_key(row.file_url or "")
-                if not source.exists():
-                    continue
-                data = source.read_bytes()
+    shown = 0
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_STORED, allowZip64=True) as archive:
+        for done, row in enumerate(rows):
+            if time.monotonic() - shown > PROGRESS_SECONDS:
+                shown = time.monotonic()
+                if export_id:
+                    track(user, export_id, title=file_name, done=done, total=len(rows))
+                frappe.publish_realtime(
+                    "photos-export-progress",
+                    {"id": export_id, "done": done, "total": len(rows)},
+                    user=user,
+                )
+            if not row.file_url:
+                continue
+            folder_name = by_album or str(row.taken.year)
+            arcname = _unique(f"{folder_name}/{safe_name(row.file_name, row.name)}", used)
+            info = zipfile.ZipInfo(arcname, date_time=row.taken.timetuple()[:6])
+            try:
                 if PurePosixPath(row.file_name).suffix.lower() in JPEG:
-                    data = with_metadata(data, row)
-                folder_name = by_album or str(row.taken.year)
-                arcname = _unique(f"{folder_name}/{safe_name(row.file_name, row.name)}", used)
-                info = zipfile.ZipInfo(arcname, date_time=row.taken.timetuple()[:6])
-                archive.writestr(info, data)
-                albums[row.name] = arcname
-            if not by_album:
-                archive.writestr("albums.json", json.dumps(_album_index(user, albums), indent=1))
-        return store_file(target, user, modified=now_datetime().timestamp())
+                    archive.writestr(info, with_metadata(b"".join(manager.iter_blocks(row)), row))
+                else:
+                    with archive.open(info, "w", force_zip64=True) as entry:
+                        for block in manager.iter_blocks(row):
+                            entry.write(block)
+            except FileNotFoundError:
+                continue
+            albums[row.name] = arcname
+        if not by_album:
+            archive.writestr("albums.json", json.dumps(_album_index(user, albums), indent=1))
 
 
 def with_metadata(data, row):
