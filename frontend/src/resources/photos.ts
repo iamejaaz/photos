@@ -1,4 +1,5 @@
 import { call } from 'frappe-ui'
+import { siteOrigin } from '../native/site'
 
 export interface Photo {
   name: string
@@ -79,6 +80,7 @@ export const getExplore = () =>
   }>
 export const setArchived = (files: string[], archived: boolean) =>
   call(`${PHOTOS}.set_archived`, { files, archived })
+export const folderLink = (folder: string) => `${siteOrigin()}/photos/folders/${folder}`
 export const getLibraryFolder = () => call(`${PHOTOS}.library_folder`) as Promise<Record<string, unknown>>
 export const saveToLibrary = (files: string[], album?: string) =>
   call(`${PHOTOS}.save_to_library`, { files, album }) as Promise<string[]>
