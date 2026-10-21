@@ -6,7 +6,7 @@
           <img :src="photosLogo" class="size-7" alt="" />
           <span class="text-base font-semibold text-ink-gray-9">{{ __('Photos') }}</span>
         </div>
-        <Button variant="subtle" :link="`/login?redirect-to=${encodeURIComponent($route.fullPath)}`">
+        <Button variant="subtle" @click="signIn">
           {{ __('Sign in') }}
         </Button>
       </header>
@@ -245,6 +245,8 @@ async function receiveShared() {
 
 const route = useRoute()
 const router = useRouter()
+const signIn = () =>
+  window.location.assign(`/login?redirect-to=${encodeURIComponent(router.resolve(route.fullPath).href)}`)
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const dragging = ref(false)
 

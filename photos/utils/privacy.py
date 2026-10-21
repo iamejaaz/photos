@@ -26,7 +26,7 @@ def is_library_media(entity):
 
 
 def install():
-    from suite.drive.api import permissions
+    from suite.drive.api import notifications, permissions
     from suite.drive.utils import overrides
     from suite.drive.webdav import perms
 
@@ -40,6 +40,7 @@ def install():
         perms.resolve_children_access: _children_access(
             perms.resolve_children_access, permissions.is_drive_admin, access_for_user
         ),
+        notifications.get_link: _album_link(notifications.get_link),
     }
     for module in list(sys.modules.values()):
         if not getattr(module, "__name__", "").startswith(("suite.", "photos.")):
@@ -47,6 +48,15 @@ def install():
         for name, value in list(vars(module).items()):
             if callable(value) and value in replacements:
                 setattr(module, name, replacements[value])
+
+
+def _album_link(original):
+    def get_link(entity):
+        if entity.get("content_doctype") == "Photo Album" and entity.get("content_docname"):
+            return f"/photos/albums/{entity.content_docname}"
+        return original(entity)
+
+    return get_link
 
 
 def _access_for_user(original, permissions):
