@@ -13,13 +13,47 @@ import { uploadFile, errorText } from '../resources/drive'
 import { notifyUploaded } from './uploads'
 import { loadAlbums } from './albums'
 
+const preparing: (string | number)[] = []
+
 export async function startExport(run: () => Promise<unknown>) {
   try {
     await run()
-    toast.info(__('Preparing your export. You will get a message when it is ready.'))
+    preparing.push(
+      toast.loading(__('Preparing your download. It starts by itself when ready.'), { duration: Infinity }),
+    )
   } catch (error) {
     toast.error(errorText(error) || __('Could not start the export'))
   }
+}
+
+export function exportProgress(done: number, total: number) {
+  if (preparing[0] === undefined) return
+  toast.loading(__('Preparing your download: {0} of {1}', [done, total]), {
+    id: preparing[0],
+    duration: Infinity,
+  })
+}
+
+export function exportReady(file: string, title: string) {
+  const url = `/api/method/suite.drive.api.files.get_file_content?entity_name=${file}&trigger_download=1`
+  const save = () => {
+    if (!import.meta.env.VITE_NATIVE) return window.location.assign(url)
+    import('../native/save').then(({ saveFiles }) => saveFiles([{ url, name: `${title}.zip` }]))
+  }
+  const waiting = preparing.shift()
+  if (waiting === undefined)
+    return toast.success(__('{0} is ready', [title]), {
+      duration: 30000,
+      action: { label: __('Download'), onClick: save },
+    })
+  toast.dismiss(waiting)
+  save()
+}
+
+export function exportFailed() {
+  const waiting = preparing.shift()
+  if (waiting !== undefined) toast.dismiss(waiting)
+  toast.error(__('The download could not be prepared. Please try again.'))
 }
 export const takeout = reactive({
   uploading: false,
