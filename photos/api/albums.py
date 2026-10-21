@@ -151,6 +151,10 @@ def can_read(file, album=None):
     )
 
 
+def can_take(file, album=None):
+    return can_access(file, "read") or bool(album and album_access(album)["download"])
+
+
 def hidden_by_owner(file):
     owner = frappe.db.get_value("File", file, "owner")
     return bool(frappe.db.exists("Photo Hidden", {"user": owner, "file": file}))
