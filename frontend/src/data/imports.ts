@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import { toast } from 'frappe-ui'
+import { call, toast } from 'frappe-ui'
 import {
   type ImportJob,
   type ImportOptions,
@@ -13,47 +13,80 @@ import { uploadFile, errorText } from '../resources/drive'
 import { notifyUploaded } from './uploads'
 import { loadAlbums } from './albums'
 
-const preparing: (string | number)[] = []
+type ExportState = { title: string; done: number; total: number }
 
-export async function startExport(run: () => Promise<unknown>) {
+const STARTED_KEY = 'photos-exports-started'
+const preparing = new Map<string, string | number>()
+
+const startedHere = (): string[] => {
   try {
-    await run()
-    preparing.push(
-      toast.loading(__('Preparing your download. It starts by itself when ready.'), { duration: Infinity }),
-    )
+    return JSON.parse(sessionStorage.getItem(STARTED_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+const rememberStarted = () => {
+  try {
+    sessionStorage.setItem(STARTED_KEY, JSON.stringify([...preparing.keys()]))
+  } catch {}
+}
+
+const showPreparing = (id: string, done?: number, total?: number) => {
+  const message = total
+    ? __('Preparing your download: {0} of {1}', [done ?? 0, total])
+    : __('Preparing your download. It starts by itself when ready.')
+  preparing.set(id, toast.loading(message, { id: preparing.get(id), duration: Infinity }))
+  rememberStarted()
+}
+
+export async function startExport(run: () => Promise<{ id: string }>) {
+  try {
+    const { id } = await run()
+    if (preparing.has(id)) return toast.info(__('This download is already being prepared'))
+    showPreparing(id)
   } catch (error) {
     toast.error(errorText(error) || __('Could not start the export'))
   }
 }
 
-export function exportProgress(done: number, total: number) {
-  if (preparing[0] === undefined) return
-  toast.loading(__('Preparing your download: {0} of {1}', [done, total]), {
-    id: preparing[0],
-    duration: Infinity,
+export async function resumeExports() {
+  const started = startedHere()
+  if (!started.length) return
+  const running = (await call('photos.api.export.active_exports').catch(() => ({}))) as Record<
+    string,
+    ExportState
+  >
+  for (const id of started) if (running[id]) showPreparing(id, running[id].done, running[id].total)
+  rememberStarted()
+}
+
+export function exportProgress(id: string, done: number, total: number) {
+  if (preparing.has(id)) showPreparing(id, done, total)
+}
+
+const takeDownload = (id: string) => {
+  const waiting = preparing.get(id)
+  if (waiting !== undefined) toast.dismiss(waiting)
+  preparing.delete(id)
+  rememberStarted()
+  return waiting !== undefined
+}
+
+export function exportReady(id: string, token: string, title: string) {
+  const url = `/api/method/suite.drive.api.files.download_archive?token=${encodeURIComponent(token)}`
+  const save = () => {
+    if (!import.meta.env.VITE_NATIVE) return window.location.assign(url)
+    import('../native/save').then(({ saveFiles }) => saveFiles([{ url, name: title }]))
+  }
+  if (takeDownload(id)) return save()
+  toast.success(__('{0} is ready', [title]), {
+    duration: 30000,
+    action: { label: __('Download'), onClick: save },
   })
 }
 
-export function exportReady(file: string, title: string) {
-  const url = `/api/method/suite.drive.api.files.get_file_content?entity_name=${file}&trigger_download=1`
-  const save = () => {
-    if (!import.meta.env.VITE_NATIVE) return window.location.assign(url)
-    import('../native/save').then(({ saveFiles }) => saveFiles([{ url, name: `${title}.zip` }]))
-  }
-  const waiting = preparing.shift()
-  if (waiting === undefined)
-    return toast.success(__('{0} is ready', [title]), {
-      duration: 30000,
-      action: { label: __('Download'), onClick: save },
-    })
-  toast.dismiss(waiting)
-  save()
-}
-
-export function exportFailed() {
-  const waiting = preparing.shift()
-  if (waiting !== undefined) toast.dismiss(waiting)
-  toast.error(__('The download could not be prepared. Please try again.'))
+export function exportFailed(id: string) {
+  if (takeDownload(id)) toast.error(__('The download could not be prepared. Please try again.'))
 }
 export const takeout = reactive({
   uploading: false,
