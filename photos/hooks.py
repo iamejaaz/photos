@@ -7,6 +7,8 @@ app_license = "agpl-3.0"
 
 required_apps = ["suite"]
 
+home_page = "photos"
+
 add_to_apps_screen = [
     {
         "name": "photos",
