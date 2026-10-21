@@ -21,6 +21,7 @@
       <TextInput
         v-model="code"
         class="w-full"
+        :aria-label="__('Code')"
         inputmode="numeric"
         autocomplete="one-time-code"
         :maxlength="6"
@@ -29,7 +30,7 @@
     </template>
     <template v-else>
       <div class="text-base text-ink-gray-5">{{ __('Enter your account password to see them.') }}</div>
-      <Password v-model="password" class="w-full" :autofocus="!screenLock" />
+      <Password v-model="password" class="w-full" :aria-label="__('Password')" :autofocus="!screenLock" />
     </template>
     <ErrorMessage :message="passwordError" />
     <Button variant="solid" class="w-full" type="submit" :loading="unlocking">{{ __('Unlock') }}</Button>
