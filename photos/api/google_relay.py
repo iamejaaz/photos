@@ -6,7 +6,7 @@ import frappe
 import requests
 from frappe.integrations.google_oauth import consume_google_oauth_state, create_google_oauth_state
 from frappe.rate_limiter import rate_limit
-from frappe.utils import get_url
+from frappe.utils import escape_html, get_url
 from frappe.utils.password import get_decrypted_password
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -67,7 +67,7 @@ def finish(code: str | None = None, state: str | None = None, error: str | None 
         {"tokens": tokens, "challenge": attempt["challenge"]},
         expires_in_sec=HANDOFF_SECONDS,
     )
-    _redirect(_with(attempt["return_to"], handoff=handoff))
+    _continue(_with(attempt["return_to"], handoff=handoff))
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -125,6 +125,19 @@ def callback_url():
 
 def _with(url, **params):
     return f"{url}{'&' if '?' in url else '?'}{urlencode(params)}"
+
+
+def _continue(url):
+    host = urlparse(url).hostname
+    if host == urlparse(get_url()).hostname:
+        return _redirect(url)
+    frappe.respond_as_web_page(
+        frappe._("Connect Google Photos"),
+        frappe._("Continue only if {0} is your Photos site.").format(f"<b>{escape_html(host)}</b>"),
+        indicator_color="blue",
+        primary_action=escape_html(url),
+        primary_label=frappe._("Continue to {0}").format(escape_html(host)),
+    )
 
 
 def _redirect(url):
