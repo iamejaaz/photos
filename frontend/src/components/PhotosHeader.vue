@@ -107,7 +107,6 @@ import LucideDownload from '~icons/lucide/download'
 import LucideEllipsis from '~icons/lucide/ellipsis'
 import LucideEye from '~icons/lucide/eye'
 import LucideEyeOff from '~icons/lucide/eye-off'
-import LucideFileArchive from '~icons/lucide/file-archive'
 import LucideImageDown from '~icons/lucide/image-down'
 import LucideImageMinus from '~icons/lucide/image-minus'
 import LucideImagePlay from '~icons/lucide/image-play'
@@ -128,13 +127,11 @@ import { fullName, imageURL, useSessionStore } from '@/boot/session'
 import { type Album } from '../resources/albums'
 import { type Photo, getPhotoRow, isVideo, saveToLibrary } from '../resources/photos'
 import { createAnimation } from '../resources/edit'
-import { exportFiles } from '../resources/export'
 import { activeFeed, createStaticFeed } from '../data/feed'
 import { archive, download, hide, removeForever, restore, toggleFavourite, trash } from '../data/actions'
 import { clearSelection, selection } from '../data/selection'
 import { accountSheet, editMetadata, makeCollage, openShare, makeMovie } from '../data/dialogs'
 import { mediaUrl } from '../resources/media'
-import { startExport } from '../data/imports'
 import { notifyUploaded, pickAndUpload, upload } from '../data/uploads'
 import { openLightbox } from '../data/viewer'
 import { pickAlbumFor } from '../data/albums'
@@ -212,12 +209,6 @@ const actions = computed<Action[]>(() => {
     keepSelection: true,
     run: (names) => openShare(names.filter((name) => rowFor(name)?.write !== 0)),
   }
-  const exportSelected: Action = {
-    label: __('Export with dates and places'),
-    icon: LucideFileArchive,
-    more: true,
-    run: (names) => startExport(() => exportFiles(names, props.album?.name)),
-  }
   const favourite: Action = {
     label: __('Favourite'),
     icon: LucideStar,
@@ -271,11 +262,11 @@ const actions = computed<Action[]>(() => {
   if (props.mode === 'album') {
     const canDownload = props.album?.access?.download !== 0
     const list: Action[] = loggedIn.value
-      ? [addToAlbum, ...(canDownload ? [save] : []), movie, ...(canDownload ? [exportSelected] : [])]
+      ? [addToAlbum, ...(canDownload ? [save, movie] : [])]
       : canDownload
         ? [save]
         : []
-    if (loggedIn.value && !props.album?.access?.owner)
+    if (loggedIn.value && canDownload && !props.album?.access?.owner)
       list.push({
         label: __('Save to your photos'),
         icon: LucideImageDown,
@@ -355,7 +346,6 @@ const actions = computed<Action[]>(() => {
       more: true,
       run: () => editMetadata('location', writable()),
     },
-    exportSelected,
     {
       label: __('Hide'),
       icon: LucideEyeOff,

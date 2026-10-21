@@ -41,7 +41,7 @@ import { Button, Dialog, TextInput, toast } from 'frappe-ui'
 import LucideLink from '~icons/lucide/link'
 import LucideSend from '~icons/lucide/send'
 
-import { createShareLink } from '../resources/albums'
+import { albumLink, createShareLink } from '../resources/albums'
 import { downloadUrl } from '../resources/media'
 import { activeFeed } from '../data/feed'
 import { clearSelection } from '../data/selection'
@@ -67,7 +67,7 @@ async function createLink() {
   creating.value = true
   try {
     const album = await createShareLink(sharePhotos.files)
-    link.value = `${window.location.origin}/photos/albums/${album}`
+    link.value = albumLink(album)
     clearSelection()
   } catch (error) {
     toast.error(errorText(error) || __('Could not create the link'))
