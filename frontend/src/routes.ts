@@ -104,6 +104,10 @@ export const routes: RouteRecordRaw[] = [
         props: true,
         meta: { allowGuest: true },
       },
+      {
+        path: ':pathMatch(.*)*',
+        redirect: { name: 'photos-home' },
+      },
     ],
   },
 ]
