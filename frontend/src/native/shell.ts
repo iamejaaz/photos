@@ -10,6 +10,7 @@ export type PhotosShellPlugin = {
   screenLockAvailable(): Promise<{ available: boolean }>
   confirmScreenLock(options: { title: string }): Promise<{ confirmed: boolean }>
   captureScreen(): Promise<{ dataUrl: string }>
+  setLandscape(options: { landscape: boolean }): Promise<void>
   installUpdate(options: { url: string }): Promise<{ needsPermission?: boolean }>
   addListener(
     event: 'updateProgress',

@@ -1,6 +1,7 @@
 package io.frappe.photos;
 
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.net.Uri;
@@ -189,5 +190,16 @@ public class PhotosShellPlugin extends Plugin {
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(intent);
         call.resolve();
+    }
+
+    @PluginMethod
+    public void setLandscape(PluginCall call) {
+        boolean landscape = Boolean.TRUE.equals(call.getBoolean("landscape", false));
+        getActivity().runOnUiThread(() -> {
+            getActivity().setRequestedOrientation(
+                landscape ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            );
+            call.resolve();
+        });
     }
 }

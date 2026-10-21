@@ -623,6 +623,24 @@ async function fixFace(request: Promise<unknown>) {
 
 const videoEl = ref<HTMLVideoElement>()
 
+async function setLandscape(landscape: boolean) {
+  if (!import.meta.env.VITE_NATIVE) return
+  const { photosShell } = await import('../native/shell')
+  const { plugin } = await photosShell()
+  plugin.setLandscape({ landscape }).catch(() => {})
+}
+
+function onFullscreenChange() {
+  const video = videoEl.value
+  setLandscape(!!video && document.fullscreenElement === video && video.videoWidth > video.videoHeight)
+}
+
+onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange))
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+  if (document.fullscreenElement) setLandscape(false)
+})
+
 watch(videoEl, (video) => {
   video?.play().catch((error) => {
     if (error.name !== 'NotAllowedError') return
