@@ -160,7 +160,6 @@
                   ref="videoEl"
                   class="max-h-full max-w-full"
                   controls
-                  autoplay
                   @ended="lightbox.slideshow && go(1)"
                 />
                 <div v-else :key="photo.name" class="relative flex size-full items-center justify-center">
@@ -618,6 +617,14 @@ async function fixFace(request: Promise<unknown>) {
 }
 
 const videoEl = ref<HTMLVideoElement>()
+
+watch(videoEl, (video) => {
+  video?.play().catch((error) => {
+    if (error.name !== 'NotAllowedError') return
+    video.muted = true
+    video.play().catch(() => {})
+  })
+})
 
 function seek(timestamp: number | null) {
   if (!videoEl.value) return
