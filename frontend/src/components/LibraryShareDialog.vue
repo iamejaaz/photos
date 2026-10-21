@@ -6,7 +6,7 @@
 import { ref, watch } from 'vue'
 
 import { ShareDialog } from '@/apps/drive/sdk'
-import { getLibraryFolder } from '../resources/photos'
+import { folderLink, getLibraryFolder } from '../resources/photos'
 import { libraryShare } from '../data/dialogs'
 
 const folder = ref<Record<string, unknown> | null>(null)
@@ -14,7 +14,9 @@ const folder = ref<Record<string, unknown> | null>(null)
 watch(
   () => libraryShare.open,
   async (open) => {
-    if (open && !folder.value) folder.value = await getLibraryFolder()
+    if (!open || folder.value) return
+    const library = await getLibraryFolder()
+    folder.value = { ...library, file_type: 'Link', file_url: folderLink(String(library.name)) }
   },
 )
 </script>
