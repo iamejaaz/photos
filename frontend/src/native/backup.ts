@@ -36,7 +36,7 @@ export type PhotosBackupPlugin = {
   signOut(): Promise<void>
   findFreeable(): Promise<{ count: number; bytes: number }>
   freeUpSpace(): Promise<{ count: number; bytes: number }>
-  saveToDevice(options: { url: string; name: string; headers: Record<string, string> }): Promise<void>
+  saveToDevice(options: { url: string; name?: string; headers: Record<string, string> }): Promise<void>
   shareFiles(options: {
     files: { url: string; name: string }[]
     headers: Record<string, string>

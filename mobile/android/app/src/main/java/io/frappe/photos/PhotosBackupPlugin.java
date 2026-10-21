@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.webkit.URLUtil;
 import android.app.Activity;
 import android.app.PendingIntent;
 import androidx.activity.result.ActivityResultLauncher;
@@ -265,7 +266,7 @@ public class PhotosBackupPlugin extends Plugin {
     @PluginMethod
     public void saveToDevice(PluginCall call) {
         String url = call.getString("url", "");
-        String name = call.getString("name", "download");
+        String name = call.getString("name");
         JSObject headers = call.getObject("headers", new JSObject());
         if (Build.VERSION.SDK_INT < 29) {
             call.reject("Saving needs Android 10 or later");
@@ -362,6 +363,8 @@ public class PhotosBackupPlugin extends Plugin {
         if (status >= 400) throw new IOException("The site answered " + status);
         String type = connection.getContentType();
         String mime = type == null ? "application/octet-stream" : type.split(";")[0].trim();
+        if (name == null || name.isEmpty())
+            name = URLUtil.guessFileName(url, connection.getHeaderField("Content-Disposition"), mime);
         Uri collection;
         String folder;
         if (mime.startsWith("image/")) {
