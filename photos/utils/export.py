@@ -27,10 +27,10 @@ def build_export(user, files, title, by_album=None):
 
 
 def _build(user, files, title, by_album):
-    from photos.utils.library import store_file
+    from photos.utils.library import safe_name, store_file
 
-    title = _safe_title(title)
-    by_album = _safe_title(by_album) if by_album else by_album
+    title = safe_name(title, "Photos export")
+    by_album = by_album and safe_name(by_album, "Album")
     manager = FileManager()
     rows = frappe.db.sql(
         """
@@ -56,7 +56,7 @@ def _build(user, files, title, by_album):
                 if PurePosixPath(row.file_name).suffix.lower() in JPEG:
                     data = with_metadata(data, row)
                 folder_name = by_album or str(row.taken.year)
-                arcname = _unique(f"{folder_name}/{PurePosixPath(row.file_name).name}", used)
+                arcname = _unique(f"{folder_name}/{safe_name(row.file_name, row.name)}", used)
                 info = zipfile.ZipInfo(arcname, date_time=row.taken.timetuple()[:6])
                 archive.writestr(info, data)
                 albums[row.name] = arcname
@@ -102,13 +102,6 @@ def _rational(value):
     minutes = int((value - degrees) * 60)
     seconds = round(((value - degrees) * 60 - minutes) * 60 * 100)
     return ((degrees, 1), (minutes, 1), (seconds, 100))
-
-
-def _safe_title(title):
-    import re
-
-    name = re.sub(r"[^A-Za-z0-9 _-]", "", str(Path(str(title)).name or "").strip()).strip() or "export"
-    return name[:120]
 
 
 def _unique(arcname, used):
