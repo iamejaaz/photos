@@ -269,14 +269,7 @@ const menu = computed(() => {
       items.push({ label: __('Slideshow'), icon: 'lucide-play', onClick: slideshow })
   }
   if (album.value?.count && access.download)
-    items.push(
-      { label: __('Download album'), icon: 'lucide-download', onClick: downloadAll },
-      {
-        label: __('Export with dates and places'),
-        icon: 'lucide-file-archive',
-        onClick: () => startExport(() => exportAlbum(props.album)),
-      },
-    )
+    items.push({ label: __('Download album'), icon: 'lucide-download', onClick: downloadAll })
   if (access.write)
     items.push({
       label: __('Rename'),
@@ -305,8 +298,9 @@ const menu = computed(() => {
 })
 
 async function downloadAll() {
+  if (!import.meta.env.VITE_NATIVE) return startExport(() => exportAlbum(props.album))
   const files = await getAlbumFiles(props.album)
-  download(files.map((name) => ({ name }) as Photo))
+  download(files.map((name) => ({ name, album: props.album }) as Photo))
 }
 
 const gate = ref<'locked' | 'expired' | null>(null)
