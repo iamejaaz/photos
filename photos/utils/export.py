@@ -1,6 +1,7 @@
 import io
 import json
 import tempfile
+import time
 import zipfile
 from pathlib import Path, PurePosixPath
 
@@ -9,6 +10,7 @@ from frappe.utils import now_datetime
 from suite.drive.utils.files import FileManager, storage_key
 
 JPEG = {".jpg", ".jpeg"}
+PROGRESS_SECONDS = 1
 
 
 def build_export(user, files, title, by_album=None):
@@ -48,7 +50,13 @@ def _build(user, files, title, by_album):
     with tempfile.TemporaryDirectory() as folder:
         target = Path(folder) / f"{title}.zip"
         with zipfile.ZipFile(target, "w", zipfile.ZIP_STORED, allowZip64=True) as archive:
-            for row in rows:
+            shown = 0
+            for done, row in enumerate(rows):
+                if time.monotonic() - shown > PROGRESS_SECONDS:
+                    shown = time.monotonic()
+                    frappe.publish_realtime(
+                        "photos-export-progress", {"done": done, "total": len(rows)}, user=user
+                    )
                 source = manager.site_folder / storage_key(row.file_url or "")
                 if not source.exists():
                     continue
