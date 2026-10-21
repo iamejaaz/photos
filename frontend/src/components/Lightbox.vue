@@ -323,6 +323,11 @@
                 <InfoRow :icon="LucideImage" :title="details.file_name" :subtitle="sizeLine" />
                 <InfoRow v-if="meta?.camera" :icon="LucideAperture" :title="meta.camera" />
                 <InfoRow
+                  v-if="details.added_by"
+                  :icon="LucideUserRound"
+                  :title="__('Added by {0}', [details.added_by])"
+                />
+                <InfoRow
                   v-if="photo.added_by_name"
                   :icon="LucideUserRound"
                   :title="__('Added by {0}', [photo.added_by_name])"

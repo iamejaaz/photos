@@ -581,6 +581,12 @@ def get_details(name: str, album: str | None = None):
         as_dict=True,
     )
     file.owner_name = frappe.db.get_value("User", file.owner, "full_name")
+    if album:
+        item = frappe.db.get_value(
+            "Photo Album Item", {"album": album, "file": name}, ["owner", "added_by_name"], as_dict=True
+        )
+        if item:
+            file.added_by = item.added_by_name or frappe.db.get_value("User", item.owner, "full_name")
     file.metadata = frappe.db.get_value(
         "Photo Metadata",
         name,
