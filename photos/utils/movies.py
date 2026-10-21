@@ -14,10 +14,10 @@ MAX_PHOTOS = 40
 def build_movie(files, title, seconds, user):
     import av
 
-    from photos.utils.library import add_file
+    from photos.utils.library import add_file, safe_name
 
     frappe.set_user(user)
-    title = _safe_title(title)
+    title = safe_name(title, "Movie")
     frame_count = max(int(seconds * FPS), FADE_FRAMES * 2)
     with tempfile.TemporaryDirectory() as folder:
         target = Path(folder) / f"{title}.mp4"
@@ -75,10 +75,3 @@ def _frames(photos, frame_count):
                 following = _frame(photos[index + 1], FADE_FRAMES - tail, frame_count, not zoom_in)
                 image = Image.blend(image, following, 1 - tail / FADE_FRAMES)
             yield image
-
-
-def _safe_title(title):
-    import re
-
-    name = re.sub(r"[^A-Za-z0-9 _-]", "", (title or "").strip()).strip() or "movie"
-    return name[:120]

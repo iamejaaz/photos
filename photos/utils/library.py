@@ -1,3 +1,4 @@
+import re
 import shutil
 
 import frappe
@@ -8,6 +9,10 @@ from suite.drive.utils.files import FileManager
 
 from photos.utils.formats import is_raw, raw_mime
 from photos.utils.metadata import extract
+
+
+def safe_name(text, fallback):
+    return re.sub(r'[\x00-\x1f/\\:*?"<>|]', "", str(text or "")).strip(" .")[:120] or fallback
 
 
 def add_file(path, owner, taken, parent=None):
