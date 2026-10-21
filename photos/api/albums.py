@@ -309,6 +309,7 @@ def get_album(album: str):
     summary.access = access
     if link_only(album):
         summary.owner = None
+        summary.update(auto_people=[], auto_people_names=[])
     return summary
 
 
