@@ -131,7 +131,7 @@ import LucideUsers from '~icons/lucide/users'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import { readString, writeString } from '@/utils/localStorage'
-import { type Album, createAlbum, deleteAlbum, getShareLinks } from '../resources/albums'
+import { type Album, albumLink, createAlbum, deleteAlbum, getShareLinks } from '../resources/albums'
 import { type Folder, getFolders, getLibraryFolder } from '../resources/photos'
 import { thumbnailUrl } from '../resources/media'
 import PhotosHeader from '../components/PhotosHeader.vue'
@@ -177,7 +177,7 @@ const links = ref<Album[]>([])
 if (props.shared) getShareLinks().then((rows) => (links.value = rows))
 
 async function copyLink(album: string) {
-  await navigator.clipboard.writeText(`${window.location.origin}/photos/albums/${album}`)
+  await navigator.clipboard.writeText(albumLink(album))
   toast.success(__('Link copied'))
 }
 

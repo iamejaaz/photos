@@ -164,9 +164,9 @@ def mark(file: str, sha1: str):
 @frappe.whitelist(methods=["POST"])
 @rate_limit(limit=20, seconds=60 * 60)
 def device_token():
-    from photos.api.native import SETTINGS, _usable_client
+    from photos.api.native import SETTINGS, _usable_client, from_app
 
-    if frappe.session.user == "Guest":
+    if frappe.session.user == "Guest" or not from_app():
         raise frappe.PermissionError
     client = _usable_client(frappe.db.get_single_value(SETTINGS, "oauth_client"))
     if not client:

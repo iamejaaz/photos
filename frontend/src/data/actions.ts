@@ -1,10 +1,11 @@
 import { toast } from 'frappe-ui'
-import { entitiesDownload } from '@/apps/drive/utils/download'
 import { type Photo, setArchived } from '../resources/photos'
 import { deleteForever, setFavourite, toggleTrash } from '../resources/drive'
 import { downloadUrl } from '../resources/media'
 import { setHidden } from '../resources/hidden'
 import { undoMerge } from '../resources/people'
+import { exportFiles } from '../resources/export'
+import { startExport } from './imports'
 import { type FeedHandle, activeFeed } from './feed'
 import { lightbox, openLightbox } from './viewer'
 import { selection } from './selection'
@@ -135,7 +136,15 @@ export async function hide(names: string[], value = true) {
   )
 }
 export const download = async (photos: Photo[]) => {
-  if (!import.meta.env.VITE_NATIVE) return entitiesDownload(photos)
+  if (!import.meta.env.VITE_NATIVE) {
+    if (photos.length === 1) return window.location.assign(downloadUrl(photos[0].name, photos[0].album))
+    return startExport(() =>
+      exportFiles(
+        photos.map((photo) => photo.name),
+        photos[0]?.album,
+      ),
+    )
+  }
   const { saveFiles } = await import('../native/save')
   await saveFiles(
     photos.map((photo) => ({ url: downloadUrl(photo.name, photo.album), name: photo.file_name })),
