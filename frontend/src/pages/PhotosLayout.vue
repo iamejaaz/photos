@@ -46,6 +46,7 @@
               v-for="item in mobileNav"
               :key="item.label"
               :to="item.to"
+              :aria-label="item.label"
               class="flex items-center gap-1.5 rounded-full px-3.5 py-2.5 text-sm transition-colors"
               :class="
                 $route.name === item.to.name
