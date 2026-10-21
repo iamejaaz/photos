@@ -28,6 +28,27 @@ def _from_app(request):
     return bool(request.headers.get(APP_HEADER))
 
 
+def from_app():
+    from frappe.integrations.doctype.oauth_bearer_token.oauth_bearer_token import get_oauth_token_hash
+
+    scheme, _, token = (frappe.get_request_header("Authorization") or "").partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        return False
+    row = frappe.db.get_value(
+        "OAuth Bearer Token",
+        {"access_token": get_oauth_token_hash(token.strip()), "status": "Active"},
+        ["client", "user", "expiration_time"],
+        as_dict=True,
+    )
+    return bool(
+        row
+        and row.user == frappe.session.user
+        and row.client == frappe.db.get_single_value(SETTINGS, "oauth_client")
+        and row.expiration_time
+        and row.expiration_time > frappe.utils.now_datetime()
+    )
+
+
 @frappe.whitelist(allow_guest=True)
 def get_client_id():
     return {

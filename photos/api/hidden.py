@@ -118,23 +118,8 @@ def _require_unlocked():
 
 @frappe.whitelist(methods=["POST"])
 def unlock_in_app():
-    authorization = frappe.get_request_header("Authorization") or ""
-    if not authorization.lower().startswith("bearer ") or not frappe.get_request_header("X-Photos-App"):
-        frappe.throw("Use your password to unlock hidden photos here.", frappe.PermissionError)
-    if not _valid_bearer(authorization[7:].strip()):
+    from photos.api.native import from_app
+
+    if not from_app():
         frappe.throw("Use your password to unlock hidden photos here.", frappe.PermissionError)
     frappe.cache.set_value(_key(), 1, expires_in_sec=UNLOCK_SECONDS)
-
-
-def _valid_bearer(token):
-    from frappe.integrations.doctype.oauth_bearer_token.oauth_bearer_token import get_oauth_token_hash
-
-    client = frappe.db.get_value(
-        "OAuth Bearer Token", {"access_token": get_oauth_token_hash(token)}, "client"
-    )
-    if not client:
-        return False
-    from photos.api.native import SETTINGS, _usable_client
-
-    return client == frappe.db.get_single_value(SETTINGS, "oauth_client")
-
