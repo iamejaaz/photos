@@ -31,8 +31,8 @@
         :aria-label="__('Add photos')"
         @click="adding = true"
       >
-        <template #prefix><LucideImagePlus class="size-4" /></template>
-        <span class="hidden sm:inline">{{ __('Add photos') }}</span>
+        <template #[iconSlot]><LucideImagePlus class="size-4" /></template>
+        <template v-if="!phone">{{ __('Add photos') }}</template>
       </Button>
       <Button
         v-if="album?.access?.upload && !album.access.write"
@@ -41,12 +41,12 @@
         :aria-label="__('Add photos')"
         @click="contribute"
       >
-        <template #prefix><LucideImagePlus class="size-4" /></template>
-        <span class="hidden sm:inline">{{ __('Add photos') }}</span>
+        <template #[iconSlot]><LucideImagePlus class="size-4" /></template>
+        <template v-if="!phone">{{ __('Add photos') }}</template>
       </Button>
       <Button v-if="album?.access?.share" variant="solid" :aria-label="__('Share')" @click="sharing = true">
-        <template #prefix><LucideShare2 class="size-4" /></template>
-        <span class="hidden sm:inline">{{ __('Share') }}</span>
+        <template #[iconSlot]><LucideShare2 class="size-4" /></template>
+        <template v-if="!phone">{{ __('Share') }}</template>
       </Button>
       <Button
         v-if="album"
@@ -254,6 +254,7 @@ onBeforeUnmount(
 )
 
 const phone = useMediaQuery('(max-width: 639px)')
+const iconSlot = computed(() => (phone.value ? 'icon' : 'prefix'))
 
 const menu = computed(() => {
   const access = album.value?.access
