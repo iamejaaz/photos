@@ -4,6 +4,7 @@ from datetime import timedelta
 import frappe
 from frappe.utils import get_datetime
 
+from photos.api.albums import can_take
 from photos.smart import places
 from photos.utils.permissions import can_access
 
@@ -167,6 +168,8 @@ def create_animation(files: list[str] | str, album: str | None = None):
     )
     if any(not can_read(row.name, album) for row in rows):
         frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
+    if any(not can_take(row.name, album) for row in rows):
+        frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
     if not 2 <= len(rows) <= 50:
         frappe.throw("Pick between 2 and 50 photos for an animation.")
     taken = dict(

@@ -1,5 +1,6 @@
 import { call } from 'frappe-ui'
 import { errorMessage } from './drive'
+import { siteOrigin } from '../native/site'
 
 export interface Album {
   name: string
@@ -23,6 +24,7 @@ export const createShareLink = (files: string[]) =>
   call(`${ALBUMS}.create_share_link`, { files }) as Promise<string>
 export const setAutoPeople = (album: string, people: string[]) =>
   call(`${ALBUMS}.set_auto_people`, { album, people }) as Promise<number>
+export const albumLink = (album: string) => `${siteOrigin()}/photos/albums/${album}`
 export const getShareLinks = () => call(`${ALBUMS}.share_links`) as Promise<Album[]>
 export const getAlbums = () => call(`${ALBUMS}.albums`) as Promise<Album[]>
 export const getSharedAlbums = () => call(`${ALBUMS}.shared_albums`) as Promise<Album[]>

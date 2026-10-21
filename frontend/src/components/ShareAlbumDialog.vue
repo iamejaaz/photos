@@ -6,7 +6,7 @@
 import { ref, watch } from 'vue'
 
 import { ShareDialog, getFileForDoc } from '@/apps/drive/sdk'
-import type { Album } from '../resources/albums'
+import { type Album, albumLink } from '../resources/albums'
 
 const props = defineProps<{ album: Album }>()
 const open = defineModel<boolean>({ default: false })
@@ -16,7 +16,9 @@ const file = ref<Record<string, unknown> | null>(null)
 watch(
   open,
   async (value) => {
-    if (value) file.value = await getFileForDoc('Photo Album', props.album.name)
+    if (!value) return
+    const entity = await getFileForDoc('Photo Album', props.album.name)
+    file.value = { ...entity, file_type: 'Link', file_url: albumLink(props.album.name) }
   },
   { immediate: true },
 )
