@@ -27,8 +27,10 @@ def build_export(user, files, title, by_album=None):
 
 
 def _build(user, files, title, by_album):
-    from photos.utils.library import store_file
+    from photos.utils.library import safe_name, store_file
 
+    title = safe_name(title, "Photos export")
+    by_album = by_album and safe_name(by_album, "Album")
     manager = FileManager()
     rows = frappe.db.sql(
         """
@@ -54,7 +56,7 @@ def _build(user, files, title, by_album):
                 if PurePosixPath(row.file_name).suffix.lower() in JPEG:
                     data = with_metadata(data, row)
                 folder_name = by_album or str(row.taken.year)
-                arcname = _unique(f"{folder_name}/{row.file_name}", used)
+                arcname = _unique(f"{folder_name}/{safe_name(row.file_name, row.name)}", used)
                 info = zipfile.ZipInfo(arcname, date_time=row.taken.timetuple()[:6])
                 archive.writestr(info, data)
                 albums[row.name] = arcname
