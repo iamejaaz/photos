@@ -90,6 +90,7 @@
     <PhotosSettings />
     <AccountSheet v-if="loggedIn && !isDesktop" />
     <InstallHint v-if="loggedIn && !isDesktop" />
+    <OpenInApp v-if="!isDesktop" />
     <UpdateBanner v-if="loggedIn && native" />
     <OfflineNotice v-if="loggedIn && native" />
     <SharePhotosDialog />
@@ -135,6 +136,7 @@ import PhotosSettings from '../components/settings/PhotosSettings.vue'
 import AccountSheet from '../components/AccountSheet.vue'
 import ReportProblemDialog from '../components/ReportProblemDialog.vue'
 import InstallHint from '../components/InstallHint.vue'
+import OpenInApp from '../components/OpenInApp.vue'
 import SharePhotosDialog from '../components/SharePhotosDialog.vue'
 import EditDateDialog from '../components/EditDateDialog.vue'
 import EditLocationDialog from '../components/EditLocationDialog.vue'
