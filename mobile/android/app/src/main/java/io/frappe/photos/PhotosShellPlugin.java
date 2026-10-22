@@ -13,6 +13,7 @@ import android.util.Base64;
 import android.view.PixelCopy;
 import android.view.View;
 import android.view.Window;
+import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.core.content.FileProvider;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -69,6 +70,10 @@ public class PhotosShellPlugin extends Plugin {
         });
     }
 
+    private PluginCall pendingAuthorize;
+    private String pendingRedirect;
+    private final Handler returnCheck = new Handler(Looper.getMainLooper());
+
     @PluginMethod
     public void authorize(PluginCall call) {
         String url = call.getString("url");
@@ -77,12 +82,43 @@ public class PhotosShellPlugin extends Plugin {
             call.reject("url and redirect are required");
             return;
         }
-        getActivity().runOnUiThread(() -> AuthorizeSession.start(getActivity(), url, redirect, (callbackUrl) -> {
-            JSObject result = new JSObject();
-            if (callbackUrl == null) result.put("cancelled", true);
-            else result.put("url", callbackUrl);
-            call.resolve(result);
-        }));
+        finishAuthorize(null);
+        call.setKeepAlive(true);
+        pendingAuthorize = call;
+        pendingRedirect = redirect;
+        getActivity().runOnUiThread(() -> new CustomTabsIntent.Builder().build().launchUrl(getActivity(), Uri.parse(url)));
+    }
+
+    @Override
+    protected void handleOnNewIntent(Intent intent) {
+        super.handleOnNewIntent(intent);
+        Uri data = intent == null ? null : intent.getData();
+        if (data != null && pendingRedirect != null && data.toString().startsWith(pendingRedirect)) {
+            finishAuthorize(data.toString());
+        }
+    }
+
+    @Override
+    protected void handleOnResume() {
+        super.handleOnResume();
+        if (pendingAuthorize == null) return;
+        PluginCall waiting = pendingAuthorize;
+        returnCheck.postDelayed(() -> {
+            if (pendingAuthorize == waiting) finishAuthorize(null);
+        }, 800);
+    }
+
+    private void finishAuthorize(String callbackUrl) {
+        PluginCall call = pendingAuthorize;
+        pendingAuthorize = null;
+        pendingRedirect = null;
+        if (call == null) return;
+        JSObject result = new JSObject();
+        if (callbackUrl == null) result.put("cancelled", true);
+        else result.put("url", callbackUrl);
+        call.resolve(result);
+        call.setKeepAlive(false);
+        getBridge().releaseCall(call);
     }
 
     private static final int SCREENSHOT_SIDE = 1280;
