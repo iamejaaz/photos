@@ -20,24 +20,56 @@ const SCAN_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>'
 let layer: L.LayerGroup | null = null
 
-function render() {
+const CLUSTER_PX = 48
+
+function clusters() {
+  const groups: { lead: Place; point: L.Point; members: Place[] }[] = []
+  for (const place of [...props.places].sort((a, b) => b.count - a.count)) {
+    const point = map!.latLngToLayerPoint([place.latitude, place.longitude])
+    const group = groups.find((item) => item.point.distanceTo(point) < CLUSTER_PX)
+    if (group) group.members.push(place)
+    else groups.push({ lead: place, point, members: [place] })
+  }
+  return groups
+}
+
+function open(members: Place[]) {
+  const bounds = L.latLngBounds(members.map((p) => [p.latitude, p.longitude] as [number, number]))
+  const zoom = map!.getBoundsZoom(bounds, false, L.point(CLUSTER_PX * 2, CLUSTER_PX * 2))
+  if (members.length > 1 && zoom > map!.getZoom())
+    return map!.fitBounds(bounds, { padding: [CLUSTER_PX, CLUSTER_PX] })
+  const place = members[0].place
+  if (place) router.push({ name: 'photos-search', query: { place } })
+}
+
+function drawMarkers() {
   if (!map) return
   layer?.remove()
   layer = L.layerGroup().addTo(map)
-  for (const place of props.places) {
+  for (const { lead, members } of clusters()) {
+    const count = members.reduce((sum, place) => sum + place.count, 0)
     const icon = L.divIcon({
       className: '',
       iconSize: [44, 44],
       html: `<div class="relative size-11 overflow-hidden rounded-lg border-2 border-white shadow-lg">
-        <img src="${thumbnailUrl(place.cover)}" class="size-full object-cover" alt="" />
-        <span class="absolute bottom-0 right-0 rounded-tl bg-black/60 px-1 text-[10px] text-white">${place.count}</span>
+        <img src="${thumbnailUrl(lead.cover)}" class="size-full object-cover" alt="" />
+        <span class="absolute bottom-0 right-0 rounded-tl bg-black/60 px-1 text-[10px] text-white">${count}</span>
       </div>`,
     })
-    L.marker([place.latitude, place.longitude], { icon, title: place.place ?? '' })
-      .on('click', () => place.place && router.push({ name: 'photos-search', query: { place: place.place } }))
+    const title = members
+      .map((place) => place.place)
+      .filter(Boolean)
+      .join(', ')
+    L.marker([lead.latitude, lead.longitude], { icon, title })
+      .on('click', () => open(members))
       .addTo(layer)
   }
+}
+
+function render() {
+  if (!map) return
   showAll(false)
+  drawMarkers()
 }
 
 function showAll(animate = true) {
@@ -96,6 +128,7 @@ onMounted(() => {
     attribution: '&copy; OpenStreetMap contributors',
   }).addTo(map)
   new ShowAllControl({ position: 'topleft' }).addTo(map)
+  map.on('zoomend', drawMarkers)
   fitWorld()
   render()
   resizeObserver = new ResizeObserver(() => {
