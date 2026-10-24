@@ -22,6 +22,27 @@ export function useTouchSelect({ names, selection }: Options) {
   let suppressClick = false
   let pressed = ''
   let mouse = false
+  let fingers = 0
+  let multiTouch = false
+
+  function countDown(event: PointerEvent) {
+    if (event.pointerType !== 'touch') return
+    fingers++
+    if (fingers < 2) return
+    multiTouch = true
+    suppressClick = true
+    cancel()
+  }
+
+  function countUp(event: PointerEvent) {
+    if (event.pointerType !== 'touch') return
+    fingers = Math.max(0, fingers - 1)
+    if (!fingers) multiTouch = false
+  }
+
+  window.addEventListener('pointerdown', countDown, true)
+  window.addEventListener('pointerup', countUp, true)
+  window.addEventListener('pointercancel', countUp, true)
 
   const scroller = (element: Element | null): Element => {
     for (let node = element?.parentElement; node; node = node.parentElement) {
@@ -110,6 +131,7 @@ export function useTouchSelect({ names, selection }: Options) {
   function onPress(event: PointerEvent, name: string) {
     mouse = event.pointerType === 'mouse'
     if (mouse ? event.button !== 0 || !selection.size : event.pointerType !== 'touch') return
+    if (multiTouch || !event.isPrimary) return
     suppressClick = false
     cancel()
     pressed = name
@@ -128,6 +150,11 @@ export function useTouchSelect({ names, selection }: Options) {
     return suppressed
   }
 
-  onBeforeUnmount(cancel)
+  onBeforeUnmount(() => {
+    cancel()
+    window.removeEventListener('pointerdown', countDown, true)
+    window.removeEventListener('pointerup', countUp, true)
+    window.removeEventListener('pointercancel', countUp, true)
+  })
   return { onPress, takeClick }
 }
