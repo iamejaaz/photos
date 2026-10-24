@@ -98,3 +98,9 @@ html[data-page-move='fade']::view-transition-new(root) {
 ::view-transition-new(photos-nav) {
   animation: none;
 }
+
+@media (max-width: 600px) {
+  html [data-sonner-toaster][data-y-position='bottom'] {
+    bottom: calc(var(--photos-bottom-bar, 0px) + 12px);
+  }
+}

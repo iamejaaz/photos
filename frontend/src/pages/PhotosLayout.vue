@@ -35,6 +35,7 @@
       </div>
       <template #nav>
         <nav
+          ref="mobileNavBar"
           class="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-3 transition-transform duration-200 ease-out [view-transition-name:photos-nav]"
           :class="{ 'translate-y-[150%]': selection.size || $route.name === 'photos-settings' }"
         >
@@ -136,6 +137,7 @@ import PhotosSettings from '../components/settings/PhotosSettings.vue'
 import AccountSheet from '../components/AccountSheet.vue'
 import ReportProblemDialog from '../components/ReportProblemDialog.vue'
 import InstallHint from '../components/InstallHint.vue'
+import { useBottomBar } from '../data/bottomBar'
 import OpenInApp from '../components/OpenInApp.vue'
 import SharePhotosDialog from '../components/SharePhotosDialog.vue'
 import EditDateDialog from '../components/EditDateDialog.vue'
@@ -252,6 +254,8 @@ const router = useRouter()
 const signIn = () =>
   window.location.assign(`/login?redirect-to=${encodeURIComponent(router.resolve(route.fullPath).href)}`)
 const isDesktop = useMediaQuery('(min-width: 768px)')
+const mobileNavBar = ref<HTMLElement>()
+useBottomBar(mobileNavBar, () => !selection.size && route.name !== 'photos-settings')
 const dragging = ref(false)
 
 const mobileNav = [

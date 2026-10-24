@@ -232,6 +232,7 @@
         </button>
         <div
           v-show="!lightbox.slideshow && chrome && !lightbox.showInfo"
+          ref="actionBar"
           class="absolute inset-x-0 bottom-0 z-10 flex justify-around bg-gradient-to-t from-black/60 to-transparent pb-3 pt-8 sm:hidden"
         >
           <button v-if="inDrive" class="viewer-action" @click="openShare([photo.name])">
@@ -531,6 +532,7 @@ import { archive, download, removeForever, restore, toggleFavourite, trash } fro
 import { editMetadata, openShare, editing as metadataEdits } from '../data/dialogs'
 import { openLightbox, lightbox } from '../data/viewer'
 import { notifyUploaded } from '../data/uploads'
+import { useBottomBar } from '../data/bottomBar'
 import InfoRow from './InfoRow.vue'
 import StyleLayer from './StyleLayer.vue'
 import MoveFaceDialog from './MoveFaceDialog.vue'
@@ -877,6 +879,8 @@ function close() {
 }
 
 const chrome = ref(true)
+const actionBar = ref<HTMLElement>()
+useBottomBar(actionBar, () => !lightbox.slideshow && chrome.value && !lightbox.showInfo)
 useBackClose(
   () => lightbox.open && lightbox.showInfo,
   () => (lightbox.showInfo = false),
