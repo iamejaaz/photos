@@ -364,72 +364,128 @@ function toggle(photo: Photo, event?: MouseEvent) {
 }
 
 const ZOOM_STEP = 0.2
-const MOVE_MS = 200
-const SETTLE_MS = 180
+const MOVE_MS = 220
+const SETTLE_MS = 200
+const MIN_SCALE = 0.9
+const SHRINK_AT = 0.97
+const MAX_SCALE = 1.6
 const EASE = 'cubic-bezier(0.2, 0, 0, 1)'
-let gesture: { start: number; from: number; x: number; y: number } | null = null
+const live = { k: 1, x: 0, y: 0 }
+let gesture: { start: number; k: number; x: number; y: number; px: number; py: number } | null = null
 let busy = false
 
-function setLive(scale: number, settle = false) {
-  const el = container.value
-  if (!el) return
-  el.style.transition = settle ? `transform ${SETTLE_MS}ms ${EASE}` : ''
-  el.style.transform = scale === 1 ? '' : `scale(${scale})`
-  el.style.willChange = scale === 1 && !settle ? '' : 'transform'
+function origin() {
+  const rect = container.value!.getBoundingClientRect()
+  return { x: rect.left - live.x, y: rect.top - live.y }
 }
 
-function beginZoom(start: number, x: number, y: number) {
+function fillWidth() {
+  const width = container.value?.offsetWidth ?? 0
+  const spare = width - live.k * width
+  live.x = spare >= 0 ? spare / 2 : Math.min(0, Math.max(spare, live.x))
+}
+
+function applyLive(settle = false) {
   const el = container.value
   if (!el) return
-  setLive(1)
-  const rect = el.getBoundingClientRect()
-  el.style.transformOrigin = `${x - rect.left}px ${y - rect.top}px`
-  gesture = { start, from: zoom.value, x, y }
+  fillWidth()
+  const identity = live.k === 1 && !live.x && !live.y
+  el.style.transition = settle ? `transform ${SETTLE_MS}ms ${EASE}` : ''
+  el.style.transformOrigin = '0 0'
+  el.style.transform = identity ? '' : `translate(${live.x}px, ${live.y}px) scale(${live.k})`
+  el.style.willChange = identity && !settle ? '' : 'transform'
+}
+
+function beginZoom(start: number, px: number, py: number) {
+  if (!container.value) return
+  gesture = { start, k: live.k, x: live.x, y: live.y, px, py }
 }
 
 function updateZoom(current: number) {
   if (!gesture || busy) return
   const ratio = current / gesture.start
-  const target = stepTarget(ratio, gesture.from)
-  if (Math.abs(target - zoom.value) > 0.01 && commitZoom(target))
-    gesture = { ...gesture, start: current, from: zoom.value }
-  else setLive(Math.min(1.6, Math.max(0.6, ratio)))
+  const k = Math.min(MAX_SCALE, Math.max(MIN_SCALE, gesture.k * ratio))
+  const c = origin()
+  const rx = gesture.px - c.x
+  const ry = gesture.py - c.y
+  const step = k / gesture.k
+  live.k = k
+  live.x = rx - step * (rx - gesture.x)
+  live.y = ry - step * (ry - gesture.y)
+  applyLive()
+  const target = nextLevel(k)
+  if (target !== null) commitZoom(target, current)
 }
 
 function endZoom() {
   if (!gesture) return
+  const { px, py } = gesture
   gesture = null
-  setLive(1, true)
-  setTimeout(() => !gesture && container.value && (container.value.style.willChange = ''), SETTLE_MS)
+  const el = container.value
+  if (!el) return
+  const c = origin()
+  const layoutY = (py - c.y - live.y) / live.k
+  const settleY = py - c.y - layoutY
+  live.k = 1
+  live.x = 0
+  live.y = settleY
+  applyLive(true)
+  setTimeout(() => {
+    if (gesture) return
+    const scroller = scrollParent(el)
+    const before = scroller.scrollTop
+    scroller.scrollBy(0, -live.y)
+    live.y += scroller.scrollTop - before
+    applyLive()
+    if (live.y) {
+      live.y = 0
+      applyLive(true)
+    }
+  }, SETTLE_MS)
 }
 
-function commitZoom(target: number) {
+function commitZoom(target: number, current: number) {
   const el = container.value
   if (!el || !gesture) return false
-  const { x, y } = gesture
+  const { px, py } = gesture
   const tiles = () => [...el.querySelectorAll<HTMLElement>('[data-photo]')]
   const before = new Map(tiles().map((tile) => [tile.dataset.photo!, tile.getBoundingClientRect()]))
-  const anchor = [...before].find(([, r]) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)
+  const anchor =
+    [...before].find(([, r]) => px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) ??
+    [...before].sort(
+      ([, a], [, b]) => Math.hypot(a.left - px, a.top - py) - Math.hypot(b.left - px, b.top - py),
+    )[0]
   const previous = zoom.value
   changeZoom(target - zoom.value)
-  if (zoom.value === previous) return false
+  if (zoom.value === previous || !anchor) return false
   busy = true
-  setLive(1)
   nextTick(() => {
-    const tile = anchor && el.querySelector(`[data-photo="${CSS.escape(anchor[0])}"]`)
-    if (tile) scrollParent(el).scrollBy(0, tile.getBoundingClientRect().top - anchor[1].top)
-    const visible = tiles()
-      .map((tile) => [tile, tile.getBoundingClientRect()] as const)
-      .filter(([, now]) => now.bottom > 0 && now.top < window.innerHeight)
-    for (const [tile, now] of visible) {
-      const old = before.get(tile.dataset.photo!)
-      const near = old && Math.hypot(old.left - now.left, old.top - now.top) < now.height * 1.5
-      tile.animate(
+    const tile = el.querySelector<HTMLElement>(`[data-photo="${CSS.escape(anchor[0])}"]`)
+    if (tile) {
+      const now = tile.getBoundingClientRect()
+      const c = origin()
+      const layoutX = (now.left - c.x - live.x) / live.k
+      const layoutY = (now.top - c.y - live.y) / live.k
+      live.k = Math.min(MAX_SCALE, Math.max(MIN_SCALE, (live.k * anchor[1].width) / now.width))
+      live.x = anchor[1].left - c.x - live.k * layoutX
+      live.y = anchor[1].top - c.y - live.k * layoutY
+      const scroller = scrollParent(el)
+      const top = scroller.scrollTop
+      scroller.scrollBy(0, -live.y)
+      live.y += scroller.scrollTop - top
+      applyLive()
+    }
+    for (const node of tiles()) {
+      const now = node.getBoundingClientRect()
+      if (now.bottom < 0 || now.top > window.innerHeight) continue
+      const old = before.get(node.dataset.photo!)
+      const near = old && Math.hypot(old.left - now.left, old.top - now.top) < now.height * 2
+      node.animate(
         near
           ? [
               {
                 transformOrigin: '0 0',
-                transform: `translate(${old.left - now.left}px, ${old.top - now.top}px) scale(${old.width / now.width}, ${old.height / now.height})`,
+                transform: `translate(${(old.left - now.left) / live.k}px, ${(old.top - now.top) / live.k}px) scale(${old.width / now.width}, ${old.height / now.height})`,
               },
               { transformOrigin: '0 0', transform: 'none' },
             ]
@@ -437,19 +493,23 @@ function commitZoom(target: number) {
         { duration: MOVE_MS, easing: EASE },
       )
     }
-    const rect = el.getBoundingClientRect()
-    el.style.transformOrigin = `${x - rect.left}px ${y - rect.top}px`
+    if (gesture) gesture = { ...gesture, start: current, k: live.k, x: live.x, y: live.y }
     busy = false
   })
   return true
 }
 
-function stepTarget(scale: number, from: number) {
+function nextLevel(k: number) {
   if (square.value) {
-    const startColumns = Math.min(8, Math.max(2, Math.round(4 / from)))
-    return 4 / Math.min(8, Math.max(2, Math.round(startColumns / scale)))
+    const count = columns.value
+    if (k < SHRINK_AT && count < 8) return 4 / (count + 1)
+    if (count > 2 && k >= count / (count - 1)) return 4 / (count - 1)
+    return null
   }
-  return Math.round((from * scale) / ZOOM_STEP) * ZOOM_STEP
+  const level = zoom.value
+  if (k < SHRINK_AT && level > 0.5) return level - ZOOM_STEP
+  if (level < 1.8 && k >= (level + ZOOM_STEP) / level) return level + ZOOM_STEP
+  return null
 }
 
 let wheelScale = 1
