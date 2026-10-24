@@ -27,7 +27,7 @@
     <template #actions>
       <Button
         v-if="album?.access?.write"
-        variant="subtle"
+        variant="solid"
         :aria-label="__('Add photos')"
         @click="adding = true"
       >
@@ -36,7 +36,7 @@
       </Button>
       <Button
         v-if="album?.access?.upload && !album.access.write"
-        variant="subtle"
+        variant="solid"
         :loading="contributing"
         :aria-label="__('Add photos')"
         @click="contribute"
@@ -44,7 +44,7 @@
         <template #[iconSlot]><LucideImagePlus class="size-4" /></template>
         <template v-if="!phone">{{ __('Add photos') }}</template>
       </Button>
-      <Button v-if="album?.access?.share" variant="solid" :aria-label="__('Share')" @click="sharing = true">
+      <Button v-if="album?.access?.share" variant="subtle" :aria-label="__('Share')" @click="sharing = true">
         <template #[iconSlot]><LucideShare2 class="size-4" /></template>
         <template v-if="!phone">{{ __('Share') }}</template>
       </Button>

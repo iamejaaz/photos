@@ -120,7 +120,7 @@
       </ol>
       <ErrorMessage v-if="takeout.error || job?.error" :message="takeout.error || job?.error || undefined" />
       <div class="flex items-center gap-2">
-        <Button variant="solid" @click="pick">
+        <Button variant="subtle" @click="pick">
           <template #prefix><LucideUpload class="size-4" /></template>
           {{ __('Choose zip files') }}
         </Button>
