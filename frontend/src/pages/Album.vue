@@ -272,7 +272,7 @@ async function onSelfie(event: Event) {
     handle.feed.params = { album: props.album, only: JSON.stringify(files) }
     await handle.reload()
   } catch (error) {
-    toast.error(errorText(error) || __('Could not look for you. Try again.'))
+    toast.warning(errorText(error) || __('Could not look for you. Try again.'))
   } finally {
     finding.value = false
   }
