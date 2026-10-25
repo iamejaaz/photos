@@ -1,0 +1,84 @@
+name: iOS simulator
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'frontend/**'
+      - 'mobile/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: apps/photos
+
+      - uses: actions/checkout@v4
+        with:
+          repository: frappe/suite
+          ref: develop
+          path: apps/suite
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install packages
+        run: |
+          npm install --global yarn@1
+          (cd apps/suite && yarn install --frozen-lockfile)
+          (cd apps/photos && yarn install --frozen-lockfile)
+
+      - name: Build the app frontend
+        working-directory: apps/photos
+        run: |
+          yarn build:native
+          cd mobile && npx cap sync ios
+
+      - name: Build for the iPhone simulator
+        run: |
+          xcodebuild \
+            -project apps/photos/mobile/ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Run in the simulator
+        run: |
+          mkdir -p screens
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" build/Build/Products/Debug-iphonesimulator/App.app
+          xcrun simctl io "$DEVICE" recordVideo --codec h264 screens/launch.mp4 &
+          RECORDER=$!
+          xcrun simctl launch "$DEVICE" io.frappe.photos
+          sleep 20
+          xcrun simctl io "$DEVICE" screenshot screens/launch.png
+          kill -INT "$RECORDER"
+          wait "$RECORDER" || true
+          xcrun simctl spawn "$DEVICE" log show --last 2m --predicate 'process == "App"' > screens/app.log || true
+
+      - name: Package the simulator build
+        run: cd build/Build/Products/Debug-iphonesimulator && zip -qry "$GITHUB_WORKSPACE/Photos-simulator.zip" App.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator
+          path: |
+            screens
+            Photos-simulator.zip
+          retention-days: 14
