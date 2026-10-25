@@ -9,7 +9,8 @@ export function useBottomBar(el: Ref<HTMLElement | undefined>, active: () => boo
   const key = Symbol()
   const observer = new ResizeObserver(() => measure())
   const measure = () => {
-    if (el.value && active()) bars.set(key, el.value.offsetHeight)
+    if (el.value?.offsetHeight && active())
+      bars.set(key, Math.max(0, window.innerHeight - el.value.getBoundingClientRect().top))
     else bars.delete(key)
     apply()
   }
