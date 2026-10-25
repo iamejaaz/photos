@@ -38,6 +38,11 @@ final class BackupClient {
         return Set(result["message"] as? [String] ?? [])
     }
 
+    func backedUp(_ files: [[Any]]) async throws -> [Int] {
+        let result = try await call("/api/method/photos.api.backup.backed_up", json: ["files": files])
+        return (result["message"] as? [Any] ?? []).compactMap { ($0 as? NSNumber)?.intValue }
+    }
+
     func mark(file: String, sha1: String) async throws {
         _ = try await call("/api/method/photos.api.backup.mark", json: ["file": file, "sha1": sha1])
     }

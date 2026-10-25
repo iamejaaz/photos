@@ -15,10 +15,14 @@ public class PhotosBackupPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "runNow", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "signOut", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveToDevice", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "shareFiles", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "findFreeable", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "freeUpSpace", returnType: CAPPluginReturnPromise),
     ]
 
     private let store = BackupStore.shared
     private let engine = BackupEngine.shared
+    private var freeable: (assets: [PHAsset], bytes: Int64) = ([], 0)
 
     override public func load() {
         engine.onStatus = { [weak self] in
@@ -97,13 +101,13 @@ public class PhotosBackupPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func saveToDevice(_ call: CAPPluginCall) {
         guard let address = call.getString("url"), let url = URL(string: address) else { return call.reject("A download needs a url") }
-        let name = call.getString("name") ?? "download"
         var request = URLRequest(url: url)
         for (key, value) in call.getObject("headers") ?? [:] { request.setValue("\(value)", forHTTPHeaderField: key) }
         URLSession.shared.downloadTask(with: request) { location, response, error in
             guard let location = location, let http = response as? HTTPURLResponse, http.statusCode < 400 else {
                 return call.reject(error?.localizedDescription ?? "The download failed")
             }
+            let name = call.getString("name") ?? http.suggestedFilename ?? "photo"
             let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "-" + name)
             do { try FileManager.default.moveItem(at: location, to: file) } catch { return call.reject(error.localizedDescription) }
             let isVideo = (http.mimeType ?? "").hasPrefix("video/")
@@ -127,9 +131,64 @@ public class PhotosBackupPlugin: CAPPlugin, CAPBridgedPlugin {
         }.resume()
     }
 
+    @objc func shareFiles(_ call: CAPPluginCall) {
+        let files = call.getArray("files", JSObject.self) ?? []
+        let headers = call.getObject("headers") ?? [:]
+        Task {
+            var downloaded: [URL] = []
+            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("share", isDirectory: true)
+            try? FileManager.default.removeItem(at: folder)
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            for (index, file) in files.enumerated() {
+                guard let address = file["url"] as? String, let url = URL(string: address) else { continue }
+                var request = URLRequest(url: url)
+                for (key, value) in headers { request.setValue("\(value)", forHTTPHeaderField: key) }
+                guard let (location, response) = try? await URLSession.shared.download(for: request),
+                      let http = response as? HTTPURLResponse, http.statusCode < 400 else {
+                    return call.reject("The site could not send the files")
+                }
+                let name = ((file["name"] as? String) ?? http.suggestedFilename ?? "photo").replacingOccurrences(of: "/", with: "_")
+                let target = folder.appendingPathComponent("\(index)-\(name)")
+                try? FileManager.default.moveItem(at: location, to: target)
+                downloaded.append(target)
+            }
+            guard !downloaded.isEmpty else { return call.reject("Nothing to share") }
+            await MainActor.run { self.present(downloaded, call) }
+        }
+    }
+
+    @objc func findFreeable(_ call: CAPPluginCall) {
+        guard store.signedIn, engine.permission == "granted" || engine.permission == "partial" else {
+            return call.reject("Backup is not set up on this phone")
+        }
+        Task {
+            do {
+                freeable = try await engine.freeable()
+                call.resolve(["count": freeable.assets.count, "bytes": Int(freeable.bytes)])
+            } catch {
+                call.reject(error.localizedDescription)
+            }
+        }
+    }
+
+    @objc func freeUpSpace(_ call: CAPPluginCall) {
+        let assets = freeable.assets, bytes = freeable.bytes
+        guard !assets.isEmpty else { return call.resolve(["count": 0, "bytes": 0]) }
+        PHPhotoLibrary.shared().performChanges({
+            PHAssetChangeRequest.deleteAssets(assets as NSArray)
+        }) { success, _ in
+            if success { self.freeable = ([], 0) }
+            call.resolve(["count": success ? assets.count : 0, "bytes": success ? Int(bytes) : 0])
+        }
+    }
+
     private func share(_ file: URL, _ call: CAPPluginCall) {
+        present([file], call)
+    }
+
+    private func present(_ files: [URL], _ call: CAPPluginCall) {
         guard let controller = bridge?.viewController else { return call.reject("Nothing to show the file in") }
-        let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
+        let sheet = UIActivityViewController(activityItems: files, applicationActivities: nil)
         sheet.popoverPresentationController?.sourceView = controller.view
         controller.present(sheet, animated: true)
         call.resolve()

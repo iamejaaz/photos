@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Security
 
@@ -6,7 +7,7 @@ final class BackupStore {
 
     private let defaults = UserDefaults.standard
     private let lock = NSLock()
-    private var doneKeys: Set<String>?
+    private var doneHashes: [String: String]?
 
     var site: String { defaults.string(forKey: "photos.backup.site") ?? "" }
     var user: String { defaults.string(forKey: "photos.backup.user") ?? "" }
@@ -34,7 +35,7 @@ final class BackupStore {
     var lastError: String { defaults.string(forKey: "photos.backup.lastError") ?? "" }
 
     func signIn(site: String, user: String, clientId: String, accessToken: String, refreshToken: String, expiresIn: Double) {
-        if site != self.site || user != self.user { clearDone() }
+        if site != self.site || user != self.user { resetDoneCache() }
         defaults.set(site, forKey: "photos.backup.site")
         defaults.set(user, forKey: "photos.backup.user")
         defaults.set(clientId, forKey: "photos.backup.clientId")
@@ -52,7 +53,7 @@ final class BackupStore {
         enabled = false
         setKeychain("access", nil)
         setKeychain("refresh", nil)
-        clearDone()
+        resetDoneCache()
     }
 
     func progress(total: Int, done: Int) {
@@ -68,36 +69,53 @@ final class BackupStore {
     func isDone(_ key: String) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        return loadDone().contains(key)
+        return loadDone()[key] != nil
     }
 
-    func markDone(_ key: String) {
+    func hashOf(_ key: String) -> String? {
         lock.lock()
         defer { lock.unlock() }
-        var keys = loadDone()
-        keys.insert(key)
-        doneKeys = keys
-        try? JSONEncoder().encode(Array(keys)).write(to: doneFile, options: .atomic)
+        guard let hash = loadDone()[key], !hash.isEmpty else { return nil }
+        return hash
     }
 
-    func clearDone() {
+    func markDone(_ key: String, hash: String? = nil) {
         lock.lock()
         defer { lock.unlock() }
-        doneKeys = []
-        try? FileManager.default.removeItem(at: doneFile)
+        var done = loadDone()
+        done[key] = hash ?? done[key] ?? ""
+        doneHashes = done
+        try? JSONEncoder().encode(done).write(to: doneFile, options: .atomic)
+    }
+
+    private func resetDoneCache() {
+        lock.lock()
+        defer { lock.unlock() }
+        doneHashes = nil
+    }
+
+    private var folder: URL {
+        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
     }
 
     private var doneFile: URL {
-        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        return folder.appendingPathComponent("backup-done.json")
+        let account = SHA256.hash(data: Data("\(site)|\(user)".utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+        return folder.appendingPathComponent("backup-done-\(account).json")
     }
 
-    private func loadDone() -> Set<String> {
-        if let keys = doneKeys { return keys }
-        let keys = (try? Data(contentsOf: doneFile)).flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
-        doneKeys = Set(keys)
-        return doneKeys!
+    private func loadDone() -> [String: String] {
+        if let done = doneHashes { return done }
+        var done = (try? Data(contentsOf: doneFile)).flatMap { try? JSONDecoder().decode([String: String].self, from: $0) }
+        if done == nil {
+            let legacy = folder.appendingPathComponent("backup-done.json")
+            let keys = (try? Data(contentsOf: legacy)).flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
+            done = Dictionary(keys.map { ($0, "") }, uniquingKeysWith: { first, _ in first })
+            try? FileManager.default.removeItem(at: legacy)
+        }
+        doneHashes = done
+        return done ?? [:]
     }
 
     private func keychain(_ name: String) -> String? {

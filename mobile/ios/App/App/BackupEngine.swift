@@ -9,6 +9,7 @@ final class BackupEngine {
     static let shared = BackupEngine()
     static let taskIdentifier = "io.frappe.photos.backup"
     private static let batch = 25
+    private static let lookupBatch = 1000
 
     private let store = BackupStore.shared
     private lazy var client = BackupClient(store: store)
@@ -80,7 +81,7 @@ final class BackupEngine {
         do {
             let folder = try await client.uploadFolder()
             let items = assets()
-            let pending = items.filter { !store.isDone(key($0)) }
+            let pending = await skipBackedUp(items.filter { !store.isDone(key($0)) })
             var done = items.count - pending.count
             store.progress(total: items.count, done: done)
             emit()
@@ -110,7 +111,7 @@ final class BackupEngine {
                             continue
                         }
                     }
-                    store.markDone(key(asset))
+                    store.markDone(key(asset), hash: hash)
                     done += 1
                     store.progress(total: items.count, done: done)
                     emit()
@@ -123,7 +124,61 @@ final class BackupEngine {
         schedule()
     }
 
-    private func assets() -> [PHAsset] {
+    private func skipBackedUp(_ pending: [PHAsset]) async -> [PHAsset] {
+        for start in stride(from: 0, to: pending.count, by: Self.lookupBatch) {
+            let slice = Array(pending[start..<min(pending.count, start + Self.lookupBatch)])
+            let files: [[Any]] = slice.map { asset in
+                guard let (resource, name) = primaryResource(asset) else { return ["", 0] }
+                return [name, size(of: resource)]
+            }
+            guard let found = try? await client.backedUp(files) else { break }
+            for index in found where slice.indices.contains(index) { store.markDone(key(slice[index])) }
+        }
+        return pending.filter { !store.isDone(key($0)) }
+    }
+
+    func freeable() async throws -> (assets: [PHAsset], bytes: Int64) {
+        let backedUp = assets().filter { store.isDone(key($0)) }
+        var hashes: [(PHAsset, String)] = []
+        for asset in backedUp {
+            if let hash = store.hashOf(key(asset)) {
+                hashes.append((asset, hash))
+                continue
+            }
+            guard let (file, _, _) = try? await export(asset) else { continue }
+            defer { try? FileManager.default.removeItem(at: file) }
+            guard let hash = try? sha1(file) else { continue }
+            store.markDone(key(asset), hash: hash)
+            hashes.append((asset, hash))
+        }
+        var result: [PHAsset] = []
+        var bytes: Int64 = 0
+        for start in stride(from: 0, to: hashes.count, by: Self.lookupBatch) {
+            let slice = Array(hashes[start..<min(hashes.count, start + Self.lookupBatch)])
+            let missing = try await client.missing(slice.map { $0.1 })
+            for (asset, hash) in slice where !missing.contains(hash) {
+                result.append(asset)
+                bytes += primaryResource(asset).map { size(of: $0.0) } ?? 0
+            }
+        }
+        return (result, bytes)
+    }
+
+    private func primaryResource(_ asset: PHAsset) -> (PHAssetResource, String)? {
+        let resources = PHAssetResource.assetResources(for: asset)
+        let preferred: [PHAssetResourceType] = asset.mediaType == .video ? [.fullSizeVideo, .video] : [.fullSizePhoto, .photo]
+        guard let resource = preferred.lazy.compactMap({ type in resources.first { $0.type == type } }).first ?? resources.first else {
+            return nil
+        }
+        let name = resources.first { $0.type == .photo || $0.type == .video }?.originalFilename ?? resource.originalFilename
+        return (resource, name)
+    }
+
+    private func size(of resource: PHAssetResource) -> Int64 {
+        (resource.value(forKey: "fileSize") as? NSNumber)?.int64Value ?? 0
+    }
+
+    func assets() -> [PHAsset] {
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         if !store.includeVideos { options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue) }
@@ -135,17 +190,12 @@ final class BackupEngine {
         return assets
     }
 
-    private func key(_ asset: PHAsset) -> String {
+    func key(_ asset: PHAsset) -> String {
         "\(asset.localIdentifier):\(Int(asset.modificationDate?.timeIntervalSince1970 ?? 0))"
     }
 
     private func export(_ asset: PHAsset) async throws -> (URL, String, String) {
-        let resources = PHAssetResource.assetResources(for: asset)
-        let preferred: [PHAssetResourceType] = asset.mediaType == .video ? [.fullSizeVideo, .video] : [.fullSizePhoto, .photo]
-        guard let resource = preferred.lazy.compactMap({ type in resources.first { $0.type == type } }).first ?? resources.first else {
-            throw BackupError.failed("The photo could not be read")
-        }
-        let name = resources.first { $0.type == .photo || $0.type == .video }?.originalFilename ?? resource.originalFilename
+        guard let (resource, name) = primaryResource(asset) else { throw BackupError.failed("The photo could not be read") }
         let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "-" + name)
         let options = PHAssetResourceRequestOptions()
         options.isNetworkAccessAllowed = true
