@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { call, toast } from 'frappe-ui'
 
 import { errorText } from '../resources/drive'
+import { nativePlatform } from '../native/platform'
 
 export type AppUpdate = { version_code: number; version_name: string; url: string }
 
@@ -31,7 +32,8 @@ export function checkForUpdate() {
       App.getInfo(),
     ])
     appVersion.value = info.version
-    if (latest && latest.version_code > Number(info.build)) availableUpdate.value = latest
+    if (nativePlatform() === 'android' && latest && latest.version_code > Number(info.build))
+      availableUpdate.value = latest
   })())
 }
 
