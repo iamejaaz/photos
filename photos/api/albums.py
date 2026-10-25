@@ -13,6 +13,7 @@ from suite.drive.overrides.file import File as DriveFile
 from suite.drive.utils import FILE_FIELDS, GENERAL_USER, get_principals
 
 from photos.api.photos import PAGE_SIZE, File, Hidden, media_query
+from photos.smart.faces import available as faces_available
 from photos.utils.permissions import can_access, photo_access
 
 ALBUM = "Photo Album"
@@ -307,6 +308,7 @@ def get_album(album: str):
         frappe.throw("You don't have access to this album.", frappe.PermissionError)
     summary = _summaries([album])[0]
     summary.access = access
+    summary.find_me = int(faces_available())
     if link_only(album):
         summary.owner = None
         summary.update(auto_people=[], auto_people_names=[])
@@ -320,7 +322,7 @@ def album_files(album: str):
 
 
 @frappe.whitelist(allow_guest=True)
-def album_photos(album: str, start: int = 0, limit: int | None = None):
+def album_photos(album: str, start: int = 0, limit: int | None = None, only: list[str] | str | None = None):
     access = album_access(album)
     if not access["read"]:
         frappe.throw("You don't have access to this album.", frappe.PermissionError)
@@ -344,6 +346,9 @@ def album_photos(album: str, start: int = 0, limit: int | None = None):
     query = query.where(
         File.name.notin(frappe.qb.from_(Hidden).select(Hidden.file).where(Hidden.user == File.owner))
     )
+    if only is not None:
+        only = json.loads(only) if isinstance(only, str) else only
+        query = query.where(File.name.isin(only or [""]))
     rows = query.run(as_dict=True)
     likes = frappe.get_all(
         "Photo Album Activity",
@@ -361,6 +366,41 @@ def album_photos(album: str, start: int = 0, limit: int | None = None):
         if private:
             row.update(dict.fromkeys(PRIVATE_FIELDS))
     return {"rows": rows[:limit], "has_next": len(rows) > limit, "next_start": start + min(len(rows), limit)}
+
+
+SELFIE_MAX_SIZE = 15 * 1024 * 1024
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=20, seconds=10 * 60)
+def find_me(album: str):
+    from io import BytesIO
+
+    from PIL import Image
+
+    from photos.smart import faces
+    from photos.utils.formats import upright
+
+    if not album_access(album)["read"]:
+        frappe.throw("You don't have access to this album.", frappe.PermissionError)
+    if not faces.available():
+        frappe.throw("Finding people is not turned on for this site.")
+    upload = frappe.request.files.get("selfie")
+    if not upload:
+        frappe.throw("Take a selfie first.")
+    content = upload.stream.read(SELFIE_MAX_SIZE + 1)
+    if len(content) > SELFIE_MAX_SIZE:
+        frappe.throw("That photo is too large.")
+    try:
+        with Image.open(BytesIO(content)) as image:
+            selfie = upright(image).convert("RGB")
+    except Exception:
+        frappe.throw("That photo could not be read. Try again.")
+    files = frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file")
+    found = faces.find_person(selfie, files)
+    if found is None:
+        frappe.throw("No face found. Try again with your face clearly in view.")
+    return sorted(found)
 
 
 @frappe.whitelist()

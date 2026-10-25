@@ -205,6 +205,21 @@ def _detect(rgb):
     return faces
 
 
+def find_person(image, files):
+    import numpy as np
+
+    found = _detect(image)
+    if not found:
+        return None
+    vector = _decode(max(found, key=lambda face: face["width"] * face["height"])["embedding"])
+    rows = frappe.get_all(
+        "Photo Face",
+        filters={"file": ["in", files or [""]], "not_a_face": 0, "embedder": EMBEDDER},
+        fields=["file", "embedding"],
+    )
+    return {row.file for row in rows if float(np.dot(vector, _decode(row.embedding))) >= SAME_PERSON}
+
+
 def _assign(face, owner):
     import numpy as np
 
