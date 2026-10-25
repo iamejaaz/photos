@@ -33,6 +33,21 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>io.frappe.photos</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>io.frappe.photos</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Photos uses the camera to take a selfie and find the photos you are in.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Photos uses Face ID to unlock your hidden photos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Photos saves the photos you download to this iPhone.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
