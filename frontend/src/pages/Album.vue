@@ -44,6 +44,24 @@
         <template #[iconSlot]><LucideImagePlus class="size-4" /></template>
         <template v-if="!phone">{{ __('Add photos') }}</template>
       </Button>
+      <Button
+        v-if="album?.find_me && !found"
+        variant="subtle"
+        :loading="finding"
+        :aria-label="__('Find me')"
+        @click="selfieInput?.click()"
+      >
+        <template #[iconSlot]><LucideScanFace class="size-4" /></template>
+        <template v-if="!phone">{{ __('Find me') }}</template>
+      </Button>
+      <input
+        ref="selfieInput"
+        type="file"
+        accept="image/*"
+        capture="user"
+        class="hidden"
+        @change="onSelfie"
+      />
       <Button v-if="album?.access?.share" variant="subtle" :aria-label="__('Share')" @click="sharing = true">
         <template #[iconSlot]><LucideShare2 class="size-4" /></template>
         <template v-if="!phone">{{ __('Share') }}</template>
@@ -102,13 +120,23 @@
     </Button>
   </div>
   <div v-else class="flex min-h-full">
-    <PhotoGrid
-      class="min-w-0 flex-1"
-      :handle="handle"
-      :empty-icon="LucideImagePlus"
-      :empty-title="__('This album is empty')"
-      :empty-text="album?.access?.write ? __('Use Add photos to pick from your library.') : ''"
-    />
+    <div class="min-w-0 flex-1">
+      <div v-if="found" class="flex items-center gap-2 px-4 py-3 sm:px-5">
+        <span class="flex-1 text-base font-medium text-ink-gray-8">
+          {{ found.length === 1 ? __("You're in 1 photo") : __("You're in {0} photos", [found.length]) }}
+        </span>
+        <Button v-if="album?.access?.download" variant="solid" @click="downloadFound">
+          {{ __('Download these') }}
+        </Button>
+        <Button variant="subtle" @click="showAll">{{ __('Show all') }}</Button>
+      </div>
+      <PhotoGrid
+        :handle="handle"
+        :empty-icon="LucideImagePlus"
+        :empty-title="__('This album is empty')"
+        :empty-text="album?.access?.write ? __('Use Add photos to pick from your library.') : ''"
+      />
+    </div>
     <ActivityPanel
       v-if="showActivity && album"
       class="sticky top-0 h-[calc(100vh-3rem)]"
@@ -177,6 +205,7 @@ import LucideImagePlus from '~icons/lucide/image-plus'
 import LucideMessageCircle from '~icons/lucide/message-circle'
 import LucidePlay from '~icons/lucide/play'
 import LucideShare2 from '~icons/lucide/share-2'
+import LucideScanFace from '~icons/lucide/scan-face'
 
 import { useSessionStore } from '@/boot/session'
 import { appPageMeta } from '@/utils/documentTitle'
@@ -187,6 +216,7 @@ import {
   albumGate,
   collectUpload,
   deleteAlbum,
+  findMe,
   getAlbum,
   getAlbumFiles,
   leaveAlbum,
@@ -225,6 +255,38 @@ const renaming = ref(false)
 const deleting = ref(false)
 const title = ref('')
 const showActivity = ref(false)
+const selfieInput = ref<HTMLInputElement>()
+const finding = ref(false)
+const found = ref<string[] | null>(null)
+
+async function onSelfie(event: Event) {
+  const input = event.target as HTMLInputElement
+  const selfie = input.files?.[0]
+  input.value = ''
+  if (!selfie) return
+  finding.value = true
+  try {
+    const files = await findMe(props.album, selfie)
+    if (!files.length) return toast.info(__("We couldn't find you in this album"))
+    found.value = files
+    handle.feed.params = { album: props.album, only: JSON.stringify(files) }
+    await handle.reload()
+  } catch (error) {
+    toast.error(errorText(error) || __('Could not look for you. Try again.'))
+  } finally {
+    finding.value = false
+  }
+}
+
+function showAll() {
+  found.value = null
+  handle.feed.params = { album: props.album }
+  handle.reload()
+}
+
+function downloadFound() {
+  if (found.value) download(found.value.map((name) => ({ name, album: props.album }) as Photo))
+}
 
 function openPhoto(file: string) {
   if (handle.feed.rows.some((row) => row.name === file)) openLightbox(handle, file)
