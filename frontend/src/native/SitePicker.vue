@@ -66,11 +66,13 @@ import {
   type Account,
   type Site,
   lastSiteAddress,
+  markSignedOut,
   normalizeSiteUrl,
   probeSite,
   siteProblem,
   saveSite,
   savedAccounts,
+  signedOutOf,
   stopAddingSite,
   switchAccount,
 } from './sites'
@@ -128,7 +130,10 @@ async function connect() {
       window.location.replace('/')
       return
     }
-    await signIn(probe.site.url, probe.site.clientId)
+    const chooseAccount =
+      probe.chooseAccount && (props.cancellable || (await signedOutOf()) === probe.site.url)
+    await signIn(probe.site.url, probe.site.clientId, undefined, chooseAccount)
+    await markSignedOut(null)
     stopAddingSite()
     await saveSite(probe.site)
     window.location.replace('/')

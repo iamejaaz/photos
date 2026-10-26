@@ -14,6 +14,7 @@ export const buildAuthorizeUrl = (
   clientId: string,
   state: string,
   challenge: string,
+  chooseAccount = false,
 ): string => {
   const params = new URLSearchParams({
     client_id: clientId,
@@ -24,6 +25,8 @@ export const buildAuthorizeUrl = (
     code_challenge: challenge,
     code_challenge_method: 'S256',
   })
+  if (chooseAccount)
+    return `${site}/api/method/photos.api.native.choose_account?${new URLSearchParams({ query: params.toString() })}`
   return `${site}/api/method/frappe.integrations.oauth2.authorize?${params.toString()}`
 }
 
@@ -136,12 +139,13 @@ export const signIn = async (
   site: string,
   clientId: string,
   deps: AuthDeps = defaultDeps,
+  chooseAccount = false,
 ): Promise<StoredTokens> => {
   const verifier = deps.pkce.verifier()
   const state = deps.pkce.state()
   const challenge = await deps.pkce.challenge(verifier)
   const callback = readCallback(
-    await deps.authorize(buildAuthorizeUrl(site, clientId, state, challenge)),
+    await deps.authorize(buildAuthorizeUrl(site, clientId, state, challenge, chooseAccount)),
     state,
   )
   const tokens = await exchange(

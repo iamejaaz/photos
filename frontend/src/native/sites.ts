@@ -4,6 +4,7 @@ export type Site = { url: string; name: string; sitename: string; clientId: stri
 
 const SITE_KEY = 'site'
 const LAST_ADDRESS_KEY = 'last-site-address'
+const SIGNED_OUT_KEY = 'signed-out-site'
 
 const isLocalHost = (host: string) =>
   /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(
@@ -22,9 +23,16 @@ export const normalizeSiteUrl = (input: string): string | null => {
   }
 }
 
-type ClientInfo = { client_id?: string | null; sitename?: string; app_name?: string; photos_version?: string }
+type ClientInfo = {
+  client_id?: string | null
+  sitename?: string
+  app_name?: string
+  photos_version?: string
+  choose_account?: number
+}
 export type ProbeResult =
-  { site: Site } | { error: 'unreachable' | 'not-photos' | 'no-client' } | { error: 'down'; status: number }
+  | { site: Site; chooseAccount: boolean }
+  | { error: 'unreachable' | 'not-photos' | 'no-client' } | { error: 'down'; status: number }
 
 export const siteProblem = (url: string, status: number | null) => {
   const host = new URL(url).host
@@ -74,6 +82,7 @@ export const probeSite = async (url: string): Promise<ProbeResult> => {
       sitename: message.sitename,
       clientId: message.client_id,
     },
+    chooseAccount: Boolean(message.choose_account),
   }
 }
 
@@ -96,6 +105,12 @@ export const saveSite = async (site: Site | null) => {
     site ? p.set({ key: SITE_KEY, value: JSON.stringify(site) }) : p.remove({ key: SITE_KEY }),
   )
 }
+
+export const markSignedOut = (url: string | null) =>
+  withPrefs((p) => (url ? p.set({ key: SIGNED_OUT_KEY, value: url }) : p.remove({ key: SIGNED_OUT_KEY })))
+
+export const signedOutOf = (): Promise<string> =>
+  withPrefs(async (p) => (await p.get({ key: SIGNED_OUT_KEY })).value ?? '')
 
 export const lastSiteAddress = (): Promise<string> =>
   withPrefs(async (p) => (await p.get({ key: LAST_ADDRESS_KEY })).value ?? '')
