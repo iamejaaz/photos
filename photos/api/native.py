@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 import frappe
 
 import photos
@@ -57,7 +59,45 @@ def get_client_id():
         "sitename": frappe.local.site,
         "photos_version": photos.__version__,
         "min_app_version": MIN_APP_VERSION,
+        "choose_account": 1,
     }
+
+
+AUTHORIZE_PATH = "/api/method/frappe.integrations.oauth2.authorize?"
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def choose_account(query: str = ""):
+    continue_url = AUTHORIZE_PATH + query
+    if frappe.session.user == "Guest":
+        return _redirect("/login?" + urlencode({"redirect-to": continue_url}))
+    from frappe.utils import escape_html
+
+    user = frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user
+    html = frappe.render_template(
+        "photos/templates/includes/choose_account.html",
+        {
+            "app_name": escape_html(_app_name()),
+            "user": escape_html(f"{user} ({frappe.session.user})" if user != frappe.session.user else user),
+            "continue_url": escape_html(continue_url),
+            "query": escape_html(query),
+            "csrf_token": frappe.sessions.get_csrf_token(),
+        },
+    )
+    frappe.respond_as_web_page(frappe._("Choose an account"), html, primary_action=None)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def use_another_account(query: str = ""):
+    if frappe.session.user != "Guest":
+        frappe.local.login_manager.logout()
+        frappe.db.commit()
+    _redirect("/login?" + urlencode({"redirect-to": AUTHORIZE_PATH + query}))
+
+
+def _redirect(location):
+    frappe.local.response["type"] = "redirect"
+    frappe.local.response["location"] = location
 
 
 @frappe.whitelist()
