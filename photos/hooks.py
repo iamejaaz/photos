@@ -25,6 +25,7 @@ website_route_rules = [
 doc_events = {
     "File": {
         "after_insert": "photos.utils.metadata.enqueue_extract",
+        "on_update": "photos.utils.cleanup.on_file_update",
     },
     "Photo Album": {
         "on_update": "suite.drive.overrides.file.sync_content_file",
