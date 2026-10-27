@@ -9,41 +9,50 @@
       @contextmenu.prevent
     >
       <div class="absolute inset-0 overflow-hidden">
-        <template v-if="isVideo(photo)">
+        <div
+          v-for="slide in slides"
+          :key="slide.name"
+          class="absolute inset-0"
+          :class="{ invisible: slide.name !== photo.name }"
+        >
           <video
-            ref="videoEl"
-            :key="photo.name"
-            :src="streamUrl(photo.name)"
-            :poster="thumbnailUrl(photo.name, undefined, true)"
+            v-if="isVideo(slide)"
+            :ref="(el) => setVideo(slide.name, el as HTMLVideoElement | null)"
+            :src="streamUrl(slide.name)"
+            :poster="thumbnailUrl(slide.name, undefined, true)"
             class="size-full object-contain"
-            autoplay
+            preload="auto"
             :muted="muted"
             playsinline
-            @loadstart="buffering = true"
-            @waiting="buffering = true"
+            @canplay="ready(slide.name)"
+            @error="ready(slide.name)"
+            @waiting="slide.name === photo.name && (buffering = true)"
             @playing="buffering = false"
-            @ended="next"
+            @ended="slide.name === photo.name && next()"
           />
-          <LoadingIndicator
-            v-if="buffering"
-            class="pointer-events-none absolute left-1/2 top-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-white"
-          />
-        </template>
-        <div v-else :key="photo.name" class="relative size-full">
-          <img
-            :src="thumbnailUrl(photo.name, undefined, true)"
-            class="absolute inset-0 size-full object-contain"
-            draggable="false"
-            alt=""
-          />
-          <img
-            :src="contentUrl(photo.name)"
-            class="story-image relative size-full object-contain"
-            :style="{ animationDuration: `${PHOTO_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }"
-            draggable="false"
-            alt=""
-          />
+          <template v-else>
+            <img
+              :src="thumbnailUrl(slide.name, undefined, true)"
+              class="absolute inset-0 size-full object-contain"
+              draggable="false"
+              alt=""
+            />
+            <img
+              :src="contentUrl(slide.name)"
+              class="relative size-full object-contain"
+              :class="{ 'story-image': slide.name === photo.name }"
+              :style="{ animationDuration: `${PHOTO_MS}ms`, animationPlayState: paused || !loaded.has(slide.name) ? 'paused' : 'running' }"
+              draggable="false"
+              alt=""
+              @load="ready(slide.name)"
+              @error="ready(slide.name)"
+            />
+          </template>
         </div>
+        <LoadingIndicator
+          v-if="buffering || !loaded.has(photo.name)"
+          class="story-late pointer-events-none absolute left-1/2 top-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-white"
+        />
       </div>
 
       <div class="absolute inset-x-0 top-0 bg-gradient-to-b from-black/60 to-transparent px-3 pb-10 pt-3">
@@ -133,7 +142,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { Dropdown, LoadingIndicator, toast, useKeyboardShortcut } from 'frappe-ui'
 import LucideChevronLeft from '~icons/lucide/chevron-left'
@@ -220,19 +229,54 @@ watch(
 )
 
 const held = ref(false)
-const videoEl = ref<HTMLVideoElement | null>(null)
-watch(paused, (value) => {
-  if (!videoEl.value) return
-  if (value) videoEl.value.pause()
-  else videoEl.value.play().catch(() => {})
+const loaded = reactive(new Set<string>())
+const videos = new Map<string, HTMLVideoElement>()
+const AHEAD = 2
+
+const slides = computed(() => {
+  const found = []
+  let [m, i] = [story.memory, story.index]
+  while (found.length <= AHEAD && story.memories[m]) {
+    const item = story.memories[m].photos[i]
+    if (item) found.push(item)
+    if (++i >= (story.memories[m]?.photos.length ?? 0)) [m, i] = [m + 1, 0]
+  }
+  return found
 })
+
+function ready(name: string) {
+  loaded.add(name)
+}
+
+function setVideo(name: string, el: HTMLVideoElement | null) {
+  if (el) videos.set(name, el)
+  else videos.delete(name)
+}
+
+watch(
+  () => [photo.value?.name, paused.value, story.open] as const,
+  ([current, stopped, open]) => {
+    for (const [name, el] of videos) {
+      if (open && name === current && !stopped) el.play().catch(() => {})
+      else el.pause()
+    }
+  },
+  { flush: 'post' },
+)
 watch(
   [menuOpen, hidingFaces, () => sharePhotos.open, held],
   ([menu, faces, sharing, hold]) => (paused.value = menu || faces || sharing || hold),
 )
 watch(
   () => [story.memory, story.index],
-  () => (held.value = false),
+  () => {
+    held.value = false
+    buffering.value = false
+  },
+)
+watch(
+  () => story.open,
+  (open) => !open && loaded.clear(),
 )
 
 const keys = () => story.open && !menuOpen.value && !hidingFaces.value && !sharePhotos.open
@@ -349,7 +393,7 @@ function tick(time: number) {
   if (!story.open) return
   const elapsed = last ? time - last : 0
   last = time
-  if (!paused.value && photo.value && !isVideo(photo.value)) {
+  if (!paused.value && photo.value && !isVideo(photo.value) && loaded.has(photo.value.name)) {
     progress.value = Math.min(1, progress.value + elapsed / PHOTO_MS)
     if (progress.value >= 1) next()
   }
@@ -364,8 +408,6 @@ watch(
     last = 0
     if (!open) return
     frame = requestAnimationFrame(tick)
-    const upcoming = memory.value?.photos[story.index + 1]
-    if (upcoming && !isVideo(upcoming)) new Image().src = contentUrl(upcoming.name)
   },
 )
 
@@ -407,6 +449,17 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
   }
   to {
     transform: scale(1.08);
+  }
+}
+.story-late {
+  animation: story-late 0.2s ease 0.5s both;
+}
+@keyframes story-late {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 .story-button {

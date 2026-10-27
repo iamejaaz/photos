@@ -31,8 +31,8 @@ import { ref, watch } from 'vue'
 import { getSessionUser } from '@/boot/session'
 import { readJSON, writeJSON } from '@/utils/localStorage'
 
-import { type Memory, getMemories } from '../resources/photos'
-import { thumbnailUrl } from '../resources/media'
+import { type Memory, getMemories, isVideo } from '../resources/photos'
+import { contentUrl, thumbnailUrl } from '../resources/media'
 import { memoriesVersion, playMemories } from '../data/viewer'
 import { itemCount } from '../utils'
 
@@ -46,9 +46,21 @@ watch(
     getMemories().then((data) => {
       memories.value = data
       writeJSON(KEY, { day: today(), memories: data })
+      warmUp(data)
     }),
   { immediate: true },
 )
+
+function warmUp(list: Memory[]) {
+  const start = () =>
+    list
+      .slice(0, 3)
+      .map((memory) => memory.photos[0])
+      .filter((photo) => photo && !isVideo(photo))
+      .forEach((photo) => (new Image().src = contentUrl(photo.name)))
+  if ('requestIdleCallback' in window) requestIdleCallback(start)
+  else setTimeout(start, 1000)
+}
 
 function play(memory: Memory) {
   playMemories(memories.value, memories.value.indexOf(memory))
