@@ -49,7 +49,7 @@
         variant="subtle"
         :loading="finding"
         :aria-label="__('Find me')"
-        @click="selfieInput?.click()"
+        @click="startFindMe"
       >
         <template #[iconSlot]><LucideScanFace class="size-4" /></template>
         <template v-if="!phone">{{ __('Find me') }}</template>
@@ -62,6 +62,7 @@
         class="hidden"
         @change="onSelfie"
       />
+      <SelfieCamera v-model:open="camera" @taken="search" />
       <Button v-if="album?.access?.share" variant="subtle" :aria-label="__('Share')" @click="sharing = true">
         <template #[iconSlot]><LucideShare2 class="size-4" /></template>
         <template v-if="!phone">{{ __('Share') }}</template>
@@ -228,6 +229,7 @@ import {
 import { type Photo } from '../resources/photos'
 import { exportAlbum } from '../resources/export'
 import ActivityPanel from '../components/ActivityPanel.vue'
+import SelfieCamera from '../components/SelfieCamera.vue'
 import AddPhotosDialog from '../components/AddPhotosDialog.vue'
 import AlbumLinkDialog from '../components/AlbumLinkDialog.vue'
 import AutoPeopleDialog from '../components/AutoPeopleDialog.vue'
@@ -259,11 +261,23 @@ const selfieInput = ref<HTMLInputElement>()
 const finding = ref(false)
 const found = ref<string[] | null>(null)
 
-async function onSelfie(event: Event) {
+const camera = ref(false)
+const touchScreen = useMediaQuery('(pointer: coarse)')
+
+function startFindMe() {
+  if (import.meta.env.VITE_NATIVE || touchScreen.value || !navigator.mediaDevices?.getUserMedia)
+    return selfieInput.value?.click()
+  camera.value = true
+}
+
+function onSelfie(event: Event) {
   const input = event.target as HTMLInputElement
   const selfie = input.files?.[0]
   input.value = ''
-  if (!selfie) return
+  if (selfie) search(selfie)
+}
+
+async function search(selfie: File) {
   finding.value = true
   try {
     const files = await findMe(props.album, selfie)
