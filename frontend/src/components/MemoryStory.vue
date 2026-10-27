@@ -71,6 +71,9 @@
             <div class="text-xs text-white/80">{{ takenLabel }}</div>
           </div>
           <div class="flex items-center gap-1" @pointerdown.stop @pointerup.stop>
+            <button class="story-button" :aria-label="held ? __('Play') : __('Pause')" @click="held = !held">
+              <component :is="held ? LucidePlay : LucidePause" class="size-5 fill-current" />
+            </button>
             <button
               v-if="isVideo(photo)"
               class="story-button"
@@ -136,6 +139,8 @@ import { Dropdown, LoadingIndicator, toast, useKeyboardShortcut } from 'frappe-u
 import LucideChevronLeft from '~icons/lucide/chevron-left'
 import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideEllipsisVertical from '~icons/lucide/ellipsis-vertical'
+import LucidePause from '~icons/lucide/pause'
+import LucidePlay from '~icons/lucide/play'
 import LucideShare2 from '~icons/lucide/share-2'
 import LucideStar from '~icons/lucide/star'
 import LucideVolume2 from '~icons/lucide/volume-2'
