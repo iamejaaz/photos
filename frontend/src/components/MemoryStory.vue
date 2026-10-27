@@ -185,23 +185,25 @@ let downAt = 0
 let downX = 0
 let downY = 0
 
-const watched = new Set<string>()
+let watchedAny = false
 
 function close() {
   story.open = false
 }
 
 watch(
-  () => story.open && photo.value?.name,
-  (name) => name && watched.add(name),
+  () => story.open && memory.value,
+  (current) => {
+    if (!current) return
+    watchedAny = true
+    markMemoriesSeen(current.photos.map((item) => item.name)).catch(() => {})
+  },
 )
 watch(
   () => story.open,
-  async (open) => {
-    if (open || !watched.size) return
-    const files = [...watched]
-    watched.clear()
-    await markMemoriesSeen(files).catch(() => {})
+  (open) => {
+    if (open || !watchedAny) return
+    watchedAny = false
     memoriesVersion.value++
   },
 )
