@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="story.open && memory && photo"
-      class="edge-to-edge fixed inset-0 z-50 select-none bg-black text-white"
+      class="edge-to-edge fixed inset-0 z-50 touch-none select-none bg-black text-white"
       @pointerdown="onDown"
       @pointerup="onUp"
       @pointercancel="onCancel"
@@ -381,6 +381,18 @@ function next() {
   } else close()
 }
 
+function nextMemory() {
+  if (story.memory >= story.memories.length - 1) return close()
+  story.memory++
+  story.index = 0
+}
+
+function previousMemory() {
+  if (story.memory === 0) return (progress.value = 0)
+  story.memory--
+  story.index = 0
+}
+
 function previous() {
   if (story.index > 0) story.index--
   else if (story.memory > 0) {
@@ -420,8 +432,11 @@ function onDown(event: PointerEvent) {
 
 function onUp(event: PointerEvent) {
   paused.value = held.value
-  if (event.clientY - downY > 80) return close()
-  if (Date.now() - downAt > HOLD_MS || Math.abs(event.clientX - downX) > 30) return
+  const dx = event.clientX - downX
+  const dy = event.clientY - downY
+  if (dy > 80 && dy > Math.abs(dx)) return close()
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) return dx < 0 ? nextMemory() : previousMemory()
+  if (Date.now() - downAt > HOLD_MS || Math.abs(dx) > 30) return
   if (downX < window.innerWidth / 3) previous()
   else next()
 }
