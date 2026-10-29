@@ -2,13 +2,13 @@
   <Dialog v-model:open="open" :title="__('Find me')" size="lg">
     <div class="relative aspect-[4/3] overflow-hidden rounded-lg bg-surface-gray-2">
       <video
-        v-show="streaming"
         ref="video"
         class="size-full -scale-x-100 object-cover"
+        :class="{ 'opacity-0': !streaming }"
         autoplay
         muted
         playsinline
-        @playing="streaming = true"
+        @loadeddata="streaming = true"
       />
       <div
         v-if="!streaming"
@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 import { Button, Dialog, LoadingIndicator } from 'frappe-ui'
 
 const open = defineModel<boolean>('open', { default: false })
@@ -42,16 +42,26 @@ const video = ref<HTMLVideoElement>()
 const picker = ref<HTMLInputElement>()
 const streaming = ref(false)
 const problem = ref('')
-let stream: MediaStream | null = null
+const stream = shallowRef<MediaStream | null>(null)
+
+watch(
+  [video, stream],
+  ([el, media]) => {
+    if (!el || !media || el.srcObject === media) return
+    el.srcObject = media
+    el.play().catch(() => {})
+  },
+  { flush: 'post' },
+)
 
 watch(open, async (value) => {
   if (!value) return stop()
   streaming.value = false
   problem.value = ''
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
-    if (!open.value) return stop()
-    if (video.value) video.value.srcObject = stream
+    const media = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+    if (!open.value) return media.getTracks().forEach((track) => track.stop())
+    stream.value = media
   } catch (error) {
     problem.value =
       (error as Error).name === 'NotAllowedError'
@@ -61,8 +71,8 @@ watch(open, async (value) => {
 })
 
 function stop() {
-  stream?.getTracks().forEach((track) => track.stop())
-  stream = null
+  stream.value?.getTracks().forEach((track) => track.stop())
+  stream.value = null
   streaming.value = false
 }
 
