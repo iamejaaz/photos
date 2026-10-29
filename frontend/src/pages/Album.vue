@@ -27,7 +27,7 @@
     <template #actions>
       <Button
         v-if="album?.access?.write"
-        variant="solid"
+        :variant="found ? 'subtle' : 'solid'"
         :aria-label="__('Add photos')"
         @click="adding = true"
       >
@@ -36,7 +36,7 @@
       </Button>
       <Button
         v-if="album?.access?.upload && !album.access.write"
-        variant="solid"
+        :variant="found ? 'subtle' : 'solid'"
         :loading="contributing"
         :aria-label="__('Add photos')"
         @click="contribute"
