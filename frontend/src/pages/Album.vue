@@ -124,7 +124,7 @@
     <div class="min-w-0 flex-1">
       <div v-if="found" class="flex items-center gap-2 px-4 py-3 sm:px-5">
         <span class="flex-1 text-base font-medium text-ink-gray-8">
-          {{ found.length === 1 ? __("You're in 1 photo") : __("You're in {0} photos", [found.length]) }}
+          {{ foundLabel }}
         </span>
         <Button v-if="album?.access?.download" variant="solid" @click="downloadFound">
           {{ __('Download these') }}
@@ -260,6 +260,16 @@ const showActivity = ref(false)
 const selfieInput = ref<HTMLInputElement>()
 const finding = ref(false)
 const found = ref<string[] | null>(null)
+const foundLabel = computed(() => {
+  if (handle.feed.hasNext) return __("You're in {0} photos and videos", [found.value?.length ?? 0])
+  const videos = handle.feed.rows.filter((row) => row.mime_type?.startsWith('video/')).length
+  const photos = handle.feed.rows.length - videos
+  const parts = [
+    photos && (photos === 1 ? __('1 photo') : __('{0} photos', [photos])),
+    videos && (videos === 1 ? __('1 video') : __('{0} videos', [videos])),
+  ].filter(Boolean)
+  return __("You're in {0}", [parts.join(__(' and '))])
+})
 
 const camera = ref(false)
 const touchScreen = useMediaQuery('(pointer: coarse)')
