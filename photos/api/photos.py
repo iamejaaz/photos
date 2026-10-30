@@ -24,7 +24,7 @@ Hidden = frappe.qb.DocType("Photo Hidden")
 Face = frappe.qb.DocType("Photo Face")
 Year = CustomFunction("YEAR", ["date"])
 Month = CustomFunction("MONTH", ["date"])
-DayOfYear = CustomFunction("DAYOFYEAR", ["date"])
+DayOfMonth = CustomFunction("DAYOFMONTH", ["date"])
 
 UPLOAD_FOLDER = "Photos"
 PAGE_SIZE = 120
@@ -427,7 +427,8 @@ def _pick_memories(today, preferences):
         )
     if removed := preferences["memory_removed"]:
         query = query.where(File.name.notin(removed))
-    query = query.where(fn.Abs(DayOfYear(taken) - today.timetuple().tm_yday) <= 3)
+    days = [frappe.utils.add_days(today, offset) for offset in range(-3, 4)]
+    query = query.where(Criterion.any([(Month(taken) == day.month) & (DayOfMonth(taken) == day.day) for day in days]))
     return [row["name"] for row in page(query, 0, 60)["rows"]]
 
 
