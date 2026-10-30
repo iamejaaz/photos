@@ -33,11 +33,12 @@ def export_album(album: str):
 @frappe.whitelist(methods=["POST"])
 @rate_limit(limit=30, seconds=60 * 60, user_based=True)
 def export_library():
+    from photos.api.hidden import _unlocked
     from photos.api.photos import File, media_base
 
     files = [
         row[0]
-        for row in media_base(check_permission=False, archived=None, hidden=None)
+        for row in media_base(check_permission=False, archived=None, hidden=None if _unlocked() else False)
         .select(File.name)
         .where(File.owner == frappe.session.user)
         .run()

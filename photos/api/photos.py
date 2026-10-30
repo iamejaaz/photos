@@ -288,8 +288,10 @@ EMPTY_TRASH_INLINE = 100
 
 @frappe.whitelist()
 def trash(start: int = 0, limit: int | None = None):
+    from photos.api.hidden import _unlocked
+
     query = (
-        media_query(status=STATUS_TRASHED, check_permission=False, archived=None, hidden=None)
+        media_query(status=STATUS_TRASHED, check_permission=False, archived=None, hidden=None if _unlocked() else False)
         .select(File.file_modified.as_("trashed_on"))
         .where(File.owner == frappe.session.user)
     )
