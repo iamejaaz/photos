@@ -87,9 +87,9 @@ def extract(file_name):
         ignore_permissions=True, ignore_if_duplicate=True
     )
     _prepare_formats(file, path)
-    from photos.smart.scan import enrich
+    from photos.smart.scan import safe_enrich
 
-    enrich(file_name)
+    safe_enrich(file_name)
 
 
 def _prepare_formats(file, path):
