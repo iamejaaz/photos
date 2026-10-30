@@ -93,17 +93,23 @@ def content(entity_name: str, album: str | None = None, download: int = 0, displ
                 return _send(clip, "video/mp4")
             if formats.needs_display_video(formats.source_path(file)):
                 formats.enqueue_display_video(file.name)
+    mimetype = file.mime_type if _inline(file.mime_type) else "application/octet-stream"
     if file.status == STATUS_TRASHED:
-        return _send(formats.source_path(file), file.mime_type)
+        return _send(formats.source_path(file), mimetype)
     return send_file(
         manager.get_file(file),
-        mimetype=file.mime_type,
-        as_attachment=False,
+        mimetype=mimetype,
+        as_attachment=mimetype != file.mime_type,
         conditional=True,
         max_age=3600,
         download_name=file.file_name,
         environ=frappe.request.environ,
     )
+
+
+def _inline(mimetype):
+    mimetype = (mimetype or "").lower()
+    return mimetype.startswith(("image/", "video/")) and "svg" not in mimetype
 
 
 def _send(path, mimetype):
