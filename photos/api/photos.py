@@ -514,6 +514,7 @@ def explore():
 @frappe.whitelist(methods=["POST"])
 def get_upload_folder():
     home = get_user_folder()
+    frappe.db.get_value("File", home.name, "name", for_update=True)
     folder = frappe.db.get_value(
         "File",
         {"folder": home.name, "file_name": UPLOAD_FOLDER, "is_folder": 1, "status": STATUS_ACTIVE},
