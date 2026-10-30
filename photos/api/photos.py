@@ -65,6 +65,7 @@ def media_query(order=None, **kwargs):
             Metadata.motion_photo,
         )
         .orderby(order or taken, order=Order.desc)
+        .orderby(File.name, order=Order.desc)
     )
 
 
@@ -468,6 +469,7 @@ def things_summary():
         .where(Metadata.things.isnotnull() & (Metadata.things != ""))
         .select(File.name, Metadata.things)
         .orderby(taken, order=Order.desc)
+        .orderby(File.name, order=Order.desc)
         .limit(2000)
         .run(as_dict=True)
     )
@@ -499,6 +501,7 @@ def explore():
         )
         .groupby(Metadata.camera)
         .orderby(fn.Count(File.name), order=Order.desc)
+        .orderby(Metadata.camera)
         .limit(12)
     )
     videos = (
