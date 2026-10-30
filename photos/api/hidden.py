@@ -38,14 +38,14 @@ def hidden_state():
 
 
 @frappe.whitelist(methods=["POST"])
-@rate_limit(limit=10, seconds=10 * 60)
+@rate_limit(limit=10, seconds=10 * 60, user_based=True)
 def unlock(password: str):
     check_password(frappe.session.user, password)
     frappe.cache.set_value(_key(), 1, expires_in_sec=UNLOCK_SECONDS)
 
 
 @frappe.whitelist(methods=["POST"])
-@rate_limit(limit=3, seconds=10 * 60)
+@rate_limit(limit=3, seconds=10 * 60, user_based=True)
 def email_unlock_code():
     email = frappe.db.get_value("User", frappe.session.user, "email")
     if not email:
@@ -69,7 +69,7 @@ def email_unlock_code():
 
 
 @frappe.whitelist(methods=["POST"])
-@rate_limit(limit=10, seconds=10 * 60)
+@rate_limit(limit=10, seconds=10 * 60, user_based=True)
 def unlock_with_code(code: str):
     saved = frappe.cache.get_value(_code_key())
     if not saved:

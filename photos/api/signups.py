@@ -63,7 +63,7 @@ def signup_problems():
 
 
 @frappe.whitelist(methods=["POST"])
-@rate_limit(limit=30, seconds=60 * 60)
+@rate_limit(limit=30, seconds=60 * 60, user_based=True)
 def signup_link(user: str):
     only_managers()
     problem = next((p for p in signup_problems() if p["user"] == user), None)

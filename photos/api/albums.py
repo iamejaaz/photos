@@ -95,6 +95,7 @@ def album_gate(album: str):
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=10, seconds=10 * 60)
+@rate_limit(key="album", ip_based=False, limit=30, seconds=10 * 60)
 def unlock_album(album: str, password: str):
     saved = get_decrypted_password(ALBUM, album, "link_password", raise_exception=False)
     if not saved or not _has_public_link(album) or not hmac.compare_digest(saved, password or ""):
@@ -393,6 +394,7 @@ SELFIE_MAX_SIZE = 15 * 1024 * 1024
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=20, seconds=10 * 60)
+@rate_limit(key="album", ip_based=False, limit=100, seconds=10 * 60)
 def find_me(album: str):
     from io import BytesIO
 

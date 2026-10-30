@@ -16,6 +16,7 @@ VIDEO = {".mp4", ".mov", ".m4v"}
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=60, seconds=60 * 60)
+@rate_limit(key="album", ip_based=False, limit=300, seconds=60 * 60)
 def upload(album: str, name: str | None = None):
     if not album_access(album)["upload"]:
         frappe.throw("You can't add photos to this album.", frappe.PermissionError)
