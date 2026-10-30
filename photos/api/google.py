@@ -225,7 +225,10 @@ def run_import(session_id, user):
                 {"done": index, "total": len(items), "finished": False},
                 user=user,
             )
-    requests.delete(f"{_picker()}/sessions/{session_id}", headers=headers, timeout=30)
+    try:
+        requests.delete(f"{_picker()}/sessions/{session_id}", headers=headers, timeout=30)
+    except Exception:
+        frappe.log_error("Photos could not close the Google picker session")
     frappe.publish_realtime(
         "photos-google-import",
         {"finished": True, "imported": imported, "skipped": skipped, "failed": failed},
