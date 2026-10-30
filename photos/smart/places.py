@@ -9,7 +9,7 @@ from photos.smart.settings import enabled
 MAX_DISTANCE_KM = 60
 NEARBY_KM = 20
 
-_index = None
+_index = {}
 
 
 def available():
@@ -17,8 +17,8 @@ def available():
 
 
 def _load():
-    global _index
-    if _index is None:
+    key = assets.asset_dir()
+    if key not in _index:
         import numpy as np
 
         names, ascii_names, countries, lats, lons, populations = [], [], [], [], [], []
@@ -35,7 +35,7 @@ def _load():
                 populations.append(int(columns[14] or 0))
         with open(frappe.get_app_path("frappe", "geo", "country_info.json")) as info:
             country_names = {row.get("code", "").upper(): name for name, row in json.load(info).items()}
-        _index = {
+        _index[key] = {
             "names": names,
             "ascii": ascii_names,
             "countries": [country_names.get(code, code) for code in countries],
@@ -43,7 +43,7 @@ def _load():
             "lon": np.radians(np.array(lons)),
             "population": np.array(populations),
         }
-    return _index
+    return _index[key]
 
 
 def lookup(latitude, longitude):

@@ -26,7 +26,7 @@ CLEAR_STRENGTH = 28
 MIN_STRENGTH = 15
 MIN_SHARPNESS = 10
 
-_engine = None
+_engine = {}
 
 
 def available():
@@ -38,8 +38,8 @@ def available():
 
 
 def _models():
-    global _engine
-    if _engine is None:
+    key = assets.asset_dir()
+    if key not in _engine:
         import cv2
 
         detector = cv2.FaceDetectorYN.create(
@@ -47,8 +47,8 @@ def _models():
         )
         recognizer = cv2.FaceRecognizerSF.create(str(assets.path("face_recognizer")), "")
         embedder = cv2.dnn.readNet(str(assets.path("face_embedder")))
-        _engine = (detector, recognizer, embedder)
-    return _engine
+        _engine[key] = (detector, recognizer, embedder)
+    return _engine[key]
 
 
 def scan_file(file_name):

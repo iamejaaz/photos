@@ -11,7 +11,7 @@ MIN_SCORE = 0.25
 NEAR_BEST = 0.035
 MAX_MATCHES = 500
 
-_engine = None
+_engine = {}
 
 
 def available():
@@ -23,8 +23,8 @@ def available():
 
 
 def _model():
-    global _engine
-    if _engine is None:
+    key = assets.asset_dir()
+    if key not in _engine:
         import onnxruntime
         from tokenizers import Tokenizer
 
@@ -33,8 +33,8 @@ def _model():
         vision = onnxruntime.InferenceSession(str(assets.path("clip_vision")), options)
         text = onnxruntime.InferenceSession(str(assets.path("clip_text")), options)
         tokenizer = Tokenizer.from_file(str(assets.path("clip_tokenizer")))
-        _engine = (vision, text, tokenizer)
-    return _engine
+        _engine[key] = (vision, text, tokenizer)
+    return _engine[key]
 
 
 def _normalize(vector):

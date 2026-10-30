@@ -7,7 +7,7 @@ MEAN = (122.67891434, 116.66876762, 104.00698793)
 MIN_CONFIDENCE = 0.7
 MIN_LENGTH = 2
 
-_engine = None
+_engine = {}
 
 
 def available():
@@ -15,8 +15,8 @@ def available():
 
 
 def _model():
-    global _engine
-    if _engine is None:
+    key = assets.asset_dir()
+    if key not in _engine:
         import cv2
 
         detector = cv2.dnn.TextDetectionModel_DB(cv2.dnn.readNet(str(assets.path("text_detector"))))
@@ -25,8 +25,8 @@ def _model():
         recognizer.setVocabulary(VOCABULARY)
         recognizer.setDecodeType("CTC-greedy")
         recognizer.setInputParams(1 / 127.5, (100, 32), (127.5, 127.5, 127.5))
-        _engine = (detector, recognizer)
-    return _engine
+        _engine[key] = (detector, recognizer)
+    return _engine[key]
 
 
 def read(image):
