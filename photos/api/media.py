@@ -56,7 +56,7 @@ def thumbnail(entity_name: str, album: str | None = None, large: int = 0):
     if not data or not data.getbuffer().nbytes:
         data = _own_thumbnail(file)
         if data is None:
-            return ""
+            frappe.throw("No thumbnail", frappe.DoesNotExistError)
     response = Response(wrap_file(frappe.request.environ, data), direct_passthrough=True)
     response.headers.set("Content-Type", "image/webp")
     response.headers.set("Cache-Control", "private, max-age=3600")
@@ -150,6 +150,7 @@ def _own_thumbnail(file):
                 else formats.open_image(formats.source_path(file), file.file_name, 512)
             )
         except Exception:
+            frappe.log_error(f"Photos could not make a thumbnail for {file.name}")
             return None
         image.thumbnail((512, 512))
         formats.save_image(image.convert("RGB"), target, "WEBP", quality=80)
