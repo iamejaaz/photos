@@ -24,6 +24,14 @@
     <p class="mt-3 text-p-sm text-ink-gray-6">
       {{ __('Look at the camera. Your selfie is only used to find you in this album.') }}
     </p>
+    <router-link
+      v-if="hint"
+      :to="{ name: 'photos-people' }"
+      class="mt-1 inline-block text-p-sm text-ink-gray-7 underline"
+      @click="open = false"
+    >
+      {{ __('Mark yourself in People to skip this') }}
+    </router-link>
     <template #actions>
       <div class="flex justify-end gap-2">
         <Button variant="subtle" @click="picker?.click()">{{ __('Choose a photo') }}</Button>
@@ -39,6 +47,7 @@ import { ref, shallowRef, watch } from 'vue'
 import { Button, Dialog, LoadingIndicator } from 'frappe-ui'
 
 const open = defineModel<boolean>('open', { default: false })
+defineProps<{ hint?: boolean }>()
 const emit = defineEmits<{ taken: [selfie: File] }>()
 
 const video = ref<HTMLVideoElement>()

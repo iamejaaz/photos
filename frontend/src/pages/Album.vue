@@ -62,7 +62,7 @@
         class="hidden"
         @change="onSelfie"
       />
-      <SelfieCamera v-model:open="camera" @taken="search" />
+      <SelfieCamera v-model:open="camera" :hint="loggedIn" @taken="search" />
       <Button v-if="album?.access?.share" variant="subtle" :aria-label="__('Share')" @click="sharing = true">
         <template #[iconSlot]><LucideShare2 class="size-4" /></template>
         <template v-if="!phone">{{ __('Share') }}</template>
@@ -126,6 +126,7 @@
         <span class="flex-1 text-base font-medium text-ink-gray-8">
           {{ foundLabel }}
         </span>
+        <Button v-if="foundByFace" variant="ghost" @click="takeSelfie">{{ __('Not you? Take a selfie') }}</Button>
         <Button v-if="album?.access?.download" variant="solid" @click="downloadFound">
           {{ __('Download these') }}
         </Button>
@@ -260,6 +261,7 @@ const showActivity = ref(false)
 const selfieInput = ref<HTMLInputElement>()
 const finding = ref(false)
 const found = ref<string[] | null>(null)
+const foundByFace = ref(false)
 const foundLabel = computed(() => {
   if (handle.feed.hasNext) return __("You're in {0} photos and videos", [found.value?.length ?? 0])
   const videos = handle.feed.rows.filter((row) => row.mime_type?.startsWith('video/')).length
@@ -275,6 +277,11 @@ const camera = ref(false)
 const touchScreen = useMediaQuery('(pointer: coarse)')
 
 function startFindMe() {
+  if (album.value?.me) return search()
+  takeSelfie()
+}
+
+function takeSelfie() {
   if (import.meta.env.VITE_NATIVE || touchScreen.value || !navigator.mediaDevices?.getUserMedia)
     return selfieInput.value?.click()
   camera.value = true
@@ -287,12 +294,16 @@ function onSelfie(event: Event) {
   if (selfie) search(selfie)
 }
 
-async function search(selfie: File) {
+async function search(selfie?: File) {
   finding.value = true
   try {
     const files = await findMe(props.album, selfie)
-    if (!files.length) return toast.info(__("We couldn't find you in this album"))
+    if (!files.length)
+      return toast.info(__("We couldn't find you in this album"), {
+        action: selfie ? undefined : { label: __('Take a selfie'), onClick: takeSelfie },
+      })
     found.value = files
+    foundByFace.value = !selfie
     handle.feed.params = { album: props.album, only: JSON.stringify(files) }
     await handle.reload()
   } catch (error) {

@@ -17,6 +17,7 @@ export interface Album {
   auto_people?: string[]
   auto_people_names?: string[]
   find_me?: number
+  me?: number
   access?: { read: number; write: number; share: number; owner: number; download: number; upload: number }
 }
 const ALBUMS = 'photos.api.albums'
@@ -83,10 +84,10 @@ export async function collectUpload(album: string, file: File, name?: string) {
   })
   if (!response.ok) throw new Error(await errorMessage(response))
 }
-export async function findMe(album: string, selfie: File) {
+export async function findMe(album: string, selfie?: File) {
   const form = new FormData()
   form.append('album', album)
-  form.append('selfie', selfie, selfie.name)
+  if (selfie) form.append('selfie', selfie, selfie.name)
   const response = await fetch(`/api/method/${ALBUMS}.find_me`, {
     method: 'POST',
     body: form,

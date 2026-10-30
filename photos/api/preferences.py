@@ -2,7 +2,7 @@ import json
 
 import frappe
 
-DEFAULTS = {"memories": True, "memory_hidden_people": [], "memory_removed": []}
+DEFAULTS = {"memories": True, "memory_hidden_people": [], "memory_removed": [], "me": None}
 REMOVED_LIMIT = 2000
 
 
@@ -30,6 +30,28 @@ def remove_from_memories(file: str):
     values = get_preferences()
     removed = [name for name in values["memory_removed"] if name != file] + [file]
     return _save(values | {"memory_removed": removed[-REMOVED_LIMIT:]})
+
+
+@frappe.whitelist(methods=["POST"])
+def set_me(person: str | None = None):
+    if person:
+        from photos.api.people import _own
+
+        _own(person)
+    values = get_preferences() | {"me": person or None}
+    frappe.defaults.set_user_default("photos_preferences", json.dumps(values))
+    return values
+
+
+def my_person(user=None):
+    user = user or frappe.session.user
+    if user == "Guest":
+        return None
+    saved = frappe.defaults.get_user_default("photos_preferences", user)
+    person = (json.loads(saved) if saved else {}).get("me")
+    if person and frappe.db.get_value("Photo Person", person, "owner") == user:
+        return person
+    return None
 
 
 def _save(values):

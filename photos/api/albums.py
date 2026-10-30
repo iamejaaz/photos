@@ -13,6 +13,7 @@ from suite.drive.overrides.file import File as DriveFile
 from suite.drive.utils import FILE_FIELDS, GENERAL_USER, get_principals
 
 from photos.api.photos import PAGE_SIZE, File, Hidden, media_query
+from photos.api.preferences import my_person
 from photos.smart.faces import available as faces_available
 from photos.utils.permissions import can_access, photo_access
 
@@ -331,6 +332,7 @@ def get_album(album: str):
     summary = _summaries([album])[0]
     summary.access = access
     summary.find_me = int(faces_available())
+    summary.me = int(bool(summary.find_me and my_person()))
     if link_only(album):
         summary.owner = None
         summary.update(auto_people=[], auto_people_names=[])
@@ -411,6 +413,8 @@ def find_me(album: str):
     if not faces.available():
         frappe.throw("Finding people is not turned on for this site.")
     upload = frappe.request.files.get("selfie")
+    if not upload and (person := my_person()):
+        return sorted(faces.find_known(person, visible_files(album)))
     if not upload:
         frappe.throw("Take a selfie first.")
     content = upload.stream.read(SELFIE_MAX_SIZE + 1)

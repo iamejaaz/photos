@@ -206,18 +206,32 @@ def _detect(rgb):
 
 
 def find_person(image, files):
-    import numpy as np
-
     found = _detect(image)
     if not found:
         return None
-    vector = _decode(max(found, key=lambda face: face["width"] * face["height"])["embedding"])
+    return _matching(_decode(max(found, key=lambda face: face["width"] * face["height"])["embedding"]), files)
+
+
+def find_known(person, files):
+    centroid = frappe.db.get_value("Photo Person", person, "centroid")
+    tagged = frappe.get_all("Photo Face", filters={"person": person, "file": ["in", files or [""]]}, pluck="file")
+    return (_matching(_decode(centroid), files) if centroid else set()) | set(tagged)
+
+
+def _matching(vector, files):
+    import numpy as np
+
     rows = frappe.get_all(
         "Photo Face",
         filters={"file": ["in", files or [""]], "not_a_face": 0, "embedder": EMBEDDER},
         fields=["file", "embedding"],
     )
-    return {row.file for row in rows if float(np.dot(vector, _decode(row.embedding))) >= SAME_PERSON}
+    return {
+        row.file
+        for row in rows
+        if (embedding := _decode(row.embedding)).shape == vector.shape
+        and float(np.dot(vector, embedding)) >= SAME_PERSON
+    }
 
 
 def _assign(face, owner):
@@ -528,7 +542,7 @@ def merge_person(source, target):
     owner = frappe.db.get_value("Photo Person", target, "owner")
     frappe.db.set_value("Photo Face", {"person": source}, "person", target, update_modified=False)
     auto_albums.replace_person(source, target)
-    _carry_memory_hidden(source, target, owner)
+    _carry_preferences(source, target, owner)
     frappe.delete_doc("Photo Person", source, ignore_permissions=True, force=True)
     dismissed = dismissed_pairs(owner)
     carried = {
@@ -540,13 +554,16 @@ def merge_person(source, target):
         frappe.defaults.set_user_default(NOT_SAME, json.dumps(sorted(dismissed | carried)), owner)
 
 
-def _carry_memory_hidden(source, target, owner):
+def _carry_preferences(source, target, owner):
     saved = frappe.defaults.get_user_default("photos_preferences", owner)
     preferences = json.loads(saved) if saved else {}
     hidden = preferences.get("memory_hidden_people") or []
-    if source in hidden:
-        preferences["memory_hidden_people"] = list(dict.fromkeys(target if p == source else p for p in hidden))
-        frappe.defaults.set_user_default("photos_preferences", json.dumps(preferences), owner)
+    if source not in hidden and preferences.get("me") != source:
+        return
+    preferences["memory_hidden_people"] = list(dict.fromkeys(target if p == source else p for p in hidden))
+    if preferences.get("me") == source:
+        preferences["me"] = target
+    frappe.defaults.set_user_default("photos_preferences", json.dumps(preferences), owner)
 
 
 def _absorb(keep, drop):

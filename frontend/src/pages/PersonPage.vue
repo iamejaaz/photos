@@ -150,6 +150,7 @@ import PhotosHeader from '../components/PhotosHeader.vue'
 import { clearSelection } from '../data/selection'
 import { createFeed } from '../data/feed'
 import { errorText } from '../resources/drive'
+import { setMe } from '../resources/settings'
 import { mergedToast } from '../data/actions'
 
 const props = defineProps<{ person: string }>()
@@ -212,6 +213,9 @@ const menu = computed(() => [
   { label: __('Rename'), icon: 'lucide-pencil', onClick: startEditing },
   { label: __('Change cover photo'), icon: 'lucide-circle-user-round', onClick: openCovers },
   { label: __('Same person as…'), icon: 'lucide-users', onClick: openMerge },
+  info.value?.is_me
+    ? { label: __('This is not me'), icon: 'lucide-user-x', onClick: () => markMe(false) }
+    : { label: __('This is me'), icon: 'lucide-user-check', onClick: () => markMe(true) },
   info.value?.hidden
     ? { label: __('Show in People'), icon: 'lucide-eye', onClick: () => hide(false) }
     : { label: __('Hide from People'), icon: 'lucide-eye-off', onClick: () => hide(true) },
@@ -258,6 +262,16 @@ async function merge() {
   })
   await refresh()
   handle.reload()
+}
+
+async function markMe(value: boolean) {
+  try {
+    await setMe(value ? props.person : null)
+    if (info.value) info.value.is_me = Number(value)
+    toast.success(value ? __('Find me will use this face') : __('Find me will ask for a selfie'))
+  } catch (error) {
+    toast.error(errorText(error) || __('Could not save. Try again.'))
+  }
 }
 
 async function hide(value: boolean) {

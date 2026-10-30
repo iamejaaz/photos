@@ -7,6 +7,7 @@ export interface Person {
   cover_face: string
   face_count: number
   hidden: number
+  is_me?: number
 }
 export interface PhotoPerson {
   face: string

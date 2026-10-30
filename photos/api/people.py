@@ -46,6 +46,9 @@ def person(person: str):
     row = frappe.db.get_value(
         "Photo Person", person, ["name", "person_name", "cover_face", "face_count", "hidden"], as_dict=True
     )
+    from photos.api.preferences import my_person
+
+    row.is_me = int(my_person() == person)
     return (_with_active_photos([row]) or [{**row, "face_count": 0}])[0]
 
 
