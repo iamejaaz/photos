@@ -135,9 +135,13 @@ def guard_file_url():
         return
     path = unquote(request.path)
     file = frappe.db.get_value(
-        "File", {"file_url": ["in", [path, path.lstrip("/")]]}, ["name", *FIELDS[1:]], as_dict=True
+        "File", {"file_url": ["in", [path, path.lstrip("/")]]}, ["name", "is_private", *FIELDS[1:]], as_dict=True
     )
-    if not file or not is_library_media(file):
+    if not file:
+        return
+    if not is_library_media(file):
+        if file.is_private and not file.is_folder and not frappe.get_doc("File", file.name).has_permission("read"):
+            frappe.throw(_("You don't have access to this file."), frappe.PermissionError)
         return
     from photos.utils.permissions import can_access
 
