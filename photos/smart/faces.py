@@ -497,7 +497,7 @@ def regroup(owner):
         face = frappe.db.get_value(
             "Photo Face", {"person": row.name}, ["name", "embedding", "quality"], as_dict=True
         )
-        if not face:
+        if not face or not face.quality:
             continue
         vector = _decode(face.embedding)
         clear = (face.quality or 0) >= CLEAR_FACE

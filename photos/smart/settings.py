@@ -23,7 +23,10 @@ def ensure_models():
     if assets.ready(*keys):
         from photos.smart import faces
 
-        if enabled("people") and frappe.db.exists("Photo Face", {"embedder": ["!=", faces.EMBEDDER]}):
+        if enabled("people") and (
+            frappe.db.exists("Photo Face", {"embedder": ["!=", faces.EMBEDDER]})
+            or frappe.db.exists("Photo Face", {"quality": ["is", "not set"]})
+        ):
             frappe.enqueue(
                 "photos.smart.faces.upgrade",
                 queue="long",
