@@ -278,8 +278,8 @@ def create_share_link(files: list[str] | str):
     if not files:
         frappe.throw("Pick at least one photo.")
     for file in files:
-        if not can_access(file, "read"):
-            frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
+        if not can_access(file, "share"):
+            frappe.throw("You can't share one of these photos.", frappe.PermissionError)
     first = frappe.db.get_value("File", files[0], "file_name")
     title = first if len(files) == 1 else f"{len(files)} photos"
     album = frappe.get_doc({"doctype": ALBUM, "title": title, "is_link": 1}).insert(ignore_permissions=True)
@@ -446,7 +446,7 @@ def add_to_album(album: str, files: list[str] | str):
     _require(album, "write")
     existing = set(frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file"))
     for file in _as_list(files):
-        if file in existing or not can_access(file, "read"):
+        if file in existing or not can_access(file, "share"):
             continue
         frappe.get_doc({"doctype": "Photo Album Item", "album": album, "file": file}).insert(
             ignore_permissions=True
