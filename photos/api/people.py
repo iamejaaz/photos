@@ -59,6 +59,9 @@ def _with_active_photos(rows):
         from `tabPhoto Face` face
         join `tabFile` file on file.name = face.file
         where face.person in %(people)s and file.status = 'Active' and ifnull(face.not_a_face, 0) = 0
+            and not exists (
+                select 1 from `tabPhoto Hidden` hidden where hidden.file = face.file and hidden.user = file.owner
+            )
         """,
         {"people": [row.name for row in rows]},
     ):
@@ -192,6 +195,9 @@ def person_faces(person: str, limit: int = 300):
         select face.name, face.file from `tabPhoto Face` face
         join `tabFile` file on file.name = face.file
         where face.person = %(person)s and file.status = 'Active' and ifnull(face.not_a_face, 0) = 0
+            and not exists (
+                select 1 from `tabPhoto Hidden` hidden where hidden.file = face.file and hidden.user = file.owner
+            )
         order by face.width * face.height * face.score desc
         limit %(limit)s
         """,
