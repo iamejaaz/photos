@@ -418,8 +418,9 @@ def _reembed(file_name, timestamp, faces):
         image = _frame(file_name, timestamp)
         frame, _, rows = _rows(image)
     except Exception:
-        frame, rows = None, []
-    height, width = frame.shape[:2] if frame is not None else (1, 1)
+        frappe.log_error(f"Photos could not re-read the faces of {file_name}")
+        return
+    height, width = frame.shape[:2]
     for face in faces:
         row = min(
             rows,
