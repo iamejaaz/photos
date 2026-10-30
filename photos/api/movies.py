@@ -5,7 +5,7 @@ import frappe
 from photos.utils.movies import MAX_PHOTOS
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_movie(
     files: list[str] | str, title: str | None = None, seconds: float = 3, album: str | None = None
 ):

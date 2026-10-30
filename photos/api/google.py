@@ -162,7 +162,7 @@ def start_picking():
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def picking_done(session_id: str):
     response = requests.get(
         f"{_picker()}/sessions/{session_id}",

@@ -93,7 +93,7 @@ def album_gate(album: str):
     }
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=10, seconds=10 * 60)
 def unlock_album(album: str, password: str):
     saved = get_decrypted_password(ALBUM, album, "link_password", raise_exception=False)
@@ -115,7 +115,7 @@ def get_link_settings(album: str):
     return doc
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_link_settings(
     album: str,
     allow_uploads: bool = False,
@@ -266,7 +266,7 @@ def albums():
     )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_auto_people(album: str, people: list[str] | str):
     from photos.utils import auto_albums
 
@@ -286,7 +286,7 @@ def share_links():
     )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_share_link(files: list[str] | str):
     files = _as_list(files)
     if not files:
@@ -416,7 +416,7 @@ def find_me(album: str):
     return sorted(found)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_album(title: str, files: list[str] | str | None = None):
     album = frappe.get_doc({"doctype": ALBUM, "title": title.strip()}).insert(ignore_permissions=True)
     if files:
@@ -424,7 +424,7 @@ def create_album(title: str, files: list[str] | str | None = None):
     return album.name
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def rename_album(album: str, title: str):
     _require(album, "write")
     doc = frappe.get_doc(ALBUM, album)
@@ -432,7 +432,7 @@ def rename_album(album: str, title: str):
     doc.save(ignore_permissions=True)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_cover(album: str, file: str):
     _require(album, "write")
     if not frappe.db.exists("Photo Album Item", {"album": album, "file": file}):
@@ -440,7 +440,7 @@ def set_cover(album: str, file: str):
     frappe.db.set_value(ALBUM, album, "cover", file)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def delete_album(album: str):
     _require(album, "owner")
     frappe.db.delete("Photo Album Item", {"album": album})
@@ -448,13 +448,13 @@ def delete_album(album: str):
     frappe.delete_doc(ALBUM, album, ignore_permissions=True)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def leave_album(album: str):
     if file := album_file(album):
         frappe.db.delete("Drive Permission", {"entity": file, "user": frappe.session.user})
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def add_to_album(album: str, files: list[str] | str):
     _require(album, "write")
     existing = set(frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file"))
@@ -467,7 +467,7 @@ def add_to_album(album: str, files: list[str] | str):
     frappe.db.set_value(ALBUM, album, "modified", frappe.utils.now_datetime())
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def remove_from_album(album: str, files: list[str] | str):
     _require(album, "write")
     files = _as_list(files)
@@ -506,7 +506,7 @@ def activity(album: str):
     return rows
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def add_comment(album: str, content: str, file: str | None = None):
     _require(album, "read")
     content = (content or "").strip()
@@ -526,7 +526,7 @@ def add_comment(album: str, content: str, file: str | None = None):
     return doc.name
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def toggle_like(album: str, file: str | None = None):
     _require(album, "read")
     _check_file(album, file)
@@ -547,7 +547,7 @@ def toggle_like(album: str, file: str | None = None):
     return not existing
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def delete_activity(name: str):
     row = frappe.db.get_value("Photo Album Activity", name, ["album", "owner"], as_dict=True)
     if not row:

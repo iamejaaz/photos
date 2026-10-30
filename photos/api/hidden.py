@@ -14,7 +14,7 @@ CODE_SECONDS = 10 * 60
 CODE_TRIES = 5
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_hidden(files: list[str] | str, hidden: bool = True):
     files = json.loads(files) if isinstance(files, str) else files
     hidden = frappe.parse_json(hidden) if isinstance(hidden, str) else hidden

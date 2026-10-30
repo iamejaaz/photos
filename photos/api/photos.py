@@ -324,7 +324,7 @@ def delete_trashed(names, user):
     frappe.publish_realtime("photos-trash-emptied", {"count": len(names)}, user=user, after_commit=True)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_archived(files: list[str] | str, archived: bool = True):
     files = _as_list(files)
     archived = frappe.parse_json(archived) if isinstance(archived, str) else archived
@@ -503,7 +503,7 @@ def explore():
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def get_upload_folder():
     home = get_user_folder()
     folder = frappe.db.get_value(
@@ -539,7 +539,7 @@ def library_folder():
     return {**folder, "is_folder": 1, "write": 1, "upload": 1}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_to_library(files: list[str] | str, album: str | None = None):
     from suite.drive.utils.files import FileManager, storage_key
 

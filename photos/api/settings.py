@@ -16,7 +16,7 @@ def get_settings():
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_settings(
     people: bool = False,
     places: bool = False,

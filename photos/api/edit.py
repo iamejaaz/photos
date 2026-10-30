@@ -11,7 +11,7 @@ from photos.utils.permissions import can_access
 METADATA = "Photo Metadata"
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def edit_date(files: list[str] | str, taken_on: str | None = None, shift_minutes: int | None = None):
     names = _writable(files)
     if not taken_on and not shift_minutes:
@@ -25,7 +25,7 @@ def edit_date(files: list[str] | str, taken_on: str | None = None, shift_minutes
     return len(names)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def edit_location(
     files: list[str] | str,
     latitude: float | None = None,
@@ -49,7 +49,7 @@ def edit_location(
     return len(names)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def edit_caption(file: str, caption: str | None = None):
     _writable([file])
     caption = (caption or "").strip()[:2000] or None

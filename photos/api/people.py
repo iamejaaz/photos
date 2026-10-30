@@ -115,7 +115,7 @@ def photo_people(file: str, album: str | None = None):
     ]
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def rename_person(person: str, person_name: str, merge: bool = False, separate: bool = False):
     _own(person)
     person_name = (person_name or "").strip()[:140]
@@ -210,13 +210,13 @@ def set_cover(person: str, face: str):
     )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_hidden(person: str, hidden: bool = True):
     _own(person)
     frappe.db.set_value("Photo Person", person, "hidden", int(frappe.parse_json(hidden)))
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def merge_people(target: str, sources: list[str] | str):
     _own(target)
     sources = [s for s in (json.loads(sources) if isinstance(sources, str) else sources) if s != target]
@@ -290,7 +290,7 @@ def _undo_key(token):
     return f"photos:undo-merge:{frappe.session.user}:{token}"
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def remove_photos(person: str, files: list[str] | str):
     _own(person)
     files = json.loads(files) if isinstance(files, str) else files
@@ -300,7 +300,7 @@ def remove_photos(person: str, files: list[str] | str):
     engine.recompute(person)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def remove_face(face: str):
     person = frappe.db.get_value("Photo Face", face, "person")
     _own(person)
@@ -308,7 +308,7 @@ def remove_face(face: str):
     engine.recompute(person)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def move_face(face: str, person: str | None = None, person_name: str | None = None):
     previous = _own_face(face)
     if person:
@@ -331,7 +331,7 @@ def move_face(face: str, person: str | None = None, person_name: str | None = No
     return person
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def not_a_face(face: str):
     previous = _own_face(face)
     frappe.db.set_value("Photo Face", face, {"person": None, "not_a_face": 1}, update_modified=False)

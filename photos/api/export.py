@@ -7,7 +7,7 @@ from frappe.utils import format_datetime, now_datetime
 from photos.api.albums import album_access, can_read, visible_files
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def export_files(files: list[str] | str, album: str | None = None):
     files = json.loads(files) if isinstance(files, str) else files
     for name in files:
@@ -18,7 +18,7 @@ def export_files(files: list[str] | str, album: str | None = None):
     return _enqueue(files, _title("Photos"))
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def export_album(album: str):
     access = album_access(album)
     if not access["read"] or not access["download"]:
@@ -27,7 +27,7 @@ def export_album(album: str):
     return _enqueue(visible_files(album), _title(title), by_album=title)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def export_library():
     from photos.api.photos import File, media_base
 
