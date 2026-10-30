@@ -55,12 +55,12 @@ def finish(code: str | None = None, state: str | None = None, error: str | None 
     if not attempt:
         return _stop()
     if error or not code:
-        return _redirect(_with(attempt["return_to"], error="cancelled"))
+        return _continue(_with(attempt["return_to"], error="cancelled"))
     try:
         tokens = _token({"code": code, "grant_type": "authorization_code", "redirect_uri": callback_url()})
     except Exception:
         frappe.log_error("Photos could not finish Google sign-in")
-        return _redirect(_with(attempt["return_to"], error="failed"))
+        return _continue(_with(attempt["return_to"], error="failed"))
     handoff = frappe.generate_hash(length=32)
     frappe.cache.set_value(
         HANDOFF.format(handoff),
