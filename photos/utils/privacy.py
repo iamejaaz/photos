@@ -1,5 +1,4 @@
 import sys
-from urllib.parse import unquote
 
 import frappe
 from frappe import _
@@ -133,20 +132,24 @@ def guard_file_url():
     request = getattr(frappe.local, "request", None)
     if not request or not request.path.startswith(PRIVATE_FILES):
         return
-    path = unquote(request.path)
-    file = frappe.db.get_value(
-        "File", {"file_url": ["in", [path, path.lstrip("/")]]}, ["name", "is_private", *FIELDS[1:]], as_dict=True
+    path = request.path
+    files = frappe.get_all(
+        "File",
+        filters={"file_url": ["in", [path, path.lstrip("/")]]},
+        fields=["name", "is_private", *FIELDS[1:]],
     )
-    if not file:
-        return
+    if fid := frappe.form_dict.get("fid"):
+        files = [file for file in files if file.name == fid]
+    if files and not any(_can_open(file) for file in files):
+        frappe.throw(_("You don't have access to this file."), frappe.PermissionError)
+
+
+def _can_open(file):
     if not is_library_media(file):
-        if file.is_private and not file.is_folder and not frappe.get_doc("File", file.name).has_permission("read"):
-            frappe.throw(_("You don't have access to this file."), frappe.PermissionError)
-        return
+        return not file.is_private or file.is_folder or frappe.get_doc("File", file.name).has_permission("read")
     from photos.utils.permissions import can_access
 
-    if frappe.session.user == "Guest" or not can_access(file.name, "read"):
-        frappe.throw(_("You don't have access to this photo."), frappe.PermissionError)
+    return frappe.session.user != "Guest" and can_access(file.name, "read")
 
 
 def in_request():
