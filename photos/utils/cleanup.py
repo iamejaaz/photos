@@ -21,10 +21,15 @@ def on_file_update(doc, method=None):
 
 
 def forget_rows(names):
+    from photos.smart.faces import recompute
+
     for start in range(0, len(names), 500):
         batch = names[start : start + 500]
+        people = frappe.get_all("Photo Face", filters={"file": ["in", batch]}, pluck="person", distinct=True)
         for doctype in FILE_ROWS:
             frappe.db.delete(doctype, {"file": ["in", batch]})
+        for person in filter(None, people):
+            recompute(person)
         for field in ("live_video", "live_of", "edited_from"):
             frappe.db.set_value("Photo Metadata", {field: ["in", batch]}, field, None, update_modified=False)
         frappe.db.set_value("Photo Album", {"cover": ["in", batch]}, "cover", None, update_modified=False)
