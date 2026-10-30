@@ -125,7 +125,7 @@ def _large_thumbnail(file):
     target = formats.derived_path(file.name, ".thumb-large.webp")
     if not target.exists():
         try:
-            image = formats.open_image(formats.source_path(file), file.file_name)
+            image = formats.open_image(formats.source_path(file), file.file_name, LARGE_THUMBNAIL)
             image.thumbnail((LARGE_THUMBNAIL, LARGE_THUMBNAIL))
             formats.save_image(image.convert("RGB"), target, "WEBP", quality=80)
         except Exception:
@@ -140,7 +140,7 @@ def _own_thumbnail(file):
             image = (
                 _first_frame(file)
                 if file.file_type == "Video"
-                else formats.open_image(formats.source_path(file), file.file_name)
+                else formats.open_image(formats.source_path(file), file.file_name, 512)
             )
         except Exception:
             return None
@@ -162,7 +162,7 @@ def _first_frame(file):
 def _preview(manager, file, size=1600):
     target = formats.derived_path(file.name, ".preview.jpg")
     if not target.exists():
-        with formats.open_image(formats.source_path(file), file.file_name) as image:
+        with formats.open_image(formats.source_path(file), file.file_name, size) as image:
             image.thumbnail((size, size))
             formats.save_image(image.convert("RGB"), target, "JPEG", quality=85)
     response = send_file(str(target), mimetype="image/jpeg", conditional=True, environ=frappe.request.environ)

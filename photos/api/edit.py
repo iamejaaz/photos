@@ -183,7 +183,7 @@ def create_animation(files: list[str] | str, album: str | None = None):
     rows.sort(key=lambda row: str(taken.get(row.name) or ""))
     frames = []
     for row in rows:
-        with formats.open_image(formats.source_path(row), row.file_name) as image:
+        with formats.open_image(formats.source_path(row), row.file_name, 720) as image:
             image = image.convert("RGB")
             image.thumbnail((720, 720))
             frames.append(image.copy())

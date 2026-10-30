@@ -77,12 +77,20 @@ def upright(image):
         return image.transpose(method) if method else image
 
 
-def open_image(path, file_name=None):
+MAX_PIXELS = 120_000_000
+
+
+def open_image(path, file_name=None, size=None):
     from PIL import Image, ImageOps
 
     if is_raw(file_name or str(path)):
         return _open_raw(path)
     image = Image.open(path)
+    if size:
+        image.draft("RGB", (size, size))
+    if image.width * image.height > MAX_PIXELS:
+        image.close()
+        raise ValueError("This image is too large to preview.")
     return upright(image)
 
 
@@ -109,7 +117,7 @@ def needs_display_image(file):
 def display_image(file):
     target = derived_path(file.name, ".jpg")
     if not target.exists():
-        image = open_image(source_path(file), file.file_name)
+        image = open_image(source_path(file), file.file_name, DISPLAY_SIZE)
         image.thumbnail((DISPLAY_SIZE, DISPLAY_SIZE))
         save_image(image.convert("RGB"), target, "JPEG", quality=88)
     return target
