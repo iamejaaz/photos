@@ -65,7 +65,6 @@ def media_query(order=None, **kwargs):
             Metadata.motion_photo,
         )
         .orderby(order or taken, order=Order.desc)
-        .orderby(File.name, order=Order.desc)
     )
 
 
@@ -250,6 +249,7 @@ def folders():
         cover = (
             media_query(archived=None)
             .where(File.folder == row.folder)
+            .orderby(File.name, order=Order.desc)
             .limit(1)
             .select(File.name)
             .run(as_dict=True)
