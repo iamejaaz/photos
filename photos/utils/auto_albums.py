@@ -30,9 +30,12 @@ def add_files(album, files):
     for file in files:
         if file in hidden or file in existing:
             continue
-        frappe.get_doc({"doctype": "Photo Album Item", "album": album, "file": file}).insert(
-            ignore_permissions=True
-        )
+        try:
+            frappe.get_doc({"doctype": "Photo Album Item", "album": album, "file": file}).insert(
+                ignore_permissions=True
+            )
+        except frappe.UniqueValidationError:
+            continue
         added += 1
     if added:
         frappe.db.set_value(ALBUM, album, "modified", frappe.utils.now_datetime())
