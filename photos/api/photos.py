@@ -316,7 +316,8 @@ def empty_trash():
 
 
 def delete_trashed(names, user):
-    frappe.set_user(user)
+    if frappe.session.user != user:
+        frappe.set_user(user)
     for name in names:
         doc = frappe.get_doc("File", name)
         if doc.owner == user and doc.status == STATUS_TRASHED:
