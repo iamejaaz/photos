@@ -122,4 +122,6 @@ def set_report_status(report: str, status: str):
     only_managers()
     if status not in STATUSES:
         frappe.throw(frappe._("Pick Open, Fixed or Closed."))
-    frappe.db.set_value(REPORT, report, "status", status)
+    doc = frappe.get_doc(REPORT, report)
+    doc.status = status
+    doc.save(ignore_permissions=True)
