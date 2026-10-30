@@ -8,6 +8,7 @@ requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
+    "certifi>=2026.10.18",
     "onnxruntime>=1.20",
     "opencv-python-headless>=4.10",
     "piexif~=1.1.3",
