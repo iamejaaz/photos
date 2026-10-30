@@ -5,7 +5,7 @@ from photos.utils.formats import derived_path
 
 DELETION_REQUEST = "Personal Data Deletion Request"
 OPEN_REQUEST = ("Pending Verification", "Pending Approval")
-USER_DEFAULTS = ("photos_preferences", "photos_not_same_people")
+USER_DEFAULTS = ("photos_preferences", "photos_not_same_people", "photos_memories_seen")
 
 
 @frappe.whitelist(methods=["POST"])
