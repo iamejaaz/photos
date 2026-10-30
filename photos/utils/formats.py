@@ -172,6 +172,36 @@ def build_display_video(name):
     partial.rename(target)
 
 
+def shared_video(source_file, name, suffix):
+    target = derived_path(name, suffix)
+    if not target.exists():
+        partial = target.with_suffix(".part.mp4")
+        transcode(source_file, partial, max_height=VIDEO_HEIGHT)
+        partial.rename(target)
+    return target
+
+
+def enqueue_shared_video(name):
+    try:
+        frappe.enqueue(
+            "photos.utils.formats.build_shared_video",
+            name=name,
+            queue="long",
+            timeout=60 * 60,
+            deduplicate=True,
+            job_id=f"photo-shared-video::{name}",
+            enqueue_after_commit=True,
+        )
+    except frappe.QueueOverloaded:
+        pass
+
+
+def build_shared_video(name):
+    file = frappe.db.get_value("File", name, ["name", "file_url"], as_dict=True)
+    if file:
+        shared_video(source_path(file), name, ".shared.mp4")
+
+
 def transcode(source_file, target_file, start=None, end=None, max_height=None, mute=False):
     import av
 

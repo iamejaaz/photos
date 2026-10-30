@@ -67,22 +67,25 @@ def thumbnail(entity_name: str, album: str | None = None, large: int = 0):
 def content(entity_name: str, album: str | None = None, download: int = 0, display: int = 0, motion: int = 0):
     file = _file(entity_name, album)
     manager = FileManager()
+    view_only = bool(album) and not can_access(entity_name, "read") and not album_access(album)["download"]
     if int(motion or 0):
         clip = formats.derived_path(file.name, ".motion.mp4")
         if not clip.exists():
             frappe.throw("Not found", frappe.DoesNotExistError)
+        if view_only:
+            clip = formats.shared_video(clip, file.name, ".motion.shared.mp4")
         return _send(clip, "video/mp4")
     if int(download or 0):
         if not can_access(entity_name, "read") and not album_access(album)["download"]:
             frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
         return drive._serve_resumable(manager, formats.source_key(file), file.file_name, file.mime_type)
-    if (
-        album
-        and file.file_type == "Image"
-        and not can_access(entity_name, "read")
-        and not album_access(album)["download"]
-    ):
+    if view_only and file.file_type == "Image":
         return _preview(manager, file)
+    if view_only and (file.mime_type or "").startswith("video/"):
+        if (clip := formats.derived_path(file.name, ".shared.mp4")).exists():
+            return _send(clip, "video/mp4")
+        formats.enqueue_shared_video(file.name)
+        frappe.throw("This video is still being prepared. Try again in a minute.", frappe.DoesNotExistError)
     if int(display or 0):
         if formats.needs_display_image(file):
             return _send(formats.display_image(file), "image/jpeg")
