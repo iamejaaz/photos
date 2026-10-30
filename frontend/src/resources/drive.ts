@@ -42,7 +42,7 @@ export async function errorMessage(response: Response) {
     return response.statusText
   }
 }
-const OLDER_SITE = /Failed to get method for command|has no attribute/
+const OLDER_SITE = /Failed to get method for command|has no attribute|Method not found/
 
 const NETWORK_FAILURE = /^(Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.?)$/
 

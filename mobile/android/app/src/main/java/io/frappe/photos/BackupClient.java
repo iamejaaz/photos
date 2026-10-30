@@ -165,7 +165,8 @@ final class BackupClient {
             try {
                 return call("POST", PHOTOS_UPLOAD, form.body(), form.contentType());
             } catch (Rejected e) {
-                if (e.getMessage() == null || !e.getMessage().contains("has no attribute 'upload'")) throw e;
+                String message = e.getMessage();
+                if (message == null || !(message.contains("has no attribute 'upload'") || message.contains("Method not found"))) throw e;
                 olderSite = true;
             }
         }
