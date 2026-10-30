@@ -222,6 +222,7 @@ def merge_people(target: str, sources: list[str] | str):
     sources = [s for s in (json.loads(sources) if isinstance(sources, str) else sources) if s != target]
     for source in sources:
         _own(source)
+    engine.lock_people([target, *sources])
     fields = ["name", "person_name", "cover_face", "cover_chosen", "face_count"]
     people = [frappe.db.get_value("Photo Person", name, fields, as_dict=True) for name in [target, *sources]]
     undo = {

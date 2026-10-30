@@ -518,7 +518,13 @@ def regroup(owner):
             frappe.delete_doc("Photo Person", row.name, ignore_permissions=True, force=True)
 
 
+def lock_people(names):
+    for name in sorted(set(names)):
+        frappe.db.get_value("Photo Person", name, "name", for_update=True)
+
+
 def merge_person(source, target):
+    lock_people([source, target])
     owner = frappe.db.get_value("Photo Person", target, "owner")
     frappe.db.set_value("Photo Face", {"person": source}, "person", target, update_modified=False)
     auto_albums.replace_person(source, target)
