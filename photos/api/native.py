@@ -141,9 +141,11 @@ def ensure_oauth_client():
     name = frappe.db.get_single_value(SETTINGS, "oauth_client")
     client = frappe.get_doc("OAuth Client", name) if name and frappe.db.exists("OAuth Client", name) else None
     if client and _usable_client(client.name):
-        if missing := _missing_roles(client):
+        missing = _missing_roles(client)
+        if missing or client.skip_authorization:
             for role in missing:
                 client.append("allowed_roles", {"role": role})
+            client.skip_authorization = 0
             client.save(ignore_permissions=True)
         return
     client = client or frappe.new_doc("OAuth Client")
@@ -153,7 +155,7 @@ def ensure_oauth_client():
     client.default_redirect_uri = REDIRECT_URI
     client.grant_type = "Authorization Code"
     client.response_type = "Code"
-    client.skip_authorization = 1
+    client.skip_authorization = 0
     if frappe.get_meta("OAuth Client").has_field("token_endpoint_auth_method"):
         client.token_endpoint_auth_method = "None"
     for role in _missing_roles(client):
