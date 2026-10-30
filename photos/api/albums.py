@@ -541,6 +541,7 @@ def add_comment(album: str, content: str, file: str | None = None):
 def toggle_like(album: str, file: str | None = None):
     _require(album, "read")
     _check_file(album, file)
+    frappe.db.get_value(ALBUM, album, "name", for_update=True)
     filters = {
         "album": album,
         "file": file or ["is", "not set"],
