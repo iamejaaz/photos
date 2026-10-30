@@ -69,6 +69,9 @@ permission_query_conditions = {
         "Photo Archive",
         "Photo Hidden",
     )
+} | {
+    doctype: "photos.api.albums.album_rows_condition"
+    for doctype in ("Photo Album", "Photo Album Item", "Photo Album Activity")
 }
 
 override_doctype_class = {"File": "photos.utils.privacy.File"}

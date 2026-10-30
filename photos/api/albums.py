@@ -216,6 +216,12 @@ def readable_albums(user=None):
     return list({*own, *shared})
 
 
+def album_rows_condition(user=None, doctype=None):
+    names = ", ".join(frappe.db.escape(name) for name in readable_albums(user)) or "''"
+    field = "name" if doctype == ALBUM else "album"
+    return f"`tab{doctype}`.`{field}` in ({names})"
+
+
 def _summaries(names):
     rows = frappe.get_all(
         ALBUM,
