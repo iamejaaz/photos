@@ -166,6 +166,19 @@ const emit = defineEmits<{
 const route = useRoute()
 const router = useRouter()
 
+const running = new Set<string>()
+const once =
+  (key: string, run: (names: string[]) => Promise<unknown>) =>
+  async (names: string[]) => {
+    if (running.has(key)) return
+    running.add(key)
+    try {
+      await run(names)
+    } finally {
+      running.delete(key)
+    }
+  }
+
 const TABS = new Set(['photos-home', 'photos-explore', 'photos-sharing', 'photos-library'])
 const isTab = computed(() => TABS.has(String(route.name)))
 const DETAILS = new Set(['photos-search', 'photos-person', 'photos-album', 'photos-folder'])
@@ -270,14 +283,14 @@ const actions = computed<Action[]>(() => {
       list.push({
         label: __('Save to your photos'),
         icon: LucideImageDown,
-        run: async (names) => {
+        run: once('save-to-library', async (names) => {
           const saved = await saveToLibrary(names, props.album?.name)
           toast.success(
             saved.length === 1
               ? __('Saved to your photos')
               : __('{0} items saved to your photos', [saved.length]),
           )
-        },
+        }),
       })
     if (props.album?.access?.write) {
       list.push({
@@ -304,7 +317,7 @@ const actions = computed<Action[]>(() => {
       label: __('Create animation'),
       icon: LucideImagePlay,
       more: true,
-      run: async (names) => {
+      run: once('animation', async (names) => {
         const photos = names.filter((name) => !isVideo(rowFor(name)))
         if (photos.length < 2) return toast.warning(__('Pick at least two photos for an animation'))
         try {
@@ -323,7 +336,7 @@ const actions = computed<Action[]>(() => {
         } catch (error) {
           toast.error(errorText(error) || __('Could not create the animation'))
         }
-      },
+      }),
     },
     {
       label: __('Create collage'),

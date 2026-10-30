@@ -40,7 +40,12 @@
             >
               <component :is="muted ? LucideVolumeX : LucideVolume2" class="size-5" />
             </button>
-            <button class="trim-button" :aria-label="__('Save this frame as a photo')" @click="saveFrame">
+            <button
+              class="trim-button"
+              :aria-label="__('Save this frame as a photo')"
+              :disabled="savingFrame"
+              @click="saveFrame"
+            >
               <LucideImageDown class="size-5" />
             </button>
           </div>
@@ -89,6 +94,7 @@ const EDGES = ['start', 'end'] as const
 const MIN_LENGTH = 0.5
 
 const video = ref<HTMLVideoElement>()
+const savingFrame = ref(false)
 const track = ref<HTMLElement>()
 const duration = ref(0)
 const current = ref(0)
@@ -175,15 +181,18 @@ function drag(event: PointerEvent, edge: 'start' | 'end') {
 }
 
 async function saveFrame() {
-  if (!props.photo || !video.value) return
+  if (!props.photo || !video.value || savingFrame.value) return
   video.value.pause()
   playing.value = false
+  savingFrame.value = true
   try {
     await exportFrame(props.photo.name, video.value.currentTime)
     notifyUploaded()
     toast.success(__('Frame saved as a photo'))
   } catch (error) {
     toast.error(errorText(error) || __('Could not save this frame'))
+  } finally {
+    savingFrame.value = false
   }
 }
 
