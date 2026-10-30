@@ -58,3 +58,5 @@ def replace_person(source, target):
         people = json.loads(frappe.db.get_value(ALBUM, album, "auto_people") or "[]")
         people = list(dict.fromkeys(target if person == source else person for person in people))
         frappe.db.set_value(ALBUM, album, "auto_people", json.dumps(people), update_modified=False)
+    for album in albums_for(target):
+        backfill(album, [target])

@@ -528,6 +528,7 @@ def merge_person(source, target):
     owner = frappe.db.get_value("Photo Person", target, "owner")
     frappe.db.set_value("Photo Face", {"person": source}, "person", target, update_modified=False)
     auto_albums.replace_person(source, target)
+    _carry_memory_hidden(source, target, owner)
     frappe.delete_doc("Photo Person", source, ignore_permissions=True, force=True)
     dismissed = dismissed_pairs(owner)
     carried = {
@@ -537,6 +538,15 @@ def merge_person(source, target):
     }
     if not carried <= dismissed:
         frappe.defaults.set_user_default(NOT_SAME, json.dumps(sorted(dismissed | carried)), owner)
+
+
+def _carry_memory_hidden(source, target, owner):
+    saved = frappe.defaults.get_user_default("photos_preferences", owner)
+    preferences = json.loads(saved) if saved else {}
+    hidden = preferences.get("memory_hidden_people") or []
+    if source in hidden:
+        preferences["memory_hidden_people"] = list(dict.fromkeys(target if p == source else p for p in hidden))
+        frappe.defaults.set_user_default("photos_preferences", json.dumps(preferences), owner)
 
 
 def _absorb(keep, drop):
