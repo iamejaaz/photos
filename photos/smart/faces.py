@@ -240,8 +240,9 @@ def _assign(face, owner):
             best, best_score = person, score
 
     if best:
-        count = best.face_count or 1
-        centroid = _decode(best.centroid) * count + vector
+        stored, count = frappe.db.get_value("Photo Person", best.name, ["centroid", "face_count"], for_update=True)
+        count = count or 1
+        centroid = _decode(stored) * count + vector
         centroid /= np.linalg.norm(centroid) or 1
         best.centroid, best.face_count = _encode(centroid), count + 1
         frappe.db.set_value(
