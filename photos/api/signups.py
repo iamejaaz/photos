@@ -2,6 +2,7 @@ import frappe
 from frappe import _
 from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
 from frappe.rate_limiter import rate_limit
+from frappe.utils import escape_html
 
 from photos.utils.managers import is_manager, managers, only_managers
 
@@ -89,6 +90,6 @@ def notify_failed_emails():
                 "document_name": problem["email"],
                 "subject": _(
                     "Photos could not email {0}. {1} Open Photos settings to send them a link."
-                ).format(problem["full_name"] or problem["user"], problem["reason"]),
+                ).format(escape_html(problem["full_name"] or problem["user"]), problem["reason"]),
             },
         )
