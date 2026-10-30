@@ -61,20 +61,25 @@ def purge_library(user):
     frappe.set_user(user)
     try:
         files = _media_files(user)
+        failed = set()
         for index, name in enumerate(files, 1):
+            frappe.db.savepoint("photos_purge")
             try:
                 frappe.get_doc("File", name).permanent_delete()
             except Exception:
+                frappe.db.rollback(save_point="photos_purge")
                 frappe.log_error(f"Photos could not delete {name}")
+                failed.add(name)
+                continue
             for path in derived_path(name, "").parent.glob(f"{name}.*"):
                 path.unlink(missing_ok=True)
             if index % 50 == 0:
                 frappe.db.commit()
-        _delete_records(user, files)
+        _delete_records(user, [name for name in files if name not in failed])
         frappe.db.commit()
     finally:
         frappe.set_user(previous)
-    frappe.publish_realtime("photos_library_deleted", user=user, after_commit=True)
+    frappe.publish_realtime("photos_library_deleted", {"failed": len(failed)}, user=user, after_commit=True)
 
 
 def _media_files(user):
