@@ -87,9 +87,9 @@ def extract(file_name):
         ignore_permissions=True, ignore_if_duplicate=True
     )
     _prepare_formats(file, path)
-    from photos.smart.scan import enrich
+    from photos.smart.scan import safe_enrich
 
-    enrich(file_name)
+    safe_enrich(file_name)
 
 
 def _prepare_formats(file, path):
@@ -200,7 +200,9 @@ def _video_metadata(path):
     taken_on = None
     if created:
         try:
-            taken_on = datetime.fromisoformat(created.replace("Z", "+00:00")).replace(tzinfo=None)
+            taken_on = datetime.fromisoformat(created.replace("Z", "+00:00"))
+            if taken_on.tzinfo:
+                taken_on = frappe.utils.convert_utc_to_system_timezone(taken_on).replace(tzinfo=None)
         except ValueError:
             pass
     return {"width": width, "height": height, "duration": duration, "taken_on": taken_on, "phash": phash}

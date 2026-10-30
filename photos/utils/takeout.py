@@ -3,7 +3,7 @@ import re
 import tempfile
 import zipfile
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
 import frappe
@@ -272,7 +272,8 @@ def _taken(details):
     for key in ("photoTakenTime", "creationTime"):
         timestamp = (details.get(key) or {}).get("timestamp")
         if timestamp and int(timestamp) > 0:
-            return datetime.fromtimestamp(int(timestamp))
+            taken = datetime.fromtimestamp(int(timestamp), timezone.utc)
+            return frappe.utils.convert_utc_to_system_timezone(taken).replace(tzinfo=None)
     return None
 
 

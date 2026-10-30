@@ -56,7 +56,7 @@ def thumbnail(entity_name: str, album: str | None = None, large: int = 0):
     if not data or not data.getbuffer().nbytes:
         data = _own_thumbnail(file)
         if data is None:
-            return ""
+            frappe.throw("No thumbnail", frappe.DoesNotExistError)
     response = Response(wrap_file(frappe.request.environ, data), direct_passthrough=True)
     response.headers.set("Content-Type", "image/webp")
     response.headers.set("Cache-Control", "private, max-age=3600")
@@ -67,22 +67,25 @@ def thumbnail(entity_name: str, album: str | None = None, large: int = 0):
 def content(entity_name: str, album: str | None = None, download: int = 0, display: int = 0, motion: int = 0):
     file = _file(entity_name, album)
     manager = FileManager()
+    view_only = bool(album) and not can_access(entity_name, "read") and not album_access(album)["download"]
     if int(motion or 0):
         clip = formats.derived_path(file.name, ".motion.mp4")
         if not clip.exists():
             frappe.throw("Not found", frappe.DoesNotExistError)
+        if view_only:
+            clip = formats.shared_video(clip, file.name, ".motion.shared.mp4")
         return _send(clip, "video/mp4")
     if int(download or 0):
         if not can_access(entity_name, "read") and not album_access(album)["download"]:
             frappe.throw("Downloads are turned off for this album.", frappe.PermissionError)
         return drive._serve_resumable(manager, formats.source_key(file), file.file_name, file.mime_type)
-    if (
-        album
-        and file.file_type == "Image"
-        and not can_access(entity_name, "read")
-        and not album_access(album)["download"]
-    ):
+    if view_only and file.file_type == "Image":
         return _preview(manager, file)
+    if view_only and (file.mime_type or "").startswith("video/"):
+        if (clip := formats.derived_path(file.name, ".shared.mp4")).exists():
+            return _send(clip, "video/mp4")
+        formats.enqueue_shared_video(file.name)
+        frappe.throw("This video is still being prepared. Try again in a minute.", frappe.DoesNotExistError)
     if int(display or 0):
         if formats.needs_display_image(file):
             return _send(formats.display_image(file), "image/jpeg")
@@ -93,32 +96,45 @@ def content(entity_name: str, album: str | None = None, download: int = 0, displ
                 return _send(clip, "video/mp4")
             if formats.needs_display_video(formats.source_path(file)):
                 formats.enqueue_display_video(file.name)
+    mimetype = file.mime_type if _inline(file.mime_type) else "application/octet-stream"
     if file.status == STATUS_TRASHED:
-        return _send(formats.source_path(file), file.mime_type)
-    return send_file(
-        manager.get_file(file),
-        mimetype=file.mime_type,
-        as_attachment=False,
-        conditional=True,
-        max_age=3600,
-        download_name=file.file_name,
-        environ=frappe.request.environ,
+        return _send(formats.source_path(file), mimetype)
+    return _private(
+        send_file(
+            manager.get_file(file),
+            mimetype=mimetype,
+            as_attachment=mimetype != file.mime_type,
+            conditional=True,
+            max_age=3600,
+            download_name=file.file_name,
+            environ=frappe.request.environ,
+        )
     )
+
+
+def _inline(mimetype):
+    mimetype = (mimetype or "").lower()
+    return mimetype.startswith(("image/", "video/")) and "svg" not in mimetype
 
 
 def _send(path, mimetype):
-    return send_file(
-        str(path), mimetype=mimetype, conditional=True, max_age=3600, environ=frappe.request.environ
+    return _private(
+        send_file(str(path), mimetype=mimetype, conditional=True, max_age=3600, environ=frappe.request.environ)
     )
+
+
+def _private(response):
+    response.headers.set("Cache-Control", "private, max-age=3600")
+    return response
 
 
 def _large_thumbnail(file):
     target = formats.derived_path(file.name, ".thumb-large.webp")
     if not target.exists():
         try:
-            image = formats.open_image(formats.source_path(file), file.file_name)
+            image = formats.open_image(formats.source_path(file), file.file_name, LARGE_THUMBNAIL)
             image.thumbnail((LARGE_THUMBNAIL, LARGE_THUMBNAIL))
-            image.convert("RGB").save(target, "WEBP", quality=80)
+            formats.save_image(image.convert("RGB"), target, "WEBP", quality=80)
         except Exception:
             return None
     return target
@@ -131,12 +147,13 @@ def _own_thumbnail(file):
             image = (
                 _first_frame(file)
                 if file.file_type == "Video"
-                else formats.open_image(formats.source_path(file), file.file_name)
+                else formats.open_image(formats.source_path(file), file.file_name, 512)
             )
         except Exception:
+            frappe.log_error(f"Photos could not make a thumbnail for {file.name}")
             return None
         image.thumbnail((512, 512))
-        image.convert("RGB").save(target, "WEBP", quality=80)
+        formats.save_image(image.convert("RGB"), target, "WEBP", quality=80)
     return BytesIO(target.read_bytes())
 
 
@@ -151,10 +168,9 @@ def _first_frame(file):
 
 
 def _preview(manager, file, size=1600):
-    with formats.open_image(formats.source_path(file), file.file_name) as image:
-        image.thumbnail((size, size))
-        output = BytesIO()
-        image.convert("RGB").save(output, "JPEG", quality=85)
-    response = Response(output.getvalue(), mimetype="image/jpeg")
-    response.headers.set("Cache-Control", "private, max-age=3600")
-    return response
+    target = formats.derived_path(file.name, ".preview.jpg")
+    if not target.exists():
+        with formats.open_image(formats.source_path(file), file.file_name, size) as image:
+            image.thumbnail((size, size))
+            formats.save_image(image.convert("RGB"), target, "JPEG", quality=85)
+    return _private(send_file(str(target), mimetype="image/jpeg", conditional=True, environ=frappe.request.environ))

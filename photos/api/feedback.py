@@ -4,6 +4,7 @@ import json
 import frappe
 from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
 from frappe.rate_limiter import rate_limit
+from frappe.utils import escape_html
 
 from photos.utils.managers import managers, only_managers
 
@@ -80,7 +81,7 @@ def _notify_admins(report):
             "document_name": report.name,
             "from_user": frappe.session.user,
             "subject": frappe._("{0} reported a problem in Photos: {1}").format(
-                who, report.description or frappe._("no description")
+                escape_html(who), escape_html(report.description or frappe._("no description"))
             ),
         },
     )
@@ -121,4 +122,6 @@ def set_report_status(report: str, status: str):
     only_managers()
     if status not in STATUSES:
         frappe.throw(frappe._("Pick Open, Fixed or Closed."))
-    frappe.db.set_value(REPORT, report, "status", status)
+    doc = frappe.get_doc(REPORT, report)
+    doc.status = status
+    doc.save(ignore_permissions=True)

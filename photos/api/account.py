@@ -5,7 +5,7 @@ from photos.utils.formats import derived_path
 
 DELETION_REQUEST = "Personal Data Deletion Request"
 OPEN_REQUEST = ("Pending Verification", "Pending Approval")
-USER_DEFAULTS = ("photos_preferences", "photos_not_same_people")
+USER_DEFAULTS = ("photos_preferences", "photos_not_same_people", "photos_memories_seen")
 
 
 @frappe.whitelist(methods=["POST"])
@@ -48,6 +48,7 @@ def after_account_deletion(doc, method=None):
         frappe.enqueue(
             "photos.api.account.purge_library",
             user=doc.name,
+            email=doc.email,
             queue="long",
             timeout=4 * 60 * 60,
             job_id=f"photos-purge::{doc.name}",
@@ -56,25 +57,30 @@ def after_account_deletion(doc, method=None):
         )
 
 
-def purge_library(user):
+def purge_library(user, email=None):
     previous = frappe.session.user
     frappe.set_user(user)
     try:
         files = _media_files(user)
+        failed = set()
         for index, name in enumerate(files, 1):
+            frappe.db.savepoint("photos_purge")
             try:
                 frappe.get_doc("File", name).permanent_delete()
             except Exception:
+                frappe.db.rollback(save_point="photos_purge")
                 frappe.log_error(f"Photos could not delete {name}")
+                failed.add(name)
+                continue
             for path in derived_path(name, "").parent.glob(f"{name}.*"):
                 path.unlink(missing_ok=True)
             if index % 50 == 0:
                 frappe.db.commit()
-        _delete_records(user, files)
+        _delete_records(user, [name for name in files if name not in failed], email)
         frappe.db.commit()
     finally:
         frappe.set_user(previous)
-    frappe.publish_realtime("photos_library_deleted", user=user, after_commit=True)
+    frappe.publish_realtime("photos_library_deleted", {"failed": len(failed)}, user=user, after_commit=True)
 
 
 def _media_files(user):
@@ -90,7 +96,7 @@ def _media_files(user):
     )
 
 
-def _delete_records(user, files):
+def _delete_records(user, files, email=None):
     for album in frappe.get_all("Photo Album", filters={"owner": user}, pluck="name"):
         frappe.delete_doc("Photo Album", album, ignore_permissions=True, force=True)
     for doctype in ("Photo Person", "Photo Album Activity", "Photo Import"):
@@ -102,7 +108,8 @@ def _delete_records(user, files):
         for doctype in ("Photo Face", "Photo Metadata", "Photo Album Item", "Photo Archive", "Photo Hidden"):
             frappe.db.delete(doctype, {"file": ["in", batch]})
     for key in USER_DEFAULTS:
-        frappe.defaults.clear_user_default(key, user)
+        for parent in {user, email or user}:
+            frappe.defaults.clear_user_default(key, parent)
 
 
 def _own_account():

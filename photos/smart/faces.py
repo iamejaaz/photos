@@ -26,7 +26,7 @@ CLEAR_STRENGTH = 28
 MIN_STRENGTH = 15
 MIN_SHARPNESS = 10
 
-_engine = None
+_engine = {}
 
 
 def available():
@@ -38,8 +38,8 @@ def available():
 
 
 def _models():
-    global _engine
-    if _engine is None:
+    key = assets.asset_dir()
+    if key not in _engine:
         import cv2
 
         detector = cv2.FaceDetectorYN.create(
@@ -47,8 +47,8 @@ def _models():
         )
         recognizer = cv2.FaceRecognizerSF.create(str(assets.path("face_recognizer")), "")
         embedder = cv2.dnn.readNet(str(assets.path("face_embedder")))
-        _engine = (detector, recognizer, embedder)
-    return _engine
+        _engine[key] = (detector, recognizer, embedder)
+    return _engine[key]
 
 
 def scan_file(file_name):
@@ -240,8 +240,9 @@ def _assign(face, owner):
             best, best_score = person, score
 
     if best:
-        count = best.face_count or 1
-        centroid = _decode(best.centroid) * count + vector
+        stored, count = frappe.db.get_value("Photo Person", best.name, ["centroid", "face_count"], for_update=True)
+        count = count or 1
+        centroid = _decode(stored) * count + vector
         centroid /= np.linalg.norm(centroid) or 1
         best.centroid, best.face_count = _encode(centroid), count + 1
         frappe.db.set_value(
@@ -418,8 +419,9 @@ def _reembed(file_name, timestamp, faces):
         image = _frame(file_name, timestamp)
         frame, _, rows = _rows(image)
     except Exception:
-        frame, rows = None, []
-    height, width = frame.shape[:2] if frame is not None else (1, 1)
+        frappe.log_error(f"Photos could not re-read the faces of {file_name}")
+        return
+    height, width = frame.shape[:2]
     for face in faces:
         row = min(
             rows,
@@ -496,7 +498,7 @@ def regroup(owner):
         face = frappe.db.get_value(
             "Photo Face", {"person": row.name}, ["name", "embedding", "quality"], as_dict=True
         )
-        if not face:
+        if not face or not face.quality:
             continue
         vector = _decode(face.embedding)
         clear = (face.quality or 0) >= CLEAR_FACE
@@ -516,10 +518,17 @@ def regroup(owner):
             frappe.delete_doc("Photo Person", row.name, ignore_permissions=True, force=True)
 
 
+def lock_people(names):
+    for name in sorted(set(names)):
+        frappe.db.get_value("Photo Person", name, "name", for_update=True)
+
+
 def merge_person(source, target):
+    lock_people([source, target])
     owner = frappe.db.get_value("Photo Person", target, "owner")
     frappe.db.set_value("Photo Face", {"person": source}, "person", target, update_modified=False)
     auto_albums.replace_person(source, target)
+    _carry_memory_hidden(source, target, owner)
     frappe.delete_doc("Photo Person", source, ignore_permissions=True, force=True)
     dismissed = dismissed_pairs(owner)
     carried = {
@@ -529,6 +538,15 @@ def merge_person(source, target):
     }
     if not carried <= dismissed:
         frappe.defaults.set_user_default(NOT_SAME, json.dumps(sorted(dismissed | carried)), owner)
+
+
+def _carry_memory_hidden(source, target, owner):
+    saved = frappe.defaults.get_user_default("photos_preferences", owner)
+    preferences = json.loads(saved) if saved else {}
+    hidden = preferences.get("memory_hidden_people") or []
+    if source in hidden:
+        preferences["memory_hidden_people"] = list(dict.fromkeys(target if p == source else p for p in hidden))
+        frappe.defaults.set_user_default("photos_preferences", json.dumps(preferences), owner)
 
 
 def _absorb(keep, drop):

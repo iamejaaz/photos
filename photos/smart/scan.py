@@ -4,6 +4,15 @@ from suite.drive.utils.files import FileManager, storage_key
 from photos.smart import clip, faces, places, text, things
 
 
+def safe_enrich(name):
+    frappe.db.savepoint("photos_enrich")
+    try:
+        enrich(name)
+    except Exception:
+        frappe.db.rollback(save_point="photos_enrich")
+        frappe.log_error(f"Photos could not enrich {name}")
+
+
 def enrich(file_name):
     meta = frappe.db.get_value(
         "Photo Metadata",
@@ -73,7 +82,7 @@ def run():
         pluck="name",
     )
     for index, name in enumerate(pending, 1):
-        enrich(name)
+        safe_enrich(name)
         if index % 20 == 0:
             frappe.db.commit()
             print(f"\rScanned {index}/{len(pending)}", end="", flush=True)

@@ -1,5 +1,4 @@
 import sys
-from urllib.parse import unquote
 
 import frappe
 from frappe import _
@@ -133,20 +132,32 @@ def guard_file_url():
     request = getattr(frappe.local, "request", None)
     if not request or not request.path.startswith(PRIVATE_FILES):
         return
-    path = unquote(request.path)
-    file = frappe.db.get_value(
-        "File", {"file_url": ["in", [path, path.lstrip("/")]]}, ["name", *FIELDS[1:]], as_dict=True
+    path = request.path
+    files = frappe.get_all(
+        "File",
+        filters={"file_url": ["in", [path, path.lstrip("/")]]},
+        fields=["name", "is_private", *FIELDS[1:]],
     )
-    if not file or not is_library_media(file):
-        return
+    if fid := frappe.form_dict.get("fid"):
+        files = [file for file in files if file.name == fid]
+    if files and not any(_can_open(file) for file in files):
+        frappe.throw(_("You don't have access to this file."), frappe.PermissionError)
+
+
+def _can_open(file):
+    if not is_library_media(file):
+        return not file.is_private or file.is_folder or frappe.get_doc("File", file.name).has_permission("read")
     from photos.utils.permissions import can_access
 
-    if frappe.session.user == "Guest" or not can_access(file.name, "read"):
-        frappe.throw(_("You don't have access to this photo."), frappe.PermissionError)
+    return frappe.session.user != "Guest" and can_access(file.name, "read")
 
 
 def in_request():
     return getattr(frappe.local, "request", None) is not None
+
+
+def impersonating():
+    return in_request() and bool((frappe.session.data or {}).get("impersonated_by"))
 
 
 class PrivateRow:
@@ -157,7 +168,7 @@ class PrivateRow:
 
     def has_permission(self, permtype="read", *, debug=False, user=None):
         user = user or frappe.session.user
-        if in_request() and not self.flags.ignore_permissions and self.belongs_to() != user:
+        if in_request() and not self.flags.ignore_permissions and (self.belongs_to() != user or impersonating()):
             return False
         return super().has_permission(permtype, debug=debug, user=user)
 
@@ -172,6 +183,8 @@ PRIVATE_ROWS = {
 
 
 def private_rows_condition(user=None, doctype=None):
+    if impersonating():
+        return "1 = 0"
     user = frappe.db.escape(user or frappe.session.user)
     if doctype == "Photo Face":
         return f"`tabPhoto Face`.`file` in (select `name` from `tabFile` where `owner` = {user})"
@@ -181,6 +194,8 @@ def private_rows_condition(user=None, doctype=None):
 class File(DriveFile):
     def has_permission(self, permtype="read", *, debug=False, user=None):
         user = user or frappe.session.user
+        if impersonating() and not self.flags.ignore_permissions and is_library_media(self):
+            return False
         if (
             user == "Administrator"
             and in_request()

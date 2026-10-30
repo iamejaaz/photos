@@ -30,9 +30,12 @@ def add_files(album, files):
     for file in files:
         if file in hidden or file in existing:
             continue
-        frappe.get_doc({"doctype": "Photo Album Item", "album": album, "file": file}).insert(
-            ignore_permissions=True
-        )
+        try:
+            frappe.get_doc({"doctype": "Photo Album Item", "album": album, "file": file}).insert(
+                ignore_permissions=True
+            )
+        except frappe.UniqueValidationError:
+            continue
         added += 1
     if added:
         frappe.db.set_value(ALBUM, album, "modified", frappe.utils.now_datetime())
@@ -55,3 +58,5 @@ def replace_person(source, target):
         people = json.loads(frappe.db.get_value(ALBUM, album, "auto_people") or "[]")
         people = list(dict.fromkeys(target if person == source else person for person in people))
         frappe.db.set_value(ALBUM, album, "auto_people", json.dumps(people), update_modified=False)
+    for album in albums_for(target):
+        backfill(album, [target])

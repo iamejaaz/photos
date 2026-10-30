@@ -50,6 +50,12 @@ def derived_path(name, suffix):
     return folder / f"{name}{suffix}"
 
 
+def save_image(image, target, *args, **kwargs):
+    partial = target.with_name(f"{target.name}.{frappe.generate_hash(length=8)}.part")
+    image.save(partial, *args, **kwargs)
+    partial.replace(target)
+
+
 ORIENTATION = 0x0112
 
 
@@ -71,12 +77,20 @@ def upright(image):
         return image.transpose(method) if method else image
 
 
-def open_image(path, file_name=None):
+MAX_PIXELS = 120_000_000
+
+
+def open_image(path, file_name=None, size=None):
     from PIL import Image, ImageOps
 
     if is_raw(file_name or str(path)):
         return _open_raw(path)
     image = Image.open(path)
+    if size:
+        image.draft("RGB", (size, size))
+    if image.width * image.height > MAX_PIXELS:
+        image.close()
+        raise ValueError("This image is too large to preview.")
     return upright(image)
 
 
@@ -103,9 +117,9 @@ def needs_display_image(file):
 def display_image(file):
     target = derived_path(file.name, ".jpg")
     if not target.exists():
-        image = open_image(source_path(file), file.file_name)
+        image = open_image(source_path(file), file.file_name, DISPLAY_SIZE)
         image.thumbnail((DISPLAY_SIZE, DISPLAY_SIZE))
-        image.convert("RGB").save(target, "JPEG", quality=88)
+        save_image(image.convert("RGB"), target, "JPEG", quality=88)
     return target
 
 
@@ -123,7 +137,7 @@ def view_image(file):
             image = upright(image)
             image.thumbnail((DISPLAY_SIZE, DISPLAY_SIZE))
             image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
-            image.save(target, "WEBP", quality=85, method=4)
+            save_image(image, target, "WEBP", quality=85, method=4)
     return target
 
 
@@ -156,7 +170,7 @@ def enqueue_display_video(name):
             timeout=60 * 60,
             deduplicate=True,
             job_id=f"photo-display-video::{name}",
-            enqueue_after_commit=True,
+            enqueue_after_commit=False,
         )
     except frappe.QueueOverloaded:
         pass
@@ -170,6 +184,36 @@ def build_display_video(name):
     partial = target.with_suffix(".part.mp4")
     transcode(source_path(file), partial, max_height=VIDEO_HEIGHT)
     partial.rename(target)
+
+
+def shared_video(source_file, name, suffix):
+    target = derived_path(name, suffix)
+    if not target.exists():
+        partial = target.with_suffix(".part.mp4")
+        transcode(source_file, partial, max_height=VIDEO_HEIGHT)
+        partial.rename(target)
+    return target
+
+
+def enqueue_shared_video(name):
+    try:
+        frappe.enqueue(
+            "photos.utils.formats.build_shared_video",
+            name=name,
+            queue="long",
+            timeout=60 * 60,
+            deduplicate=True,
+            job_id=f"photo-shared-video::{name}",
+            enqueue_after_commit=False,
+        )
+    except frappe.QueueOverloaded:
+        pass
+
+
+def build_shared_video(name):
+    file = frappe.db.get_value("File", name, ["name", "file_url"], as_dict=True)
+    if file:
+        shared_video(source_path(file), name, ".shared.mp4")
 
 
 def transcode(source_file, target_file, start=None, end=None, max_height=None, mute=False):

@@ -49,6 +49,7 @@ scheduler_events = {
     "daily_long": ["photos.smart.faces.regroup_recent"],
 }
 after_install = ["photos.api.native.ensure_oauth_client", "photos.utils.managers.ensure_role"]
+before_uninstall = "photos.uninstall.before_uninstall"
 after_migrate = [
     "photos.api.native.ensure_oauth_client",
     "photos.smart.settings.ensure_models",
@@ -69,6 +70,9 @@ permission_query_conditions = {
         "Photo Archive",
         "Photo Hidden",
     )
+} | {
+    doctype: "photos.api.albums.album_rows_condition"
+    for doctype in ("Photo Album", "Photo Album Item", "Photo Album Activity")
 }
 
 override_doctype_class = {"File": "photos.utils.privacy.File"}

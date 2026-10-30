@@ -12,7 +12,7 @@ def get_preferences():
     return DEFAULTS | (json.loads(saved) if saved else {})
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_preferences(memories: bool = True, memory_hidden_people: list[str] | str | None = None):
     hidden = (
         json.loads(memory_hidden_people) if isinstance(memory_hidden_people, str) else memory_hidden_people

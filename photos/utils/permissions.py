@@ -3,6 +3,8 @@ from frappe import _
 from suite.drive.api.permissions import filter_access, get_user_access_for_user
 from suite.drive.utils import PERMISSION_TYPES, generate_upward_path
 
+from photos.utils.privacy import impersonating, is_library_media
+
 FULL_ACCESS = dict.fromkeys(PERMISSION_TYPES, 1)
 
 
@@ -10,6 +12,8 @@ def photo_access(entity, user=None):
     user = user or frappe.session.user
     if isinstance(entity, str):
         entity = frappe.get_cached_doc("File", entity)
+    if user == frappe.session.user and impersonating() and is_library_media(entity):
+        return {}
     if user != "Guest" and entity.owner == user:
         return FULL_ACCESS
     if entity.get("attached_to_doctype") and entity.get("attached_to_name"):
@@ -23,12 +27,12 @@ def can_access(entity, ptype, user=None):
     return bool(photo_access(entity, user).get(ptype))
 
 
-PRIVATE_PATHS = ("/api/method/photos.", "/photos")
+PRIVATE_PATHS = ("/api/method/photos.", "/api/v2/method/photos.", "/photos")
 
 
 def block_impersonation():
     request = getattr(frappe.local, "request", None)
     if not request or not request.path.startswith(PRIVATE_PATHS):
         return
-    if (frappe.session.data or {}).get("impersonated_by"):
+    if impersonating():
         frappe.throw(_("Photos are private. Stop impersonating to see them."), frappe.PermissionError)

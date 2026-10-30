@@ -32,7 +32,7 @@ CATEGORIES = {
 }
 LABEL_CATEGORY = {index: name for name, groups in CATEGORIES.items() for group in groups for index in group}
 
-_engine = None
+_engine = {}
 
 
 def available():
@@ -40,14 +40,14 @@ def available():
 
 
 def _model():
-    global _engine
-    if _engine is None:
+    key = assets.asset_dir()
+    if key not in _engine:
         import cv2
 
         net = cv2.dnn.readNet(str(assets.path("classifier")))
         labels = assets.path("classifier_labels").read_text().splitlines()
-        _engine = (net, labels)
-    return _engine
+        _engine[key] = (net, labels)
+    return _engine[key]
 
 
 def classify(image, people=False):

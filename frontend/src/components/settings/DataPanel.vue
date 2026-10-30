@@ -95,8 +95,9 @@ accountDeletionStatus().then((status) => (pending.value = status))
 watch(confirm, () => (typed.value = ''))
 
 const socket = initSocket()
-const onDeleted = () => {
+const onDeleted = ({ failed = 0 }: { failed?: number } = {}) => {
   deletingLibrary.value = false
+  if (failed) return toast.warning(__('{0} items could not be deleted. Try again.', [failed]))
   toast.success(__('All your photos are deleted'))
   window.location.reload()
 }

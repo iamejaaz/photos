@@ -7,7 +7,7 @@ from photos.utils.permissions import can_access
 IMPORT = "Photo Import"
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_import(files: list[str] | str):
     files = json.loads(files) if isinstance(files, str) else files
     for name in files:
@@ -41,7 +41,7 @@ def get_import(name: str | None = None):
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def start_import(name: str, options: dict | str):
     doc = _own(name)
     if doc.status != "Ready":
@@ -53,7 +53,7 @@ def start_import(name: str, options: dict | str):
     return get_import(doc.name)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def cancel_import(name: str):
     from suite.drive.api.files import remove_or_restore
 

@@ -93,8 +93,9 @@ def album_gate(album: str):
     }
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=10, seconds=10 * 60)
+@rate_limit(key="album", ip_based=False, limit=30, seconds=10 * 60)
 def unlock_album(album: str, password: str):
     saved = get_decrypted_password(ALBUM, album, "link_password", raise_exception=False)
     if not saved or not _has_public_link(album) or not hmac.compare_digest(saved, password or ""):
@@ -115,7 +116,7 @@ def get_link_settings(album: str):
     return doc
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_link_settings(
     album: str,
     allow_uploads: bool = False,
@@ -156,6 +157,19 @@ def can_take(file, album=None):
     return can_access(file, "read") or bool(album and album_access(album)["download"])
 
 
+def visible_files(album, order=Order.asc):
+    return (
+        frappe.qb.from_(AlbumItem)
+        .join(File)
+        .on(File.name == AlbumItem.file)
+        .select(AlbumItem.file)
+        .where(AlbumItem.album == album)
+        .where(File.name.notin(frappe.qb.from_(Hidden).select(Hidden.file).where(Hidden.user == File.owner)))
+        .orderby(AlbumItem.creation, order=order)
+        .run(pluck=True)
+    )
+
+
 def hidden_by_owner(file):
     owner = frappe.db.get_value("File", file, "owner")
     return bool(frappe.db.exists("Photo Hidden", {"user": owner, "file": file}))
@@ -171,6 +185,7 @@ def link_only(album, user=None):
 
 
 PRIVATE_FIELDS = ("owner", "folder", "added_by", "latitude", "longitude", "place")
+OTHERS_FIELDS = ("owner", "folder", "latitude", "longitude", "place")
 
 
 def _require(album, ptype):
@@ -203,6 +218,12 @@ def readable_albums(user=None):
     return list({*own, *shared})
 
 
+def album_rows_condition(user=None, doctype=None):
+    names = ", ".join(frappe.db.escape(name) for name in readable_albums(user)) or "''"
+    field = "name" if doctype == ALBUM else "album"
+    return f"`tab{doctype}`.`{field}` in ({names})"
+
+
 def _summaries(names):
     rows = frappe.get_all(
         ALBUM,
@@ -221,15 +242,16 @@ def _summaries(names):
             join `tabFile` file on file.name = item.file
             left join `tabPhoto Metadata` meta on meta.file = item.file
             where item.album in %(names)s
+                and not exists (
+                    select 1 from `tabPhoto Hidden` hidden where hidden.file = file.name and hidden.user = file.owner
+                )
             group by item.album
             """,
             {"names": names or [""]},
         )
     )
     for row in rows:
-        items = frappe.get_all(
-            "Photo Album Item", filters={"album": row.name}, pluck="file", order_by="creation desc"
-        )
+        items = visible_files(row.name, Order.desc)
         row.count = len(items)
         row.latest = latest.get(row.name)
         if not row.cover or row.cover not in items:
@@ -252,7 +274,7 @@ def albums():
     )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_auto_people(album: str, people: list[str] | str):
     from photos.utils import auto_albums
 
@@ -272,14 +294,14 @@ def share_links():
     )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_share_link(files: list[str] | str):
     files = _as_list(files)
     if not files:
         frappe.throw("Pick at least one photo.")
     for file in files:
-        if not can_access(file, "read"):
-            frappe.throw("You don't have access to one of these photos.", frappe.PermissionError)
+        if not can_access(file, "share"):
+            frappe.throw("You can't share one of these photos.", frappe.PermissionError)
     first = frappe.db.get_value("File", files[0], "file_name")
     title = first if len(files) == 1 else f"{len(files)} photos"
     album = frappe.get_doc({"doctype": ALBUM, "title": title, "is_link": 1}).insert(ignore_permissions=True)
@@ -318,7 +340,7 @@ def get_album(album: str):
 @frappe.whitelist(allow_guest=True)
 def album_files(album: str):
     _require(album, "read")
-    return frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file", order_by="creation asc")
+    return visible_files(album)
 
 
 @frappe.whitelist(allow_guest=True)
@@ -365,6 +387,8 @@ def album_photos(album: str, start: int = 0, limit: int | None = None, only: lis
         row["download"] = can_download
         if private:
             row.update(dict.fromkeys(PRIVATE_FIELDS))
+        elif row["owner"] != user:
+            row.update(dict.fromkeys(OTHERS_FIELDS))
     return {"rows": rows[:limit], "has_next": len(rows) > limit, "next_start": start + min(len(rows), limit)}
 
 
@@ -373,6 +397,7 @@ SELFIE_MAX_SIZE = 15 * 1024 * 1024
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=20, seconds=10 * 60)
+@rate_limit(key="album", ip_based=False, limit=100, seconds=10 * 60)
 def find_me(album: str):
     from io import BytesIO
 
@@ -396,14 +421,13 @@ def find_me(album: str):
             selfie = upright(image).convert("RGB")
     except Exception:
         frappe.throw("That photo could not be read. Try again.")
-    files = frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file")
-    found = faces.find_person(selfie, files)
+    found = faces.find_person(selfie, visible_files(album))
     if found is None:
         frappe.throw("No face found. Try again with your face clearly in view.")
     return sorted(found)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_album(title: str, files: list[str] | str | None = None):
     album = frappe.get_doc({"doctype": ALBUM, "title": title.strip()}).insert(ignore_permissions=True)
     if files:
@@ -411,7 +435,7 @@ def create_album(title: str, files: list[str] | str | None = None):
     return album.name
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def rename_album(album: str, title: str):
     _require(album, "write")
     doc = frappe.get_doc(ALBUM, album)
@@ -419,7 +443,7 @@ def rename_album(album: str, title: str):
     doc.save(ignore_permissions=True)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_cover(album: str, file: str):
     _require(album, "write")
     if not frappe.db.exists("Photo Album Item", {"album": album, "file": file}):
@@ -427,7 +451,7 @@ def set_cover(album: str, file: str):
     frappe.db.set_value(ALBUM, album, "cover", file)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def delete_album(album: str):
     _require(album, "owner")
     frappe.db.delete("Photo Album Item", {"album": album})
@@ -435,26 +459,30 @@ def delete_album(album: str):
     frappe.delete_doc(ALBUM, album, ignore_permissions=True)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def leave_album(album: str):
     if file := album_file(album):
         frappe.db.delete("Drive Permission", {"entity": file, "user": frappe.session.user})
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def add_to_album(album: str, files: list[str] | str):
     _require(album, "write")
     existing = set(frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file"))
     for file in _as_list(files):
-        if file in existing or not can_access(file, "read"):
+        if file in existing or not can_access(file, "share"):
             continue
-        frappe.get_doc({"doctype": "Photo Album Item", "album": album, "file": file}).insert(
-            ignore_permissions=True
-        )
+        existing.add(file)
+        try:
+            frappe.get_doc({"doctype": "Photo Album Item", "album": album, "file": file}).insert(
+                ignore_permissions=True
+            )
+        except frappe.UniqueValidationError:
+            pass
     frappe.db.set_value(ALBUM, album, "modified", frappe.utils.now_datetime())
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def remove_from_album(album: str, files: list[str] | str):
     _require(album, "write")
     files = _as_list(files)
@@ -493,7 +521,7 @@ def activity(album: str):
     return rows
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def add_comment(album: str, content: str, file: str | None = None):
     _require(album, "read")
     content = (content or "").strip()
@@ -513,10 +541,11 @@ def add_comment(album: str, content: str, file: str | None = None):
     return doc.name
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def toggle_like(album: str, file: str | None = None):
     _require(album, "read")
     _check_file(album, file)
+    frappe.db.get_value(ALBUM, album, "name", for_update=True)
     filters = {
         "album": album,
         "file": file or ["is", "not set"],
@@ -534,7 +563,7 @@ def toggle_like(album: str, file: str | None = None):
     return not existing
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def delete_activity(name: str):
     row = frappe.db.get_value("Photo Album Activity", name, ["album", "owner"], as_dict=True)
     if not row:

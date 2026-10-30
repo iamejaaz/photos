@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 
 import frappe
+from frappe.rate_limiter import rate_limit
 from frappe.utils import get_datetime
 
 from photos.api.albums import can_take
@@ -11,7 +12,7 @@ from photos.utils.permissions import can_access
 METADATA = "Photo Metadata"
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def edit_date(files: list[str] | str, taken_on: str | None = None, shift_minutes: int | None = None):
     names = _writable(files)
     if not taken_on and not shift_minutes:
@@ -25,7 +26,7 @@ def edit_date(files: list[str] | str, taken_on: str | None = None, shift_minutes
     return len(names)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def edit_location(
     files: list[str] | str,
     latitude: float | None = None,
@@ -49,7 +50,7 @@ def edit_location(
     return len(names)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def edit_caption(file: str, caption: str | None = None):
     _writable([file])
     caption = (caption or "").strip()[:2000] or None
@@ -75,6 +76,7 @@ def _writable(files):
 
 
 @frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60 * 60, user_based=True)
 def trim_video(file: str, start: float, end: float, mute: int = 0):
     from photos.api.albums import can_read
 
@@ -106,11 +108,11 @@ def build_trim(file, start, end, user, mute=0):
     from photos.utils.library import add_file
 
     frappe.set_user(user)
-    source = frappe.db.get_value("File", file, ["name", "file_name", "file_url", "folder"], as_dict=True)
-    taken = frappe.db.get_value(METADATA, file, "taken_on") or frappe.utils.now_datetime()
-    parent = source.folder if can_access(source.folder, "upload") else None
-    stem = Path(source.file_name).stem
     try:
+        source = frappe.db.get_value("File", file, ["name", "file_name", "file_url", "folder"], as_dict=True)
+        taken = frappe.db.get_value(METADATA, file, "taken_on") or frappe.utils.now_datetime()
+        parent = source.folder if can_access(source.folder, "upload") else None
+        stem = Path(source.file_name).stem
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / f"{stem}-trimmed.mp4"
             formats.transcode(formats.source_path(source), target, start=start, end=end, mute=bool(mute))
@@ -118,11 +120,13 @@ def build_trim(file, start, end, user, mute=0):
         frappe.db.commit()
         frappe.publish_realtime("photos-trim-ready", {"name": name}, user=user)
     except Exception:
+        frappe.db.rollback()
         frappe.log_error("Photos video trim failed")
         frappe.publish_realtime("photos-trim-failed", {"name": file}, user=user)
 
 
 @frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60 * 60, user_based=True)
 def export_frame(file: str, at: float):
     import tempfile
     from datetime import timedelta
@@ -183,7 +187,7 @@ def create_animation(files: list[str] | str, album: str | None = None):
     rows.sort(key=lambda row: str(taken.get(row.name) or ""))
     frames = []
     for row in rows:
-        with formats.open_image(formats.source_path(row), row.file_name) as image:
+        with formats.open_image(formats.source_path(row), row.file_name, 720) as image:
             image = image.convert("RGB")
             image.thumbnail((720, 720))
             frames.append(image.copy())

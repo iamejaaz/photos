@@ -24,7 +24,7 @@ Hidden = frappe.qb.DocType("Photo Hidden")
 Face = frappe.qb.DocType("Photo Face")
 Year = CustomFunction("YEAR", ["date"])
 Month = CustomFunction("MONTH", ["date"])
-DayOfYear = CustomFunction("DAYOFYEAR", ["date"])
+DayOfMonth = CustomFunction("DAYOFMONTH", ["date"])
 
 UPLOAD_FOLDER = "Photos"
 PAGE_SIZE = 120
@@ -101,7 +101,14 @@ def _permission_criterion():
         )
     )
     folders = _shared_folders()
-    return criterion | File.folder.isin(folders) if folders else criterion
+    if not folders:
+        return criterion
+    denied = (
+        frappe.qb.from_(DrivePermission)
+        .select(DrivePermission.entity)
+        .where(DrivePermission.user.isin(principals) & (DrivePermission.read == 1) & (DrivePermission.deny == 1))
+    )
+    return criterion | (File.folder.isin(folders) & File.name.notin(denied))
 
 
 def _personal_principals():
@@ -242,6 +249,7 @@ def folders():
         cover = (
             media_query(archived=None)
             .where(File.folder == row.folder)
+            .orderby(File.name, order=Order.desc)
             .limit(1)
             .select(File.name)
             .run(as_dict=True)
@@ -281,8 +289,10 @@ EMPTY_TRASH_INLINE = 100
 
 @frappe.whitelist()
 def trash(start: int = 0, limit: int | None = None):
+    from photos.api.hidden import _unlocked
+
     query = (
-        media_query(status=STATUS_TRASHED, check_permission=False, archived=None, hidden=None)
+        media_query(status=STATUS_TRASHED, check_permission=False, archived=None, hidden=None if _unlocked() else False)
         .select(File.file_modified.as_("trashed_on"))
         .where(File.owner == frappe.session.user)
     )
@@ -316,7 +326,8 @@ def empty_trash():
 
 
 def delete_trashed(names, user):
-    frappe.set_user(user)
+    if frappe.session.user != user:
+        frappe.set_user(user)
     for name in names:
         doc = frappe.get_doc("File", name)
         if doc.owner == user and doc.status == STATUS_TRASHED:
@@ -324,7 +335,7 @@ def delete_trashed(names, user):
     frappe.publish_realtime("photos-trash-emptied", {"count": len(names)}, user=user, after_commit=True)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_archived(files: list[str] | str, archived: bool = True):
     files = _as_list(files)
     archived = frappe.parse_json(archived) if isinstance(archived, str) else archived
@@ -419,7 +430,8 @@ def _pick_memories(today, preferences):
         )
     if removed := preferences["memory_removed"]:
         query = query.where(File.name.notin(removed))
-    query = query.where(fn.Abs(DayOfYear(taken) - today.timetuple().tm_yday) <= 3)
+    days = [frappe.utils.add_days(today, offset) for offset in range(-3, 4)]
+    query = query.where(Criterion.any([(Month(taken) == day.month) & (DayOfMonth(taken) == day.day) for day in days]))
     return [row["name"] for row in page(query, 0, 60)["rows"]]
 
 
@@ -457,6 +469,7 @@ def things_summary():
         .where(Metadata.things.isnotnull() & (Metadata.things != ""))
         .select(File.name, Metadata.things)
         .orderby(taken, order=Order.desc)
+        .orderby(File.name, order=Order.desc)
         .limit(2000)
         .run(as_dict=True)
     )
@@ -488,6 +501,7 @@ def explore():
         )
         .groupby(Metadata.camera)
         .orderby(fn.Count(File.name), order=Order.desc)
+        .orderby(Metadata.camera)
         .limit(12)
     )
     videos = (
@@ -503,9 +517,10 @@ def explore():
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def get_upload_folder():
     home = get_user_folder()
+    frappe.db.get_value("File", home.name, "name", for_update=True)
     folder = frappe.db.get_value(
         "File",
         {"folder": home.name, "file_name": UPLOAD_FOLDER, "is_folder": 1, "status": STATUS_ACTIVE},
@@ -539,7 +554,7 @@ def library_folder():
     return {**folder, "is_folder": 1, "write": 1, "upload": 1}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_to_library(files: list[str] | str, album: str | None = None):
     from suite.drive.utils.files import FileManager, storage_key
 

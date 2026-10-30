@@ -8,15 +8,16 @@ from photos.utils.managers import is_manager, only_managers
 @frappe.whitelist()
 def get_settings():
     settings = frappe.get_cached_doc(SETTINGS)
+    manager = is_manager()
     return {
         **{feature: bool(settings.get(feature)) for feature in FEATURES},
         "status": settings.setup_status,
-        "error": settings.setup_error,
-        "can_manage": is_manager(),
+        "error": settings.setup_error if manager else None,
+        "can_manage": manager,
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_settings(
     people: bool = False,
     places: bool = False,
