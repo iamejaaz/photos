@@ -66,8 +66,9 @@ def signup_problems():
 @rate_limit(limit=30, seconds=60 * 60)
 def signup_link(user: str):
     only_managers()
+    problem = next((p for p in signup_problems() if p["user"] == user), None)
     doc = frappe.get_doc("User", user)
-    if not doc.enabled or doc.name in ("Administrator", "Guest") or is_manager(doc.name):
+    if not problem or problem["last_login"] or "System Manager" in frappe.get_roles(doc.name) or is_manager(doc.name):
         frappe.throw(_("A link can only be made for people who signed up."), frappe.PermissionError)
     return doc._reset_password(send_email=False)
 
