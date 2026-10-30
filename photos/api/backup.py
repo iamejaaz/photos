@@ -13,14 +13,20 @@ SAVE_LOCK_SECONDS = 300
 
 
 @frappe.whitelist(methods=["POST"])
-def upload(total_file_size: int = 0, file_modified: int | None = None, parent: str | None = None):
+def upload(
+    total_file_size: int = 0, file_modified: int | None = None, parent: str | None = None, sha1: str | None = None
+):
     from suite.drive.api.files import upload_file
 
     form = frappe.form_dict
     if cint(form.chunk_index) + 1 < cint(form.total_chunk_count or 1):
         return upload_file(total_file_size=total_file_size, file_modified=file_modified, parent=parent)
     with _saving():
-        return upload_file(total_file_size=total_file_size, file_modified=file_modified, parent=parent)
+        drive_file = upload_file(total_file_size=total_file_size, file_modified=file_modified, parent=parent)
+        if drive_file and sha1 and len(sha1) == 40:
+            frappe.db.commit()
+            _mark(drive_file.get("name"), sha1)
+        return drive_file
 
 
 @contextmanager
@@ -133,32 +139,36 @@ def _fingerprint_recent_uploads(user):
 
 @frappe.whitelist(methods=["POST"])
 def mark(file: str, sha1: str):
-    from photos.utils.metadata import extract
-
     owner = frappe.db.get_value("File", file, "owner")
     if owner != frappe.session.user or not can_access(file, "write"):
         frappe.throw("You can only mark your own uploads.", frappe.PermissionError)
     with _saving():
-        try:
-            if not frappe.db.exists("Photo Metadata", file):
-                extract(file)
-        except frappe.QueryDeadlockError, frappe.DuplicateEntryError:
-            frappe.db.rollback()
-        except Exception:
-            frappe.db.rollback()
-            frappe.log_error(f"Photos could not read details of {file}")
+        _mark(file, sha1)
+
+
+def _mark(file, sha1):
+    from photos.utils.metadata import extract
+
+    try:
         if not frappe.db.exists("Photo Metadata", file):
-            frappe.get_doc(
-                {
-                    "doctype": "Photo Metadata",
-                    "file": file,
-                    "taken_on": frappe.db.get_value("File", file, "creation"),
-                    "date_from_file": 1,
-                }
-            ).insert(ignore_permissions=True, ignore_if_duplicate=True)
-        frappe.db.set_value(
-            "Photo Metadata", file, "source", SOURCE.format(sha1.lower()), update_modified=False
-        )
+            extract(file)
+    except frappe.QueryDeadlockError, frappe.DuplicateEntryError:
+        frappe.db.rollback()
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error(f"Photos could not read details of {file}")
+    if not frappe.db.exists("Photo Metadata", file):
+        frappe.get_doc(
+            {
+                "doctype": "Photo Metadata",
+                "file": file,
+                "taken_on": frappe.db.get_value("File", file, "creation"),
+                "date_from_file": 1,
+            }
+        ).insert(ignore_permissions=True, ignore_if_duplicate=True)
+    frappe.db.set_value(
+        "Photo Metadata", file, "source", SOURCE.format(sha1.lower()), update_modified=False
+    )
 
 
 @frappe.whitelist(methods=["POST"])

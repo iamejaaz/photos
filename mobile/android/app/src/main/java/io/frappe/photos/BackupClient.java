@@ -126,7 +126,7 @@ final class BackupClient {
     String upload(String parent, String name, String mime, long size, long modified, String sha1, ChunkSource source) throws IOException {
         return retrying(tried -> {
             if (tried > 0 && !isMissing(sha1)) return null;
-            return uploadOnce(parent, name, mime, size, modified, source);
+            return uploadOnce(parent, name, mime, size, modified, sha1, source);
         });
     }
 
@@ -135,7 +135,7 @@ final class BackupClient {
         return missing == null || missing.length() > 0;
     }
 
-    private String uploadOnce(String parent, String name, String mime, long size, long modified, ChunkSource source) throws IOException {
+    private String uploadOnce(String parent, String name, String mime, long size, long modified, String sha1, ChunkSource source) throws IOException {
         long chunkSize = 20L * 1024 * 1024;
         int total = (int) Math.max(1, (size + chunkSize - 1) / chunkSize);
         String uuid = UUID.randomUUID().toString();
@@ -147,7 +147,7 @@ final class BackupClient {
             form.field("parent", parent).field("uuid", uuid).field("total_file_size", String.valueOf(size))
                 .field("file_modified", String.valueOf(modified)).field("chunk_index", String.valueOf(index))
                 .field("total_chunk_count", String.valueOf(total)).field("chunk_byte_offset", String.valueOf(offset))
-                .file("file", name, mime, chunk);
+                .field("sha1", sha1).file("file", name, mime, chunk);
             JSONObject response = sendChunk(form);
             JSONObject message = response.optJSONObject("message");
             if (message != null) result = message.optString("name", result);

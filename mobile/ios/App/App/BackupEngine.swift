@@ -104,7 +104,7 @@ final class BackupEngine {
                     if Task.isCancelled { break }
                     if wanted.contains(hash) {
                         do {
-                            let uploaded = try await client.upload(folder: folder, name: name, mime: mime, file: file, modified: asset.creationDate ?? Date())
+                            let uploaded = try await client.upload(folder: folder, name: name, mime: mime, file: file, modified: asset.creationDate ?? Date(), sha1: hash)
                             try await client.mark(file: uploaded, sha1: hash)
                         } catch BackupError.rejected(let message) {
                             skipped = "\(name): \(message)"

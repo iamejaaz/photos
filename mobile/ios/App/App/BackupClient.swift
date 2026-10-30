@@ -47,7 +47,7 @@ final class BackupClient {
         _ = try await call("/api/method/photos.api.backup.mark", json: ["file": file, "sha1": sha1])
     }
 
-    func upload(folder: String, name: String, mime: String, file: URL, modified: Date) async throws -> String {
+    func upload(folder: String, name: String, mime: String, file: URL, modified: Date, sha1: String) async throws -> String {
         let size = (try FileManager.default.attributesOfItem(atPath: file.path)[.size] as? NSNumber)?.intValue ?? 0
         let total = max(1, (size + Self.chunkSize - 1) / Self.chunkSize)
         let uuid = UUID().uuidString
@@ -66,6 +66,7 @@ final class BackupClient {
             form.field("chunk_index", String(index))
             form.field("total_chunk_count", String(total))
             form.field("chunk_byte_offset", String(offset))
+            form.field("sha1", sha1)
             form.file("file", name: name, mime: mime, data: chunk)
             let response = try await call("/api/method/suite.drive.api.files.upload_file", body: form.body, contentType: form.contentType)
             if let message = response["message"] as? [String: Any], let name = message["name"] as? String { result = name }
