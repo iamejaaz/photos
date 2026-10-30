@@ -101,7 +101,14 @@ def _permission_criterion():
         )
     )
     folders = _shared_folders()
-    return criterion | File.folder.isin(folders) if folders else criterion
+    if not folders:
+        return criterion
+    denied = (
+        frappe.qb.from_(DrivePermission)
+        .select(DrivePermission.entity)
+        .where(DrivePermission.user.isin(principals) & (DrivePermission.read == 1) & (DrivePermission.deny == 1))
+    )
+    return criterion | (File.folder.isin(folders) & File.name.notin(denied))
 
 
 def _personal_principals():
