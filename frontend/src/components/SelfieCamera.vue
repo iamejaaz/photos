@@ -12,9 +12,12 @@
       />
       <div
         v-if="!streaming"
-        class="absolute inset-0 flex items-center justify-center p-6 text-center text-p-sm text-ink-gray-6"
+        class="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-p-sm text-ink-gray-6"
       >
-        <LoadingIndicator v-if="!problem" class="size-6" />
+        <template v-if="!problem">
+          <LoadingIndicator class="size-6" />
+          <span>{{ __('Allow camera access when your browser asks.') }}</span>
+        </template>
         <span v-else>{{ problem }}</span>
       </div>
     </div>
