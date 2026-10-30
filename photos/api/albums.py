@@ -156,6 +156,19 @@ def can_take(file, album=None):
     return can_access(file, "read") or bool(album and album_access(album)["download"])
 
 
+def visible_files(album, order=Order.asc):
+    return (
+        frappe.qb.from_(AlbumItem)
+        .join(File)
+        .on(File.name == AlbumItem.file)
+        .select(AlbumItem.file)
+        .where(AlbumItem.album == album)
+        .where(File.name.notin(frappe.qb.from_(Hidden).select(Hidden.file).where(Hidden.user == File.owner)))
+        .orderby(AlbumItem.creation, order=order)
+        .run(pluck=True)
+    )
+
+
 def hidden_by_owner(file):
     owner = frappe.db.get_value("File", file, "owner")
     return bool(frappe.db.exists("Photo Hidden", {"user": owner, "file": file}))
@@ -221,15 +234,16 @@ def _summaries(names):
             join `tabFile` file on file.name = item.file
             left join `tabPhoto Metadata` meta on meta.file = item.file
             where item.album in %(names)s
+                and not exists (
+                    select 1 from `tabPhoto Hidden` hidden where hidden.file = file.name and hidden.user = file.owner
+                )
             group by item.album
             """,
             {"names": names or [""]},
         )
     )
     for row in rows:
-        items = frappe.get_all(
-            "Photo Album Item", filters={"album": row.name}, pluck="file", order_by="creation desc"
-        )
+        items = visible_files(row.name, Order.desc)
         row.count = len(items)
         row.latest = latest.get(row.name)
         if not row.cover or row.cover not in items:
@@ -318,7 +332,7 @@ def get_album(album: str):
 @frappe.whitelist(allow_guest=True)
 def album_files(album: str):
     _require(album, "read")
-    return frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file", order_by="creation asc")
+    return visible_files(album)
 
 
 @frappe.whitelist(allow_guest=True)
@@ -396,8 +410,7 @@ def find_me(album: str):
             selfie = upright(image).convert("RGB")
     except Exception:
         frappe.throw("That photo could not be read. Try again.")
-    files = frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file")
-    found = faces.find_person(selfie, files)
+    found = faces.find_person(selfie, visible_files(album))
     if found is None:
         frappe.throw("No face found. Try again with your face clearly in view.")
     return sorted(found)

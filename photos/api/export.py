@@ -4,7 +4,7 @@ import json
 import frappe
 from frappe.utils import format_datetime, now_datetime
 
-from photos.api.albums import album_access, can_read
+from photos.api.albums import album_access, can_read, visible_files
 
 
 @frappe.whitelist()
@@ -24,8 +24,7 @@ def export_album(album: str):
     if not access["read"] or not access["download"]:
         frappe.throw("You don't have access to this album.", frappe.PermissionError)
     title = frappe.db.get_value("Photo Album", album, "title")
-    files = frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file")
-    return _enqueue(files, _title(title), by_album=title)
+    return _enqueue(visible_files(album), _title(title), by_album=title)
 
 
 @frappe.whitelist()
