@@ -99,14 +99,16 @@ def content(entity_name: str, album: str | None = None, download: int = 0, displ
     mimetype = file.mime_type if _inline(file.mime_type) else "application/octet-stream"
     if file.status == STATUS_TRASHED:
         return _send(formats.source_path(file), mimetype)
-    return send_file(
-        manager.get_file(file),
-        mimetype=mimetype,
-        as_attachment=mimetype != file.mime_type,
-        conditional=True,
-        max_age=3600,
-        download_name=file.file_name,
-        environ=frappe.request.environ,
+    return _private(
+        send_file(
+            manager.get_file(file),
+            mimetype=mimetype,
+            as_attachment=mimetype != file.mime_type,
+            conditional=True,
+            max_age=3600,
+            download_name=file.file_name,
+            environ=frappe.request.environ,
+        )
     )
 
 
@@ -116,9 +118,14 @@ def _inline(mimetype):
 
 
 def _send(path, mimetype):
-    return send_file(
-        str(path), mimetype=mimetype, conditional=True, max_age=3600, environ=frappe.request.environ
+    return _private(
+        send_file(str(path), mimetype=mimetype, conditional=True, max_age=3600, environ=frappe.request.environ)
     )
+
+
+def _private(response):
+    response.headers.set("Cache-Control", "private, max-age=3600")
+    return response
 
 
 def _large_thumbnail(file):
@@ -165,6 +172,4 @@ def _preview(manager, file, size=1600):
         with formats.open_image(formats.source_path(file), file.file_name, size) as image:
             image.thumbnail((size, size))
             formats.save_image(image.convert("RGB"), target, "JPEG", quality=85)
-    response = send_file(str(target), mimetype="image/jpeg", conditional=True, environ=frappe.request.environ)
-    response.headers.set("Cache-Control", "private, max-age=3600")
-    return response
+    return _private(send_file(str(target), mimetype="image/jpeg", conditional=True, environ=frappe.request.environ))
