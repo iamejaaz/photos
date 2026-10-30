@@ -1,11 +1,13 @@
 import json
 
 import frappe
+from frappe.rate_limiter import rate_limit
 
 from photos.utils.movies import MAX_PHOTOS
 
 
 @frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60 * 60, user_based=True)
 def create_movie(
     files: list[str] | str, title: str | None = None, seconds: float = 3, album: str | None = None
 ):

@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 
 import frappe
+from frappe.rate_limiter import rate_limit
 from frappe.utils import get_datetime
 
 from photos.api.albums import can_take
@@ -75,6 +76,7 @@ def _writable(files):
 
 
 @frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60 * 60, user_based=True)
 def trim_video(file: str, start: float, end: float, mute: int = 0):
     from photos.api.albums import can_read
 
@@ -123,6 +125,7 @@ def build_trim(file, start, end, user, mute=0):
 
 
 @frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60 * 60, user_based=True)
 def export_frame(file: str, at: float):
     import tempfile
     from datetime import timedelta
