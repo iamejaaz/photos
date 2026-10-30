@@ -170,7 +170,7 @@ def enqueue_display_video(name):
             timeout=60 * 60,
             deduplicate=True,
             job_id=f"photo-display-video::{name}",
-            enqueue_after_commit=True,
+            enqueue_after_commit=False,
         )
     except frappe.QueueOverloaded:
         pass
@@ -204,7 +204,7 @@ def enqueue_shared_video(name):
             timeout=60 * 60,
             deduplicate=True,
             job_id=f"photo-shared-video::{name}",
-            enqueue_after_commit=True,
+            enqueue_after_commit=False,
         )
     except frappe.QueueOverloaded:
         pass
