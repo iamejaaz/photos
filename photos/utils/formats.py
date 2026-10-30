@@ -50,6 +50,12 @@ def derived_path(name, suffix):
     return folder / f"{name}{suffix}"
 
 
+def save_image(image, target, *args, **kwargs):
+    partial = target.with_name(f"{target.name}.{frappe.generate_hash(length=8)}.part")
+    image.save(partial, *args, **kwargs)
+    partial.replace(target)
+
+
 ORIENTATION = 0x0112
 
 
@@ -105,7 +111,7 @@ def display_image(file):
     if not target.exists():
         image = open_image(source_path(file), file.file_name)
         image.thumbnail((DISPLAY_SIZE, DISPLAY_SIZE))
-        image.convert("RGB").save(target, "JPEG", quality=88)
+        save_image(image.convert("RGB"), target, "JPEG", quality=88)
     return target
 
 
@@ -123,7 +129,7 @@ def view_image(file):
             image = upright(image)
             image.thumbnail((DISPLAY_SIZE, DISPLAY_SIZE))
             image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
-            image.save(target, "WEBP", quality=85, method=4)
+            save_image(image, target, "WEBP", quality=85, method=4)
     return target
 
 

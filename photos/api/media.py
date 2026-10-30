@@ -127,7 +127,7 @@ def _large_thumbnail(file):
         try:
             image = formats.open_image(formats.source_path(file), file.file_name)
             image.thumbnail((LARGE_THUMBNAIL, LARGE_THUMBNAIL))
-            image.convert("RGB").save(target, "WEBP", quality=80)
+            formats.save_image(image.convert("RGB"), target, "WEBP", quality=80)
         except Exception:
             return None
     return target
@@ -145,7 +145,7 @@ def _own_thumbnail(file):
         except Exception:
             return None
         image.thumbnail((512, 512))
-        image.convert("RGB").save(target, "WEBP", quality=80)
+        formats.save_image(image.convert("RGB"), target, "WEBP", quality=80)
     return BytesIO(target.read_bytes())
 
 
@@ -162,11 +162,9 @@ def _first_frame(file):
 def _preview(manager, file, size=1600):
     target = formats.derived_path(file.name, ".preview.jpg")
     if not target.exists():
-        partial = target.with_suffix(".part.jpg")
         with formats.open_image(formats.source_path(file), file.file_name) as image:
             image.thumbnail((size, size))
-            image.convert("RGB").save(partial, "JPEG", quality=85)
-        partial.rename(target)
+            formats.save_image(image.convert("RGB"), target, "JPEG", quality=85)
     response = send_file(str(target), mimetype="image/jpeg", conditional=True, environ=frappe.request.environ)
     response.headers.set("Cache-Control", "private, max-age=3600")
     return response
