@@ -57,7 +57,7 @@ def get_client_id():
         "client_id": _usable_client(frappe.db.get_single_value(SETTINGS, "oauth_client")),
         "app_name": _app_name(),
         "sitename": frappe.local.site,
-        "photos_version": photos.__version__,
+        "photos_version": photos.__version__.split(".")[0],
         "min_app_version": MIN_APP_VERSION,
         "choose_account": 1,
     }
@@ -111,7 +111,7 @@ def boot():
         "user_image": user.user_image,
         "roles": frappe.get_roles(),
         "sitename": frappe.local.site,
-        "photos_version": photos.__version__,
+        "photos_version": photos.__version__.split(".")[0],
         "socketio_port": frappe.conf.get("socketio_port") or 9000,
         "csrf_token": frappe.sessions.get_csrf_token(),
     }
