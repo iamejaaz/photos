@@ -153,6 +153,10 @@ def in_request():
     return getattr(frappe.local, "request", None) is not None
 
 
+def impersonating():
+    return in_request() and bool((frappe.session.data or {}).get("impersonated_by"))
+
+
 class PrivateRow:
     owner_field = "owner"
 
@@ -161,7 +165,7 @@ class PrivateRow:
 
     def has_permission(self, permtype="read", *, debug=False, user=None):
         user = user or frappe.session.user
-        if in_request() and not self.flags.ignore_permissions and self.belongs_to() != user:
+        if in_request() and not self.flags.ignore_permissions and (self.belongs_to() != user or impersonating()):
             return False
         return super().has_permission(permtype, debug=debug, user=user)
 
@@ -176,6 +180,8 @@ PRIVATE_ROWS = {
 
 
 def private_rows_condition(user=None, doctype=None):
+    if impersonating():
+        return "1 = 0"
     user = frappe.db.escape(user or frappe.session.user)
     if doctype == "Photo Face":
         return f"`tabPhoto Face`.`file` in (select `name` from `tabFile` where `owner` = {user})"
@@ -185,6 +191,8 @@ def private_rows_condition(user=None, doctype=None):
 class File(DriveFile):
     def has_permission(self, permtype="read", *, debug=False, user=None):
         user = user or frappe.session.user
+        if impersonating() and not self.flags.ignore_permissions and is_library_media(self):
+            return False
         if (
             user == "Administrator"
             and in_request()
