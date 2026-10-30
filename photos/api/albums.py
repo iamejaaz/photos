@@ -185,6 +185,7 @@ def link_only(album, user=None):
 
 
 PRIVATE_FIELDS = ("owner", "folder", "added_by", "latitude", "longitude", "place")
+OTHERS_FIELDS = ("owner", "folder", "latitude", "longitude", "place")
 
 
 def _require(album, ptype):
@@ -386,6 +387,8 @@ def album_photos(album: str, start: int = 0, limit: int | None = None, only: lis
         row["download"] = can_download
         if private:
             row.update(dict.fromkeys(PRIVATE_FIELDS))
+        elif row["owner"] != user:
+            row.update(dict.fromkeys(OTHERS_FIELDS))
     return {"rows": rows[:limit], "has_next": len(rows) > limit, "next_start": start + min(len(rows), limit)}
 
 
