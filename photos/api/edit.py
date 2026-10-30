@@ -108,11 +108,11 @@ def build_trim(file, start, end, user, mute=0):
     from photos.utils.library import add_file
 
     frappe.set_user(user)
-    source = frappe.db.get_value("File", file, ["name", "file_name", "file_url", "folder"], as_dict=True)
-    taken = frappe.db.get_value(METADATA, file, "taken_on") or frappe.utils.now_datetime()
-    parent = source.folder if can_access(source.folder, "upload") else None
-    stem = Path(source.file_name).stem
     try:
+        source = frappe.db.get_value("File", file, ["name", "file_name", "file_url", "folder"], as_dict=True)
+        taken = frappe.db.get_value(METADATA, file, "taken_on") or frappe.utils.now_datetime()
+        parent = source.folder if can_access(source.folder, "upload") else None
+        stem = Path(source.file_name).stem
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / f"{stem}-trimmed.mp4"
             formats.transcode(formats.source_path(source), target, start=start, end=end, mute=bool(mute))
@@ -120,6 +120,7 @@ def build_trim(file, start, end, user, mute=0):
         frappe.db.commit()
         frappe.publish_realtime("photos-trim-ready", {"name": name}, user=user)
     except Exception:
+        frappe.db.rollback()
         frappe.log_error("Photos video trim failed")
         frappe.publish_realtime("photos-trim-failed", {"name": file}, user=user)
 
