@@ -160,10 +160,13 @@ def _first_frame(file):
 
 
 def _preview(manager, file, size=1600):
-    with formats.open_image(formats.source_path(file), file.file_name) as image:
-        image.thumbnail((size, size))
-        output = BytesIO()
-        image.convert("RGB").save(output, "JPEG", quality=85)
-    response = Response(output.getvalue(), mimetype="image/jpeg")
+    target = formats.derived_path(file.name, ".preview.jpg")
+    if not target.exists():
+        partial = target.with_suffix(".part.jpg")
+        with formats.open_image(formats.source_path(file), file.file_name) as image:
+            image.thumbnail((size, size))
+            image.convert("RGB").save(partial, "JPEG", quality=85)
+        partial.rename(target)
+    response = send_file(str(target), mimetype="image/jpeg", conditional=True, environ=frappe.request.environ)
     response.headers.set("Cache-Control", "private, max-age=3600")
     return response
