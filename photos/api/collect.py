@@ -1,3 +1,4 @@
+import hashlib
 import tempfile
 from pathlib import Path
 
@@ -29,6 +30,9 @@ def upload(album: str, name: str | None = None):
         frappe.throw("That file is too large.")
     if not _looks_valid(content, suffix):
         frappe.throw("Only photos and videos can be added.")
+    source = f"album:{hashlib.sha1(content).hexdigest()}"
+    if existing := _contributed(album, source):
+        return existing
 
     guest = frappe.session.user == "Guest"
     added_by = (name or "").strip()[:80] if guest else None
@@ -44,12 +48,26 @@ def upload(album: str, name: str | None = None):
             frappe.set_user("Guest")
     else:
         stored = _store(content, Path(upload.filename).name, album, frappe.session.user)
+    frappe.db.set_value("Photo Metadata", stored, "source", source, update_modified=False)
     frappe.get_doc(
         {"doctype": "Photo Album Item", "album": album, "file": stored, "added_by_name": added_by}
     ).insert(ignore_permissions=True)
     frappe.db.set_value(ALBUM, album, "modified", frappe.utils.now_datetime())
     _broadcast(album)
     return stored
+
+
+def _contributed(album, source):
+    found = frappe.db.sql_list(
+        """
+        select item.file from `tabPhoto Album Item` item
+        join `tabPhoto Metadata` meta on meta.file = item.file
+        where item.album = %(album)s and meta.source = %(source)s
+        limit 1
+        """,
+        {"album": album, "source": source},
+    )
+    return found[0] if found else None
 
 
 def _store(content, file_name, album, owner):
