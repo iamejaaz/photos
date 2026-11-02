@@ -4,10 +4,11 @@ from urllib.parse import urlencode, urlparse
 
 import frappe
 import requests
+from cryptography.fernet import Fernet, InvalidToken
 from frappe.integrations.google_oauth import consume_google_oauth_state, create_google_oauth_state
 from frappe.rate_limiter import rate_limit
 from frappe.utils import escape_html, get_url
-from frappe.utils.password import get_decrypted_password
+from frappe.utils.password import get_decrypted_password, get_encryption_key
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -73,7 +74,7 @@ def finish(code: str | None = None, state: str | None = None, error: str | None 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=30, seconds=60 * 10)
 def claim(handoff: str, verifier: str):
-    return take_handoff(handoff, verifier)
+    return _sealed(take_handoff(handoff, verifier))
 
 
 def take_handoff(handoff, verifier):
@@ -88,7 +89,21 @@ def take_handoff(handoff, verifier):
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=120, seconds=60 * 10)
 def refresh(refresh_token: str):
-    return refreshed(refresh_token)
+    try:
+        token = _fernet().decrypt(refresh_token.encode()).decode()
+    except InvalidToken:
+        frappe.throw("Reconnect your Google account.", frappe.PermissionError)
+    return _sealed(refreshed(token))
+
+
+def _sealed(tokens):
+    if tokens.get("refresh_token"):
+        tokens["refresh_token"] = _fernet().encrypt(tokens["refresh_token"].encode()).decode()
+    return tokens
+
+
+def _fernet():
+    return Fernet(get_encryption_key().encode())
 
 
 def refreshed(refresh_token):
