@@ -120,10 +120,7 @@
     <Button v-if="loggedIn" variant="subtle" size="md" class="mt-2" :route="{ name: 'photos-albums' }">
       {{ __('Go to albums') }}
     </Button>
-    <div v-else class="mt-2 flex gap-2">
-      <Button variant="solid" size="md" @click="signIn()">{{ __('Sign in') }}</Button>
-      <Button variant="subtle" size="md" @click="signIn('#signup')">{{ __('Create account') }}</Button>
-    </div>
+    <Button v-else variant="solid" size="md" class="mt-2" @click="signIn">{{ __('Sign in') }}</Button>
   </div>
   <div v-else class="flex min-h-full">
     <div class="min-w-0 flex-1">
@@ -253,7 +250,7 @@ import { startExport } from '../data/imports'
 const props = defineProps<{ album: string }>()
 const router = useRouter()
 const loggedIn = computed(() => useSessionStore().isLoggedIn)
-const signIn = (hash = '') => location.assign(`/login?redirect-to=${encodeURIComponent(location.pathname)}${hash}`)
+const signIn = () => location.assign(`/login?redirect-to=${encodeURIComponent(location.pathname)}`)
 
 const handle = createFeed(ALBUM_PHOTOS, { album: props.album })
 const album = ref<Album | null>(null)
