@@ -67,6 +67,9 @@
             {{ upload.active ? __('Uploading {0} of {1}', [upload.done + 1, upload.total]) : __('Upload') }}
           </Button>
         </template>
+        <Button v-else-if="upload.active" variant="subtle" loading>
+          {{ __('Uploading {0} of {1}', [upload.done + 1, upload.total]) }}
+        </Button>
         <button
           v-if="account && loggedIn"
           class="ml-1 rounded-full sm:hidden"
