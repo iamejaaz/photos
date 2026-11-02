@@ -81,6 +81,7 @@
         </div>
       </div>
     </div>
+    <UploadPanel v-if="loggedIn" />
     <Lightbox />
     <MemoryStory />
     <AlbumPicker />
@@ -143,6 +144,7 @@ import SharePhotosDialog from '../components/SharePhotosDialog.vue'
 import EditDateDialog from '../components/EditDateDialog.vue'
 import EditLocationDialog from '../components/EditLocationDialog.vue'
 import Lightbox from '../components/Lightbox.vue'
+import UploadPanel from '../components/UploadPanel.vue'
 import MemoryStory from '../components/MemoryStory.vue'
 import PullToRefresh from '../components/PullToRefresh.vue'
 import PhotosSidebar from '../components/PhotosSidebar.vue'
