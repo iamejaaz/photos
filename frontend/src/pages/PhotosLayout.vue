@@ -16,7 +16,7 @@
     </div>
     <DesktopShell v-else-if="isDesktop" class="isolate">
       <template #sidebar><PhotosSidebar /></template>
-      <div class="relative flex min-h-full flex-col bg-surface-base" @dragover.prevent="onDragOver">
+      <div class="relative flex min-h-full flex-col bg-surface-base">
         <router-view v-slot="{ Component, route: current }">
           <KeepAlive :include="KEEP_ALIVE">
             <component :is="Component" :key="current.fullPath" />
@@ -66,8 +66,6 @@
       v-if="dragging"
       class="fixed inset-0 z-40 flex items-center justify-center bg-surface-base/80 backdrop-blur-sm"
       @dragleave.self="dragging = false"
-      @dragover.prevent
-      @drop.prevent="onDrop"
     >
       <div
         class="pointer-events-none flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-outline-gray-3 px-16 py-12"
@@ -105,7 +103,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useMediaQuery } from '@vueuse/core'
+import { useEventListener, useMediaQuery } from '@vueuse/core'
 import {
   Button,
   DesktopShell,
@@ -267,9 +265,19 @@ const mobileNav = [
   { label: __('Library'), icon: LucideLibrary, to: { name: 'photos-library' } },
 ]
 
-function onDragOver(event: DragEvent) {
-  if (event.dataTransfer?.types.includes('Files')) dragging.value = true
-}
+const carriesFiles = (event: DragEvent) => !!event.dataTransfer?.types.includes('Files')
+
+useEventListener(window, 'dragover', (event: DragEvent) => {
+  if (!carriesFiles(event)) return
+  event.preventDefault()
+  if (loggedIn.value && isDesktop.value) dragging.value = true
+})
+
+useEventListener(window, 'drop', (event: DragEvent) => {
+  if (!carriesFiles(event)) return
+  event.preventDefault()
+  if (loggedIn.value && isDesktop.value) onDrop(event)
+})
 
 function onDrop(event: DragEvent) {
   dragging.value = false
