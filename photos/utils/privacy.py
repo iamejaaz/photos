@@ -156,6 +156,10 @@ def in_request():
     return getattr(frappe.local, "request", None) is not None
 
 
+def guarded():
+    return in_request() or getattr(frappe.local, "job", None) is not None
+
+
 def impersonating():
     return in_request() and bool((frappe.session.data or {}).get("impersonated_by"))
 
@@ -168,7 +172,7 @@ class PrivateRow:
 
     def has_permission(self, permtype="read", *, debug=False, user=None):
         user = user or frappe.session.user
-        if in_request() and not self.flags.ignore_permissions and (self.belongs_to() != user or impersonating()):
+        if guarded() and not self.flags.ignore_permissions and (self.belongs_to() != user or impersonating()):
             return False
         return super().has_permission(permtype, debug=debug, user=user)
 
@@ -198,7 +202,7 @@ class File(DriveFile):
             return False
         if (
             user == "Administrator"
-            and in_request()
+            and guarded()
             and not self.flags.ignore_permissions
             and self.owner != user
             and is_library_media(self)
