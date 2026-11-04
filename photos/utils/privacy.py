@@ -49,6 +49,10 @@ def install():
                 setattr(module, name, replacements[value])
 
 
+def on_this_site():
+    return "photos" in frappe.get_installed_apps()
+
+
 def _album_link(original):
     def get_link(entity):
         if entity.get("content_doctype") == "Photo Album" and entity.get("content_docname"):
@@ -64,7 +68,12 @@ def _access_for_user(original, permissions):
     def access_for_user(entity, user):
         if isinstance(entity, str):
             entity = frappe.get_cached_doc("File", entity)
-        if entity.owner != user and permissions.is_drive_admin(user) and is_library_media(entity):
+        if (
+            entity.owner != user
+            and permissions.is_drive_admin(user)
+            and is_library_media(entity)
+            and on_this_site()
+        ):
             access = permissions.filter_access(generate_upward_path(entity.name, user))
             return {**access, "type": "user" if access["write"] else "guest"}
         return original(entity, user)
@@ -80,7 +89,7 @@ def _has_permission(original, access_for_user):
         user = user or frappe.session.user
         if user == "Administrator" and ptype != "create":
             entity = frappe.get_doc("File", doc) if isinstance(doc, str) else doc
-            if entity.owner != user and is_library_media(entity):
+            if entity.owner != user and is_library_media(entity) and on_this_site():
                 return bool(
                     access_for_user(entity, user).get(ptype if ptype in PERMISSION_TYPES else "write")
                 )
@@ -94,7 +103,7 @@ def _criterion(original):
 
     def criterion(user=None, table=None):
         result = original(user, table)
-        if result is not None:
+        if result is not None or not on_this_site():
             return result
         user = user or frappe.session.user
         file = table or frappe.qb.DocType("File")
@@ -119,7 +128,7 @@ def _criterion(original):
 def _children_access(original, is_drive_admin, access_for_user):
     def children_access(parent_path, children, user):
         access = original(parent_path, children, user)
-        if is_drive_admin(user):
+        if is_drive_admin(user) and on_this_site():
             for child in children:
                 if child.get("owner") != user and is_library_media(child):
                     access[child.name] = access_for_user(child, user)
