@@ -36,7 +36,8 @@ export const createAlbum = (title: string, files: string[] = []) =>
   call(`${ALBUMS}.create_album`, { title, files }) as Promise<string>
 export const renameAlbum = (album: string, title: string) => call(`${ALBUMS}.rename_album`, { album, title })
 export const setCover = (album: string, file: string) => call(`${ALBUMS}.set_cover`, { album, file })
-export const deleteAlbum = (album: string) => call(`${ALBUMS}.delete_album`, { album })
+export const deleteAlbum = (album: string, trashPhotos = false) =>
+  call(`${ALBUMS}.delete_album`, { album, trash_photos: trashPhotos })
 export const leaveAlbum = (album: string) => call(`${ALBUMS}.leave_album`, { album })
 export const addToAlbum = (album: string, files: string[]) => call(`${ALBUMS}.add_to_album`, { album, files })
 export const removeFromAlbum = (album: string, files: string[]) =>

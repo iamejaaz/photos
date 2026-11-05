@@ -188,12 +188,22 @@
   <Dialog
     v-model:open="deleting"
     :title="__('Delete album?')"
-    :message="__('People you shared it with lose access. The photos stay in your library and in Drive.')"
     icon="lucide-trash-2"
     theme="red"
     size="sm"
     :actions="[{ label: __('Delete'), variant: 'solid', theme: 'red', onClick: remove }]"
-  />
+  >
+    <div class="flex flex-col gap-3">
+      <div class="text-base text-ink-gray-6">
+        {{
+          trashPhotos
+            ? __('People you shared it with lose access. Photos you added move to trash.')
+            : __('People you shared it with lose access. The photos stay in your library and in Drive.')
+        }}
+      </div>
+      <Checkbox v-model="trashPhotos" :label="__('Also move the photos to trash')" />
+    </div>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -201,7 +211,7 @@ import { errorText } from '../resources/drive'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
-import { Button, Dialog, Dropdown, ErrorMessage, Password, TextInput, toast, usePageMeta } from 'frappe-ui'
+import { Button, Checkbox, Dialog, Dropdown, ErrorMessage, Password, TextInput, toast, usePageMeta } from 'frappe-ui'
 import LucideLock from '~icons/lucide/lock'
 import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideEllipsis from '~icons/lucide/ellipsis'
@@ -259,6 +269,7 @@ const sharing = ref(false)
 const adding = ref(false)
 const renaming = ref(false)
 const deleting = ref(false)
+const trashPhotos = ref(false)
 const title = ref('')
 const showActivity = ref(false)
 const selfieInput = ref<HTMLInputElement>()
@@ -477,8 +488,9 @@ async function saveTitle() {
 }
 
 async function remove() {
-  await deleteAlbum(props.album)
+  await deleteAlbum(props.album, trashPhotos.value)
   await loadAlbums()
+  if (trashPhotos.value) toast.success(__('Album deleted and photos moved to trash'))
   router.push({ name: 'photos-albums' })
 }
 

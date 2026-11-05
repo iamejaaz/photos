@@ -8,9 +8,10 @@ from frappe.rate_limiter import rate_limit
 from frappe.utils import get_datetime, now_datetime
 from frappe.utils.password import delete_all_passwords_for, get_decrypted_password
 from pypika import Order
+from suite.drive.api.files import remove_or_restore
 from suite.drive.api.list import DriveFavourite
 from suite.drive.overrides.file import File as DriveFile
-from suite.drive.utils import FILE_FIELDS, GENERAL_USER, get_principals
+from suite.drive.utils import FILE_FIELDS, GENERAL_USER, STATUS_ACTIVE, get_principals
 
 from photos.api.photos import PAGE_SIZE, File, Hidden, media_query
 from photos.api.preferences import my_person
@@ -456,8 +457,17 @@ def set_cover(album: str, file: str):
 
 
 @frappe.whitelist(methods=["POST"])
-def delete_album(album: str):
+def delete_album(album: str, trash_photos: bool = False):
     _require(album, "owner")
+    if frappe.parse_json(trash_photos) if isinstance(trash_photos, str) else trash_photos:
+        files = frappe.get_all("Photo Album Item", filters={"album": album}, pluck="file")
+        mine = frappe.get_all(
+            "File",
+            filters={"name": ["in", files], "owner": frappe.session.user, "status": STATUS_ACTIVE},
+            pluck="name",
+        )
+        if mine:
+            remove_or_restore(mine)
     frappe.db.delete("Photo Album Item", {"album": album})
     frappe.db.delete("Photo Album Activity", {"album": album})
     frappe.delete_doc(ALBUM, album, ignore_permissions=True)
