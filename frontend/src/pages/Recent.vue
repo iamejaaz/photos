@@ -21,7 +21,7 @@ import { createFeed } from '../data/feed'
 import { onUploaded } from '../data/uploads'
 
 const handle = createFeed('recently_added')
-onBeforeUnmount(onUploaded(() => handle.reload()))
+onBeforeUnmount(onUploaded(() => handle.refresh()))
 
 usePageMeta(() => appPageMeta(__('Recently added'), 'Photos'))
 </script>

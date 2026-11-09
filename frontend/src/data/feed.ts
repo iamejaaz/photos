@@ -1,18 +1,23 @@
-import { reactive, shallowRef } from 'vue'
-import { type Photo, fetchPage } from '../resources/photos'
-import { errorText } from '../resources/drive'
+import { reactive, shallowRef } from "vue";
+import { type Photo, fetchPage } from "../resources/photos";
+import { errorText } from "../resources/drive";
+
+const PAGE_SIZE = 120;
 
 export interface Feed {
-  method: string
-  params: Record<string, unknown>
-  rows: Photo[]
-  nextStart: number
-  hasNext: boolean
-  loading: boolean
-  loaded: boolean
-  error: string | null
+  method: string;
+  params: Record<string, unknown>;
+  rows: Photo[];
+  nextStart: number;
+  hasNext: boolean;
+  loading: boolean;
+  loaded: boolean;
+  error: string | null;
 }
-export function createFeed(method: string, params: Record<string, unknown> = {}) {
+export function createFeed(
+  method: string,
+  params: Record<string, unknown> = {},
+) {
   const feed = reactive<Feed>({
     method,
     params,
@@ -22,72 +27,96 @@ export function createFeed(method: string, params: Record<string, unknown> = {})
     loading: false,
     loaded: false,
     error: null,
-  })
+  });
 
-  let pending: Promise<void> | null = null
-  let generation = 0
+  let pending: Promise<void> | null = null;
+  let generation = 0;
 
   function loadMore(limit?: number) {
-    if (pending) return pending
-    if (!feed.hasNext) return Promise.resolve()
-    const request = fetchMore(limit, generation).finally(() => pending === request && (pending = null))
-    pending = request
-    return request
+    if (pending) return pending;
+    if (!feed.hasNext) return Promise.resolve();
+    const request = fetchMore(limit, generation).finally(
+      () => pending === request && (pending = null),
+    );
+    pending = request;
+    return request;
   }
 
   async function fetchMore(limit: number | undefined, started: number) {
-    feed.loading = true
+    feed.loading = true;
     try {
       const page = await fetchPage(feed.method, {
         ...feed.params,
         start: feed.nextStart,
         ...(limit ? { limit } : {}),
-      })
-      if (started !== generation) return
-      const known = new Set(feed.rows.map((row) => row.name))
-      feed.rows.push(...page.rows.filter((row) => !known.has(row.name)))
-      feed.nextStart = page.next_start
-      feed.hasNext = page.has_next
-      feed.error = null
+      });
+      if (started !== generation) return;
+      const known = new Set(feed.rows.map((row) => row.name));
+      feed.rows.push(...page.rows.filter((row) => !known.has(row.name)));
+      feed.nextStart = page.next_start;
+      feed.hasNext = page.has_next;
+      feed.error = null;
     } catch (error) {
-      if (started !== generation) return
-      feed.error = errorText(error)
-      feed.hasNext = false
+      if (started !== generation) return;
+      feed.error = errorText(error);
+      feed.hasNext = false;
     } finally {
       if (started === generation) {
-        feed.loading = false
-        feed.loaded = true
+        feed.loading = false;
+        feed.loaded = true;
       }
     }
   }
 
   async function reload() {
-    generation++
-    pending = null
-    feed.rows = []
-    feed.nextStart = 0
-    feed.hasNext = true
-    await loadMore()
+    generation++;
+    pending = null;
+    feed.rows = [];
+    feed.nextStart = 0;
+    feed.hasNext = true;
+    await loadMore();
+  }
+
+  async function refresh() {
+    if (!feed.loaded) return reload();
+    const started = ++generation;
+    pending = null;
+    try {
+      const page = await fetchPage(feed.method, {
+        ...feed.params,
+        start: 0,
+        limit: Math.max(feed.rows.length, PAGE_SIZE),
+      });
+      if (started !== generation) return;
+      feed.rows = page.rows;
+      feed.nextStart = page.next_start;
+      feed.hasNext = page.has_next;
+      feed.error = null;
+    } catch {
+      return;
+    } finally {
+      if (started === generation) feed.loading = false;
+    }
   }
 
   function remove(names: string[]) {
-    const gone = new Set(names)
-    feed.rows = feed.rows.filter((row) => !gone.has(row.name))
+    const gone = new Set(names);
+    feed.rows = feed.rows.filter((row) => !gone.has(row.name));
   }
 
-  return { feed, loadMore, reload, remove }
+  return { feed, loadMore, reload, refresh, remove };
 }
 export function createStaticFeed(rows: Photo[]) {
-  const handle = createFeed('static')
-  Object.assign(handle.feed, { rows, hasNext: false, loaded: true })
-  return { ...handle, reload: async () => {} }
+  const handle = createFeed("static");
+  Object.assign(handle.feed, { rows, hasNext: false, loaded: true });
+  return { ...handle, reload: async () => {}, refresh: async () => {} };
 }
-export type FeedHandle = ReturnType<typeof createFeed>
-export const activeFeed = shallowRef<FeedHandle | null>(null)
+export type FeedHandle = ReturnType<typeof createFeed>;
+export const activeFeed = shallowRef<FeedHandle | null>(null);
 export const gridNav = reactive<{
-  month: string
-  jump: ((month: string, upto: number) => Promise<void>) | null
+  month: string;
+  jump: ((month: string, upto: number) => Promise<void>) | null;
 }>({
-  month: '',
+  month: "",
   jump: null,
-})
+});

@@ -359,7 +359,7 @@ async function refresh() {
 refresh()
 onBeforeUnmount(
   onUploaded(() => {
-    handle.reload()
+    handle.refresh()
     refresh()
   }),
 )

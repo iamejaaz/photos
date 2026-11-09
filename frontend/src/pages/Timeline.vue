@@ -67,7 +67,7 @@ import { openSettings } from '../data/dialogs'
 const native = Boolean(import.meta.env.VITE_NATIVE)
 const BackupChip = native ? defineAsyncComponent(() => import('../components/BackupChip.vue')) : null
 const handle = createFeed('timeline')
-onBeforeUnmount(onUploaded(() => handle.reload()))
+onBeforeUnmount(onUploaded(() => handle.refresh()))
 
 usePageMeta(() => appPageMeta(undefined, 'Photos'))
 onActivated(() => {
