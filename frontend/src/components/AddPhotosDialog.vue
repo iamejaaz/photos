@@ -25,7 +25,7 @@
     <template #actions>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <Button :loading="upload.active" @click="uploadFromComputer">
+          <Button @click="uploadFromComputer">
             <template #prefix><LucideUpload class="size-4" /></template>
             {{ __('Upload from computer') }}
           </Button>
@@ -47,7 +47,7 @@ import LucideUpload from '~icons/lucide/upload'
 import { type Album, addToAlbum } from '../resources/albums'
 import { thumbnailUrl } from '../resources/media'
 import { createFeed } from '../data/feed'
-import { upload, uploadPhotos } from '../data/uploads'
+import { uploadPhotos } from '../data/uploads'
 
 const props = defineProps<{ album: Album }>()
 const open = defineModel<boolean>({ default: false })

@@ -56,15 +56,14 @@
           <Button
             class="sm:hidden"
             variant="subtle"
-            :loading="upload.active"
             :aria-label="__('Upload')"
             @click="pickFiles"
           >
             <template #icon><LucideUpload class="size-4" /></template>
           </Button>
-          <Button class="max-sm:hidden" variant="subtle" :loading="upload.active" @click="pickFiles">
+          <Button class="max-sm:hidden" variant="subtle" @click="pickFiles">
             <template #prefix><LucideUpload class="size-4" /></template>
-            {{ upload.active ? __('Uploading {0} of {1}', [upload.done + 1, upload.total]) : __('Upload') }}
+            {{ __('Upload') }}
           </Button>
         </template>
         <button

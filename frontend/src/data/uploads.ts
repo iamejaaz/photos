@@ -28,48 +28,72 @@ export const onUploaded = (fn: () => void) => {
   return () => uploadListeners.delete(fn)
 }
 const REFRESH_MS = 2000
+interface Task {
+  file: File
+  item: UploadItem
+  album?: string
+  batch: Batch
+}
+interface Batch {
+  names: string[]
+  left: number
+  finish: (names: string[]) => void
+}
+const queue: Task[] = []
+let refreshed = 0
+let running = false
+let preparing = 0
+
 export async function uploadPhotos(files: File[], album?: string): Promise<string[]> {
-  if (upload.active) {
-    toast.info(__('Wait for the current upload to finish'))
-    return []
-  }
-  let media = files.filter((file) => /^(image|video)\//.test(file.type))
+  const media = files.filter((file) => /^(image|video)\//.test(file.type))
   if (!media.length) {
     toast.warning(__('Only photos and videos can be added here'))
     return []
   }
-  Object.assign(upload, {
-    active: true,
-    preparing: true,
-    done: 0,
-    total: media.length,
-    bytes: 0,
-    totalBytes: 0,
-    items: media.map((file) => ({ name: file.name, size: file.size, status: 'waiting' })),
-    open: true,
+  if (!upload.active) {
+    Object.assign(upload, { active: true, done: 0, total: 0, bytes: 0, totalBytes: 0, items: [] })
+  }
+  upload.open = true
+  preparing++
+  upload.preparing = !running
+  const items = media.map((file) => reactive<UploadItem>({ name: file.name, size: file.size, status: 'waiting' }))
+  upload.items.push(...items)
+  upload.total += media.length
+  const existing = new Set(await existingUploads(media).catch(() => []))
+  const tasks = media
+    .map((file, index) => ({ file, item: items[index], album }))
+    .filter(({ item }, index) => {
+      if (!existing.has(String(index))) return true
+      item.status = 'skipped'
+      return false
+    })
+  upload.totalBytes += tasks.reduce((sum, { file }) => sum + file.size, 0)
+  preparing--
+  const done = new Promise<string[]>((resolve) => {
+    const batch: Batch = { names: [], left: tasks.length, finish: resolve }
+    queue.push(...tasks.map((task) => ({ ...task, batch })))
+    if (!tasks.length) resolve([])
   })
-  const names: string[] = []
-  let refreshed = Date.now()
+  if (!running && queue.length) run()
+  else if (!running && !preparing) finish()
+  return done
+}
+
+async function run() {
+  running = true
+  upload.preparing = false
+  refreshed = Date.now()
   try {
-    const existing = new Set(await existingUploads(media).catch(() => []))
-    const queue = media
-      .map((file, index) => ({ file, item: upload.items[index] }))
-      .filter(({ item }, index) => {
-        if (!existing.has(String(index))) return true
-        item.status = 'skipped'
-        return false
-      })
-    upload.totalBytes = queue.reduce((sum, { file }) => sum + file.size, 0)
-    upload.preparing = false
-    if (!queue.length) return []
     const folder = await getUploadFolder()
-    for (const { file, item } of queue) {
+    let task: Task | undefined
+    while ((task = queue.shift())) {
+      const { file, item, album, batch } = task
       const before = upload.bytes
       item.status = 'uploading'
       try {
         const name = await uploadFile(file, folder, (loaded) => (upload.bytes = before + loaded))
         if (name) {
-          names.push(name)
+          batch.names.push(name)
           if (album) await addToAlbum(album, [name])
         }
         item.status = 'done'
@@ -79,18 +103,25 @@ export async function uploadPhotos(files: File[], album?: string): Promise<strin
       }
       upload.bytes = before + file.size
       upload.done++
+      if (!--batch.left) batch.finish(batch.names)
       if (Date.now() - refreshed > REFRESH_MS) {
         refreshed = Date.now()
         notifyUploaded()
       }
     }
   } finally {
-    upload.active = false
-    upload.preparing = false
-    notifyUploaded()
+    for (const { batch } of queue.splice(0)) if (batch.left) (batch.finish(batch.names), (batch.left = 0))
+    running = false
+    if (!preparing) finish()
   }
-  return names
 }
+
+function finish() {
+  upload.active = false
+  upload.preparing = false
+  notifyUploaded()
+}
+
 export function pickAndUpload(album?: string) {
   const input = document.createElement('input')
   input.type = 'file'
