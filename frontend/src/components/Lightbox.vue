@@ -458,6 +458,7 @@
     <PhotoEditor
       :photo="editing && photo && !isVideo(photo) ? photo : null"
       :folder="details?.folder"
+      :album="writableAlbum"
       @close="editing = false"
       @saved="notifyUploaded"
     />
@@ -664,6 +665,12 @@ function formatTime(seconds: number | null) {
 const loggedIn = computed(() => useSessionStore().isLoggedIn)
 const albumName = computed(() =>
   feed.value?.feed.method === ALBUM_PHOTOS ? String(feed.value.feed.params.album) : null,
+)
+const writableAlbum = computed(() =>
+  albums.value.some((album) => album.name === albumName.value) ||
+  sharedAlbums.value.some((album) => album.name === albumName.value && album.access?.write)
+    ? albumName.value
+    : null,
 )
 
 async function like() {

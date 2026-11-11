@@ -123,10 +123,11 @@ import LucideX from '~icons/lucide/x'
 import { type Photo, getUploadFolder } from '../resources/photos'
 import { originalUrl, thumbnailUrl } from '../resources/media'
 import { markEdited } from '../resources/edit'
+import { addToAlbum } from '../resources/albums'
 import { uploadFile, errorText } from '../resources/drive'
 import { useBackClose } from '../composables/useBackClose'
 
-const props = defineProps<{ photo: Photo | null; folder?: string | null }>()
+const props = defineProps<{ photo: Photo | null; folder?: string | null; album?: string | null }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
 useBackClose(
   () => Boolean(props.photo),
@@ -362,6 +363,7 @@ async function save() {
       saved = await uploadFile(file, await getUploadFolder(), () => {})
     }
     if (saved) await markEdited(saved, props.photo.name).catch(() => {})
+    if (saved && props.album) await addToAlbum(props.album, [saved])
     toast.success(__('Saved a copy next to the original'))
     emit('saved')
     emit('close')
