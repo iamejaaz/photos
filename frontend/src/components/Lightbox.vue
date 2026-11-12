@@ -913,7 +913,9 @@ const gestures = useViewerGestures({
   onDismiss: dismiss,
   onInfo: () => (lightbox.showInfo = true),
   onTap: () =>
-    phone.value && lightbox.showInfo ? (lightbox.showInfo = false) : (chrome.value = !chrome.value),
+    phone.value && lightbox.showInfo
+      ? (lightbox.showInfo = false)
+      : (chrome.value = videoEl.value?.paused || !chrome.value),
   onBackdropClick: (event) => {
     if (!outsidePhoto(event.clientX, event.clientY)) return false
     dismiss()
