@@ -35,7 +35,7 @@
     <ErrorMessage :message="passwordError" />
     <Button variant="solid" class="w-full" type="submit" :loading="unlocking">{{ __('Unlock') }}</Button>
     <Button v-if="screenLock" variant="ghost" class="w-full" :loading="unlocking" @click="screenUnlock">
-      <template #prefix><LucideFingerprint class="size-4" /></template>
+      <template #prefix><component :is="nativePlatform() === 'ios' ? LucideScanFace : LucideFingerprint" class="size-4" /></template>
       {{ __('Use screen lock') }}
     </Button>
     <Button variant="ghost" class="w-full" :loading="sendingCode" @click="sendCode">
@@ -70,6 +70,7 @@ import { Button, ErrorMessage, Password, TextInput, usePageMeta } from 'frappe-u
 import LucideEyeOff from '~icons/lucide/eye-off'
 import LucideFingerprint from '~icons/lucide/fingerprint'
 import LucideLock from '~icons/lucide/lock'
+import LucideScanFace from '~icons/lucide/scan-face'
 import LucideMail from '~icons/lucide/mail'
 
 import { appPageMeta } from '@/utils/documentTitle'
@@ -83,6 +84,7 @@ import {
 } from '../resources/hidden'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
+import { nativePlatform } from '../native/platform'
 import { createFeed } from '../data/feed'
 
 const unlocked = ref<boolean | null>(null)
