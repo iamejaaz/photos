@@ -1,6 +1,8 @@
 <template>
   <PhotosHeader account :title="__('Explore')" searchable hide-upload />
-  <div v-if="empty" class="flex flex-col items-center justify-center gap-3 px-6 py-24 text-center">
+  <LoadFailed v-if="failed" :title="__('Couldn\'t load Explore')" :retrying="retrying" @retry="load" />
+  <div v-else-if="!data" class="flex justify-center py-24"><LoadingIndicator class="size-5" /></div>
+  <div v-else-if="empty" class="flex flex-col items-center justify-center gap-3 px-6 py-24 text-center">
     <div class="flex size-14 items-center justify-center rounded-full bg-surface-gray-2">
       <LucideCompass class="size-6 text-ink-gray-6" />
     </div>
@@ -46,8 +48,8 @@
     </section>
     <section>
       <h2 class="mb-3 text-lg font-semibold text-ink-gray-9">{{ __('Places') }}</h2>
-      <div v-if="data?.places.length" class="h-80 sm:h-[420px]">
-        <PlacesMap :places="allPlaces" />
+      <div v-if="places.length" class="h-80 sm:h-[420px]">
+        <PlacesMap :places="places" />
       </div>
       <p v-else-if="data" class="text-base text-ink-gray-5">
         {{ __('Photos with a location show up on a map here.') }}
@@ -142,7 +144,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useElementSize } from '@vueuse/core'
-import { Button, usePageMeta } from 'frappe-ui'
+import { Button, LoadingIndicator, usePageMeta } from 'frappe-ui'
 import LucideCompass from '~icons/lucide/compass'
 import LucideUpload from '~icons/lucide/upload'
 import LucidePlay from '~icons/lucide/play'
@@ -153,25 +155,27 @@ import { type Person, getPeople } from '../resources/people'
 import { type Place, getExplore, getPlaces } from '../resources/photos'
 import { thumbnailUrl } from '../resources/media'
 import FaceAvatar from '../components/FaceAvatar.vue'
+import LoadFailed from '../components/LoadFailed.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import PlacesMap from '../components/PlacesMap.vue'
 import { itemCount } from '../utils'
 
 const data = ref<Awaited<ReturnType<typeof getExplore>>>()
-const allPlaces = ref<Place[]>([])
-getExplore().then((result) => (data.value = result))
-getPlaces().then((result) => (allPlaces.value = result))
+const allPlaces = ref<Place[]>()
+const places = computed(() => allPlaces.value ?? data.value?.places ?? [])
+const failed = ref(false)
+const retrying = ref(false)
 const empty = computed(
   () =>
     peopleLoaded.value &&
     data.value &&
     !people.value.length &&
-    !data.value.places.length &&
+    !places.value.length &&
     !data.value.things.length &&
     !data.value.cameras.length &&
     !data.value.videos.count,
 )
-const namedPlaces = computed(() => allPlaces.value.filter((place) => place.place).slice(0, 16))
+const namedPlaces = computed(() => places.value.filter((place) => place.place).slice(0, 16))
 const people = ref<Person[]>([])
 const PERSON_WIDTH = 96
 const PERSON_GAP = 16
@@ -185,9 +189,26 @@ const shownPeople = computed(() =>
   ),
 )
 const peopleLoaded = ref(false)
-getPeople()
-  .then((result) => (people.value = result.people))
-  .finally(() => (peopleLoaded.value = true))
+
+async function load() {
+  retrying.value = failed.value
+  const explore = getExplore()
+    .then((result) => {
+      data.value = result
+      failed.value = false
+    })
+    .catch(() => (failed.value = true))
+  getPlaces()
+    .then((result) => (allPlaces.value = result))
+    .catch(() => {})
+  getPeople()
+    .then((result) => (people.value = result.people))
+    .catch(() => {})
+    .finally(() => (peopleLoaded.value = true))
+  await explore
+  retrying.value = false
+}
+load()
 
 usePageMeta(() => appPageMeta(__('Explore'), 'Photos'))
 </script>

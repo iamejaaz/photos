@@ -80,8 +80,8 @@
             <div class="text-xs text-white/80">{{ takenLabel }}</div>
           </div>
           <div class="flex items-center gap-1" @pointerdown.stop @pointerup.stop>
-            <button class="story-button" :aria-label="held ? __('Play') : __('Pause')" @click="held = !held">
-              <component :is="held ? LucidePlay : LucidePause" class="size-5 fill-current" />
+            <button class="story-button" :aria-label="paused ? __('Play') : __('Pause')" @click="held = !paused">
+              <component :is="paused ? LucidePlay : LucidePause" class="size-5 fill-current" />
             </button>
             <button
               v-if="isVideo(photo)"
