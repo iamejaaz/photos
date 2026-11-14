@@ -17,42 +17,44 @@
             <Button variant="solid" @click="openSettings">{{ __('Open settings') }}</Button>
           </div>
         </div>
-        <div class="divide-y divide-outline-gray-1">
-          <SettingsRow :title="__('Back up this phone')" :description="summary">
-            <Switch :model-value="status.enabled" @update:model-value="set({ enabled: !!$event })" />
-          </SettingsRow>
-          <SettingsRow :title="__('Only on Wi-Fi')" :description="__('Saves mobile data.')">
-            <Switch :model-value="status.wifiOnly" @update:model-value="set({ wifiOnly: !!$event })" />
-          </SettingsRow>
-          <SettingsRow :title="__('Include videos')">
-            <Switch
-              :model-value="status.includeVideos"
-              @update:model-value="set({ includeVideos: !!$event })"
-            />
-          </SettingsRow>
-        </div>
-        <Progress v-if="status.running && status.total" :value="percent" size="sm" />
-        <div v-if="waiting" class="text-p-base text-ink-gray-6">
-          {{
-            waiting === 'wifi'
-              ? __(
-                  'You are on mobile data and Only on Wi-Fi is on. Backup starts when you join Wi-Fi, or back up now over mobile data.',
-                )
-              : __('No internet connection. Backup starts again when you are back online.')
-          }}
-        </div>
-        <ErrorMessage
-          v-else-if="status.lastError && !status.running"
-          :message="errorText(status.lastError)"
-        />
-        <div>
-          <Button
-            :loading="status.running"
-            :disabled="!status.enabled || waiting === 'internet'"
-            @click="runNow"
-          >
-            {{ waiting === 'wifi' ? __('Back up now over mobile data') : __('Back up now') }}
-          </Button>
+        <div class="flex flex-col gap-3">
+          <div class="divide-y divide-outline-gray-1">
+            <SettingsRow :title="__('Back up this phone')" :description="summary">
+              <Switch :model-value="status.enabled" @update:model-value="set({ enabled: !!$event })" />
+            </SettingsRow>
+            <SettingsRow :title="__('Only on Wi-Fi')" :description="__('Saves mobile data.')">
+              <Switch :model-value="status.wifiOnly" @update:model-value="set({ wifiOnly: !!$event })" />
+            </SettingsRow>
+            <SettingsRow :title="__('Include videos')">
+              <Switch
+                :model-value="status.includeVideos"
+                @update:model-value="set({ includeVideos: !!$event })"
+              />
+            </SettingsRow>
+          </div>
+          <Progress v-if="status.running && status.total" :value="percent" size="sm" />
+          <div v-if="waiting" class="text-p-base text-ink-gray-6">
+            {{
+              waiting === 'wifi'
+                ? __(
+                    'You are on mobile data and Only on Wi-Fi is on. Backup starts when you join Wi-Fi, or back up now over mobile data.',
+                  )
+                : __('No internet connection. Backup starts again when you are back online.')
+            }}
+          </div>
+          <ErrorMessage
+            v-else-if="status.lastError && !status.running"
+            :message="errorText(status.lastError)"
+          />
+          <div>
+            <Button
+              :loading="status.running"
+              :disabled="!status.enabled || waiting === 'internet'"
+              @click="runNow"
+            >
+              {{ waiting === 'wifi' ? __('Back up now over mobile data') : __('Back up now') }}
+            </Button>
+          </div>
         </div>
         <div
           v-if="status.permission !== 'prompt' && status.permission !== 'denied'"
