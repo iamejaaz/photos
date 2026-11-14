@@ -141,6 +141,18 @@ export async function openScene(browser: Browser, baseURL: string, label: string
 			await cdp.detach();
 		},
 		async settle(ms = SETTLE_MS) {
+			await scene.page
+				.waitForFunction(
+					() =>
+						Array.from(document.images).every((image) => {
+							const box = image.getBoundingClientRect();
+							const onScreen = box.width > 0 && box.bottom > 0 && box.top < innerHeight;
+							return !onScreen || (image.complete && image.naturalWidth > 0);
+						}),
+					undefined,
+					{ timeout: 15_000 },
+				)
+				.catch(() => undefined);
 			await scene.page.waitForTimeout(ms);
 		},
 		async close() {
