@@ -800,6 +800,13 @@ watch([() => lightbox.slideshow, () => photo.value?.name, loaded], ([playing]) =
   }, SLIDE_MS)
 })
 
+watch(rows, (list, previous) => {
+  const current = previous?.[lightbox.index]?.name
+  if (!lightbox.open || !current || list[lightbox.index]?.name === current) return
+  const moved = list.findIndex((row) => row.name === current)
+  if (moved >= 0) lightbox.index = moved
+})
+
 watch(
   () => rows.value.length,
   (length) => {
