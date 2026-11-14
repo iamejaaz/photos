@@ -161,6 +161,7 @@
                   class="max-h-full max-w-full"
                   controls
                   playsinline
+                  @pause="chrome = true"
                   @ended="lightbox.slideshow && go(1)"
                 />
                 <div v-else :key="photo.name" class="relative flex size-full items-center justify-center">
