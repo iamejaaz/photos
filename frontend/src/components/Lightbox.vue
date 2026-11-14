@@ -70,7 +70,7 @@
                 <LucideDownload class="size-5" />
               </a>
             </Tooltip>
-            <template v-if="inDrive">
+            <template v-if="inDrive && !detailsFailed">
               <Tooltip :text="details?.archived ? __('Unarchive') : __('Archive')">
                 <button class="flex lightbox-button max-sm:hidden" @click="toggleArchive">
                   <component :is="details?.archived ? LucideArchiveRestore : LucideArchive" class="size-5" />
@@ -450,6 +450,13 @@
               </div>
             </section>
           </div>
+          <LoadFailed
+            v-else-if="detailsFailed"
+            class="!py-10"
+            :title="__('Couldn\'t load details')"
+            :retrying="retryingDetails"
+            @retry="retryDetails"
+          />
           <div v-else class="flex justify-center py-10">
             <LoadingIndicator class="size-5" />
           </div>
@@ -541,6 +548,7 @@ import { openLightbox, lightbox } from '../data/viewer'
 import { notifyUploaded } from '../data/uploads'
 import { useBottomBar } from '../data/bottomBar'
 import InfoRow from './InfoRow.vue'
+import LoadFailed from './LoadFailed.vue'
 import StyleLayer from './StyleLayer.vue'
 import MoveFaceDialog from './MoveFaceDialog.vue'
 import FaceAvatar from './FaceAvatar.vue'
@@ -687,6 +695,8 @@ async function like() {
   target.likes = (target.likes ?? 0) + (liked ? 1 : -1)
 }
 const details = ref<any>(null)
+const detailsFailed = ref(false)
+const retryingDetails = ref(false)
 
 const meta = computed(() => details.value?.metadata)
 const caption = ref('')
@@ -715,7 +725,13 @@ const lastInDrive = ref(false)
 watch(details, (value) => value && (lastInDrive.value = Boolean(value.folder)))
 const trashed = computed(() => Boolean(photo.value?.trashed_on))
 const inDrive = computed(
-  () => !trashed.value && (details.value ? Boolean(details.value.folder) : lastInDrive.value),
+  () =>
+    !trashed.value &&
+    (details.value
+      ? Boolean(details.value.folder)
+      : detailsFailed.value
+        ? Boolean(photo.value?.folder)
+        : lastInDrive.value),
 )
 const confirmForever = ref(false)
 const photoAlbums = computed(() =>
@@ -756,21 +772,38 @@ watch(
       broken.value = false
       sharp.value = false
       details.value = null
+      detailsFailed.value = false
     }
     if (!name) return
     if (lightbox.index >= rows.value.length - 3) feed.value?.loadMore()
-    photoPeople.value = []
-    const result = await getDetails(name, photo.value?.album)
-    await settled()
-    if (photo.value?.name !== name) return
-    details.value = result
-    if (result.folder && loggedIn.value) {
-      const found = await getPhotoPeople(name, photo.value?.album).catch(() => [])
-      if (photo.value?.name === name) photoPeople.value = found
-    }
+    await loadDetails(name)
   },
   { immediate: true },
 )
+
+async function loadDetails(name: string) {
+  photoPeople.value = []
+  const result = await getDetails(name, photo.value?.album).catch(() => null)
+  await settled()
+  if (photo.value?.name !== name) return
+  detailsFailed.value = !result && !details.value
+  if (!result) return
+  details.value = result
+  if (result.folder && loggedIn.value) {
+    const found = await getPhotoPeople(name, photo.value?.album).catch(() => [])
+    if (photo.value?.name === name) photoPeople.value = found
+  }
+}
+
+async function retryDetails() {
+  if (!photo.value || retryingDetails.value) return
+  retryingDetails.value = true
+  try {
+    await loadDetails(photo.value.name)
+  } finally {
+    retryingDetails.value = false
+  }
+}
 
 watch(
   () => photo.value,
