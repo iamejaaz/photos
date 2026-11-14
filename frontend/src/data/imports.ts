@@ -147,7 +147,13 @@ export async function runImport(options: ImportOptions) {
   if (takeout.job) takeout.job = await startImport(takeout.job.name, options)
 }
 export async function discardImport() {
-  if (takeout.job && ['Ready', 'Failed'].includes(takeout.job.status)) await cancelImport(takeout.job.name)
+  try {
+    if (takeout.job && ['Ready', 'Failed', 'Done'].includes(takeout.job.status))
+      await cancelImport(takeout.job.name)
+  } catch {
+    toast.error(__('Could not clear this import'))
+    return
+  }
   takeout.job = null
   takeout.error = ''
 }

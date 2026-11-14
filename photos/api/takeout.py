@@ -58,11 +58,12 @@ def cancel_import(name: str):
     from suite.drive.api.files import remove_or_restore
 
     doc = _own(name)
-    if doc.status not in ("Ready", "Failed"):
+    if doc.status not in ("Ready", "Failed", "Done"):
         frappe.throw("This import is already running.")
-    files = [f for f in json.loads(doc.files) if frappe.db.get_value("File", f, "status") == "Active"]
-    if files:
-        remove_or_restore(files)
+    if doc.status != "Done":
+        files = [f for f in json.loads(doc.files) if frappe.db.get_value("File", f, "status") == "Active"]
+        if files:
+            remove_or_restore(files)
     frappe.delete_doc(IMPORT, doc.name, ignore_permissions=True)
 
 

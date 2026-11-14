@@ -14,6 +14,12 @@
       <div class="text-sm text-ink-gray-5">{{ __('Keep this tab open until the upload finishes.') }}</div>
     </div>
 
+    <div v-else-if="loading" class="flex justify-center py-8">
+      <LoadingIndicator class="size-5 text-ink-gray-5" />
+    </div>
+
+    <LoadFailed v-else-if="loadFailed" :retrying="loading" @retry="load" />
+
     <div v-else-if="job?.status === 'Reading'" class="flex items-center gap-2 pt-2 text-base text-ink-gray-8">
       <LoadingIndicator class="size-4" />
       {{ __('Reading your export…') }}
@@ -98,6 +104,14 @@
       </div>
     </div>
 
+    <div v-else-if="job?.status === 'Failed'" class="flex flex-col gap-3 pt-2">
+      <div class="text-base text-ink-gray-8">{{ __('This import did not finish.') }}</div>
+      <ErrorMessage v-if="job.error" :message="job.error" />
+      <div>
+        <Button @click="discardImport">{{ __('Start again') }}</Button>
+      </div>
+    </div>
+
     <div v-else class="flex flex-col gap-4 pt-2">
       <ol class="flex list-decimal flex-col gap-2 pl-5 text-base text-ink-gray-7">
         <li>
@@ -118,15 +132,12 @@
           }}
         </li>
       </ol>
-      <ErrorMessage v-if="takeout.error || job?.error" :message="takeout.error || job?.error || undefined" />
-      <div class="flex items-center gap-2">
+      <ErrorMessage v-if="takeout.error" :message="takeout.error" />
+      <div>
         <Button variant="subtle" @click="pick">
           <template #prefix><LucideUpload class="size-4" /></template>
           {{ __('Choose zip files') }}
         </Button>
-        <Button v-if="job?.status === 'Failed'" variant="ghost" @click="discardImport">{{
-          __('Dismiss')
-        }}</Button>
       </div>
     </div>
   </SettingsBody>
@@ -151,6 +162,7 @@ import LucideUpload from '~icons/lucide/upload'
 
 import type { ImportOptions } from '../../resources/takeout'
 import GooglePicker from './GooglePicker.vue'
+import LoadFailed from '../LoadFailed.vue'
 import { discardImport, loadImport, runImport, startTakeout, takeout } from '../../data/imports'
 import { chooseFiles } from '../../data/uploads'
 
@@ -165,7 +177,20 @@ const options = reactive<ImportOptions>({
 })
 const starting = ref(false)
 
-if (!takeout.job && !takeout.uploading) loadImport()
+const loading = ref(false)
+const loadFailed = ref(false)
+async function load() {
+  loading.value = true
+  try {
+    await loadImport()
+    loadFailed.value = false
+  } catch {
+    loadFailed.value = true
+  } finally {
+    loading.value = false
+  }
+}
+if (!takeout.job && !takeout.uploading) load()
 watch(
   () => job.value?.name,
   () => Object.assign(options, { mode: 'all', albums: [], years: [], archived: true, favourites: true }),
