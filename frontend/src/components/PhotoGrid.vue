@@ -141,8 +141,17 @@
     <div :style="{ height: `${padBottom}px` }" />
 
     <div ref="sentinel" class="h-px" />
-    <div v-if="handle.feed.loading" class="flex justify-center py-8">
+    <LoadFailed
+      v-if="handle.feed.error && !handle.feed.rows.length"
+      :retrying="handle.feed.loading"
+      @retry="handle.reload()"
+    />
+    <div v-else-if="handle.feed.loading" class="flex justify-center py-8">
       <LoadingIndicator class="size-5 text-ink-gray-5" />
+    </div>
+    <div v-else-if="handle.feed.error" class="flex items-center justify-center gap-3 py-6">
+      <span class="text-base text-ink-gray-6">{{ __("Couldn't load more") }}</span>
+      <Button variant="subtle" @click="handle.retryMore()">{{ __('Try again') }}</Button>
     </div>
     <div
       v-else-if="handle.feed.loaded && !handle.feed.rows.length"
@@ -155,7 +164,6 @@
       <div class="max-w-sm text-base text-ink-gray-5">{{ emptyText }}</div>
       <slot name="empty-action" />
     </div>
-    <ErrorMessage v-if="handle.feed.error" class="py-4 text-center" :message="handle.feed.error" />
   </div>
 </template>
 
@@ -173,7 +181,7 @@ import {
   watch,
 } from 'vue'
 import { useResizeObserver } from '@vueuse/core'
-import { ErrorMessage, LoadingIndicator, shellScrollContainer } from 'frappe-ui'
+import { Button, LoadingIndicator, shellScrollContainer } from 'frappe-ui'
 import dayjs from 'dayjs'
 import LucidePlay from '~icons/lucide/play'
 import LucideStar from '~icons/lucide/star'
@@ -181,6 +189,7 @@ import LucideStar from '~icons/lucide/star'
 import { type Photo, isVideo } from '../resources/photos'
 import { thumbnailUrl } from '../resources/media'
 import SelectCheck from './SelectCheck.vue'
+import LoadFailed from './LoadFailed.vue'
 import { useTouchSelect } from '../composables/useTouchSelect'
 import { type FeedHandle, activeFeed, gridNav } from '../data/feed'
 import { changeZoom, zoom } from '../data/prefs'

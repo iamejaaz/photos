@@ -99,12 +99,17 @@ export function createFeed(
     }
   }
 
+  function retryMore() {
+    feed.hasNext = true;
+    return loadMore();
+  }
+
   function remove(names: string[]) {
     const gone = new Set(names);
     feed.rows = feed.rows.filter((row) => !gone.has(row.name));
   }
 
-  return { feed, loadMore, reload, refresh, remove };
+  return { feed, loadMore, retryMore, reload, refresh, remove };
 }
 export function createStaticFeed(rows: Photo[]) {
   const handle = createFeed("static");
