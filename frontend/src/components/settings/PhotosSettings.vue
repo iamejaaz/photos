@@ -7,67 +7,19 @@
           <template #icon><LucideX class="size-4" /></template>
         </Button>
       </div>
-      <SettingsNavGroup v-if="native" :label="__('This phone')">
-        <SettingsNavItem value="backup">
-          <template #prefix><span class="lucide-cloud-upload size-4 shrink-0 text-ink-gray-6" /></template>
-          {{ __('Backup') }}
-        </SettingsNavItem>
-      </SettingsNavGroup>
-      <SettingsNavGroup :label="__('Photos')">
-        <SettingsNavItem value="memories">
-          <template #prefix><span class="lucide-history size-4 shrink-0 text-ink-gray-6" /></template>
-          {{ __('Memories') }}
-        </SettingsNavItem>
-        <SettingsNavItem value="import">
-          <template #prefix
-            ><span class="lucide-hard-drive-download size-4 shrink-0 text-ink-gray-6"
-          /></template>
-          {{ __('Import') }}
-        </SettingsNavItem>
-        <SettingsNavItem value="export">
-          <template #prefix><span class="lucide-file-archive size-4 shrink-0 text-ink-gray-6" /></template>
-          {{ __('Export') }}
-        </SettingsNavItem>
-        <SettingsNavItem v-if="canDelete" value="data">
-          <template #prefix><span class="lucide-shield size-4 shrink-0 text-ink-gray-6" /></template>
-          {{ __('Your data') }}
-        </SettingsNavItem>
-      </SettingsNavGroup>
-      <SettingsNavGroup v-if="settings.data?.can_manage" :label="__('Administration')">
-        <SettingsNavItem value="features">
-          <template #prefix><span class="lucide-sparkles size-4 shrink-0 text-ink-gray-6" /></template>
-          {{ __('Smart features') }}
-        </SettingsNavItem>
-        <SettingsNavItem v-if="canSetUpGoogle" value="google">
-          <template #prefix><span class="lucide-key-round size-4 shrink-0 text-ink-gray-6" /></template>
-          {{ __('Google Photos import') }}
-        </SettingsNavItem>
-        <SettingsNavItem value="signups">
-          <template #prefix><span class="lucide-mail-warning size-4 shrink-0 text-ink-gray-6" /></template>
-          {{ __('Sign-up problems') }}
-        </SettingsNavItem>
-        <SettingsNavItem value="reports">
-          <template #prefix
-            ><span class="lucide-message-square-warning size-4 shrink-0 text-ink-gray-6"
-          /></template>
-          {{ __('Problem reports') }}
-        </SettingsNavItem>
-      </SettingsNavGroup>
+      <template v-for="group in groups" :key="group.key">
+        <SettingsNavGroup v-if="group.items.length" :label="group.label">
+          <SettingsNavItem v-for="item in group.items" :key="item.key" :value="item.key">
+            <template #prefix><component :is="item.icon" class="size-4 shrink-0 text-ink-gray-6" /></template>
+            {{ item.label }}
+          </SettingsNavItem>
+        </SettingsNavGroup>
+      </template>
     </SettingsSidebar>
     <SettingsContent class="photos-settings">
-      <template v-if="native">
-        <SettingsPanel value="backup"><BackupPanel /></SettingsPanel>
-      </template>
-      <SettingsPanel value="memories"><MemoriesPanel /></SettingsPanel>
-      <SettingsPanel value="import"><ImportPanel /></SettingsPanel>
-      <SettingsPanel value="export"><ExportPanel /></SettingsPanel>
-      <SettingsPanel v-if="canDelete" value="data"><DataPanel /></SettingsPanel>
-      <template v-if="settings.data?.can_manage">
-        <SettingsPanel value="features"><FeaturesPanel /></SettingsPanel>
-        <SettingsPanel v-if="canSetUpGoogle" value="google"><GoogleSetupPanel /></SettingsPanel>
-        <SettingsPanel value="signups"><SignupsPanel /></SettingsPanel>
-        <SettingsPanel value="reports"><ProblemReportsPanel /></SettingsPanel>
-      </template>
+      <SettingsPanel v-for="item in sections" :key="item.key" :value="item.key">
+        <component :is="item.panel" />
+      </SettingsPanel>
     </SettingsContent>
   </SettingsDialog>
 </template>
@@ -83,28 +35,22 @@ import {
   SettingsSidebar,
 } from 'frappe-ui'
 
+import { computed } from 'vue'
 import LucideX from '~icons/lucide/x'
 
-import { settings, useGoogleSetupNeeded } from '../../data/dialogs'
-import FeaturesPanel from './FeaturesPanel.vue'
-import { defineAsyncComponent } from 'vue'
+import { settings } from '../../data/dialogs'
+import { type SettingsGroup, useSettingsSections } from './sections'
 
-import ExportPanel from './ExportPanel.vue'
-import ImportPanel from './ImportPanel.vue'
-import MemoriesPanel from './MemoriesPanel.vue'
-import { getSessionUser } from '@/boot/session'
-
-const DataPanel = defineAsyncComponent(() => import('./DataPanel.vue'))
-const GoogleSetupPanel = defineAsyncComponent(() => import('./GoogleSetupPanel.vue'))
-const SignupsPanel = defineAsyncComponent(() => import('./SignupsPanel.vue'))
-const ProblemReportsPanel = defineAsyncComponent(() => import('./ProblemReportsPanel.vue'))
-const canSetUpGoogle = useGoogleSetupNeeded()
-const canDelete = (getSessionUser() ?? 'Administrator') !== 'Administrator'
-
-const native = Boolean(import.meta.env.VITE_NATIVE)
-const BackupPanel = import.meta.env.VITE_NATIVE
-  ? defineAsyncComponent(() => import('./BackupPanel.vue'))
-  : null
+const { sections } = useSettingsSections()
+const groups = computed(() =>
+  (
+    [
+      ['phone', __('This phone')],
+      ['photos', __('Photos')],
+      ['admin', __('Administration')],
+    ] as [SettingsGroup, string][]
+  ).map(([key, label]) => ({ key, label, items: sections.value.filter((item) => item.group === key) })),
+)
 </script>
 
 <style>

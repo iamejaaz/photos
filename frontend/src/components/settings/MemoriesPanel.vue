@@ -22,6 +22,10 @@
         <Button @click="picking = true">{{ __('Choose') }}</Button>
       </SettingsRow>
     </div>
+    <LoadFailed v-else-if="failed" :retrying="retrying" @retry="load" />
+    <div v-else class="flex justify-center py-12">
+      <LoadingIndicator class="size-5 text-ink-gray-5" />
+    </div>
     <HideFacesDialog
       v-model:open="picking"
       :people="people.map((person) => ({ ...person, face: person.cover_face }))"
@@ -32,19 +36,33 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Button, SettingsBody, SettingsHeader, SettingsRow, Switch, toast } from 'frappe-ui'
+import { Button, LoadingIndicator, SettingsBody, SettingsHeader, SettingsRow, Switch, toast } from 'frappe-ui'
 
 import { type Person, getPeople } from '../../resources/people'
 import { type Preferences, getPreferences, savePreferences } from '../../resources/settings'
 import { memoriesVersion } from '../../data/viewer'
 import HideFacesDialog from '../HideFacesDialog.vue'
+import LoadFailed from '../LoadFailed.vue'
 
 const preferences = ref<Preferences | null>(null)
 const people = ref<Person[]>([])
 const picking = ref(false)
+const failed = ref(false)
+const retrying = ref(false)
 const hidden = computed(() => new Set(preferences.value?.memory_hidden_people ?? []))
 
-getPreferences().then((data) => (preferences.value = data))
+async function load() {
+  retrying.value = true
+  try {
+    preferences.value = await getPreferences()
+    failed.value = false
+  } catch {
+    failed.value = true
+  } finally {
+    retrying.value = false
+  }
+}
+load()
 getPeople().then((data) => (people.value = data.people))
 
 async function save(changes: Partial<Preferences>) {

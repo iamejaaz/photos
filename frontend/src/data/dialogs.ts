@@ -76,15 +76,18 @@ export const accountSheet = reactive({ open: false })
 
 export function useGoogleSetupNeeded() {
   const needed = ref(false)
+  const checked = ref(false)
   watch(
     () => settings.data?.can_manage,
     (canManage) => {
       if (canManage)
-        import('../resources/google').then(({ googleStatus }) =>
-          googleStatus().then((status) => (needed.value = status.can_set_up)),
-        )
+        import('../resources/google')
+          .then(({ googleStatus }) => googleStatus())
+          .then((status) => (needed.value = status.can_set_up))
+          .catch(() => {})
+          .finally(() => (checked.value = true))
     },
     { immediate: true },
   )
-  return needed
+  return { needed, checked }
 }
