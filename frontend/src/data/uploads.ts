@@ -122,6 +122,8 @@ function finish() {
   notifyUploaded()
 }
 
+export const MEDIA_TYPES = 'image/*,video/*,image/heic,image/heif,.heic,.heif'
+
 export function chooseFiles(accept: string, onPick: (files: File[]) => void) {
   const input = document.createElement('input')
   input.type = 'file'
@@ -138,5 +140,5 @@ export function chooseFiles(accept: string, onPick: (files: File[]) => void) {
 }
 
 export function pickAndUpload(album?: string) {
-  chooseFiles('image/*,video/*', (files) => uploadPhotos(files, album))
+  chooseFiles(MEDIA_TYPES, (files) => uploadPhotos(files, album))
 }

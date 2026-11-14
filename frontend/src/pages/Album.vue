@@ -253,7 +253,7 @@ import { clearSelection } from '../data/selection'
 import { createFeed } from '../data/feed'
 import { download } from '../data/actions'
 import { loadAlbums } from '../data/albums'
-import { chooseFiles, onUploaded } from '../data/uploads'
+import { MEDIA_TYPES, chooseFiles, onUploaded } from '../data/uploads'
 import { openLightbox } from '../data/viewer'
 import { startExport } from '../data/imports'
 
@@ -448,7 +448,7 @@ function pickContributions() {
   if (!loggedIn.value && !guestName.value.trim()) return
   askingName.value = false
   writeString('photos-guest-name', guestName.value.trim())
-  chooseFiles('image/*,video/*', uploadContributions)
+  chooseFiles(MEDIA_TYPES, uploadContributions)
 }
 
 async function uploadContributions(files: File[]) {
