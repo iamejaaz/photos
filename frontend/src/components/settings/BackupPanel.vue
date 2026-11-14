@@ -1,24 +1,11 @@
 <template>
-  <SettingsHeader
-    :title="__('Backup')"
-    :description="__('Photos and videos on this phone are copied to your library in the background.')"
-  />
+  <SettingsHeader :title="__('Backup')" />
   <SettingsBody>
     <div v-if="status" class="flex flex-col gap-6 pt-2">
       <div v-if="!status.signedIn" class="text-base text-ink-gray-6">
         {{ __('Backup is connecting to your account. Open this again in a moment.') }}
       </div>
       <template v-else>
-        <div class="flex flex-col gap-3">
-          <div class="flex items-center gap-3">
-            <Avatar size="xl" :label="status.user" />
-            <div class="min-w-0 flex-1">
-              <div class="text-sm text-ink-gray-5">{{ __('Backing up to') }}</div>
-              <div class="truncate text-base font-medium text-ink-gray-8">{{ status.user }}</div>
-              <div class="truncate text-sm text-ink-gray-5">{{ hostOf(status.site) }}</div>
-            </div>
-          </div>
-        </div>
         <div v-if="status.permission === 'prompt'">
           <Button variant="solid" @click="allow">{{ __('Allow photo access') }}</Button>
         </div>
@@ -92,6 +79,9 @@
             }}</span>
           </div>
         </div>
+        <div class="truncate text-sm text-ink-gray-5">
+          {{ __('Backing up to {0} · {1}', [status.user, hostOf(status.site)]) }}
+        </div>
       </template>
     </div>
   </SettingsBody>
@@ -101,7 +91,6 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import {
-  Avatar,
   Button,
   ErrorMessage,
   toast,
