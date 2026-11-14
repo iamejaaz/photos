@@ -24,6 +24,19 @@ type Boot = {
   csrf_token: string
 }
 
+const cookieJar = new Map<string, string>()
+if (!/^https?:$/.test(location.protocol)) {
+  Object.defineProperty(document, 'cookie', {
+    configurable: true,
+    get: () => [...cookieJar].map(([name, value]) => `${name}=${value}`).join('; '),
+    set: (cookie: string) => {
+      const [pair] = cookie.split(';')
+      const at = pair.indexOf('=')
+      cookieJar.set(pair.slice(0, at).trim(), pair.slice(at + 1).trim())
+    },
+  })
+}
+
 const setCookie = (name: string, value: string | null | undefined) => {
   document.cookie = `${name}=${encodeURIComponent(value ?? '')}; path=/; SameSite=Lax`
 }
