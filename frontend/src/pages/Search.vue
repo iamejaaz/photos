@@ -1,7 +1,13 @@
 <template>
   <PhotosHeader :title="title" searchable hide-upload />
   <form class="px-3 pt-3 sm:hidden" @submit.prevent="search">
-    <TextInput v-model="query" :placeholder="__('Search people, places, things, dates')" autofocus>
+    <TextInput
+      v-model="query"
+      autocapitalize="off"
+      autocorrect="off"
+      :placeholder="__('Search people, places, things, dates')"
+      autofocus
+    >
       <template #prefix><LucideSearch class="size-4 text-ink-gray-5" /></template>
     </TextInput>
   </form>
