@@ -3,7 +3,7 @@ import { photosBackup } from './backup'
 import { trimMediaCache } from './media'
 import { clearOfflineData } from './offline'
 import { siteOrigin } from './site'
-import { forgetAccount, markSignedOut, rememberSiteAddress, saveSite, savedAccounts, savedSite } from './sites'
+import { forgetAccount, markSignedOut, rememberSiteAddress, saveSite, savedAccounts, savedSite, reloadApp } from './sites'
 
 export async function signOutOfThisSite() {
   const url = siteOrigin()
@@ -18,5 +18,5 @@ export async function signOutOfThisSite() {
   await rememberSiteAddress(url)
   await markSignedOut(url)
   await saveSite((await savedAccounts())[0] ?? null)
-  window.location.replace('/')
+  reloadApp()
 }

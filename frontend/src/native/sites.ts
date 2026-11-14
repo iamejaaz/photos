@@ -141,16 +141,21 @@ export const rememberAccount = async (account: Account) => {
 export const forgetAccount = async (url: string) =>
   writeAccounts((await savedAccounts()).filter((item) => item.url !== url))
 
+export const reloadApp = () => {
+  window.stop()
+  window.location.replace('/')
+}
+
 export const switchAccount = async (account: Site) => {
   await saveSite(account)
-  window.location.replace('/')
+  reloadApp()
 }
 
 export const isAddingSite = () => sessionStorage.getItem(ADDING_KEY) === '1'
 
 export const startAddingSite = () => {
   sessionStorage.setItem(ADDING_KEY, '1')
-  window.location.replace('/')
+  reloadApp()
 }
 
 export const stopAddingSite = () => sessionStorage.removeItem(ADDING_KEY)

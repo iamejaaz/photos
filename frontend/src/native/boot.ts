@@ -12,7 +12,7 @@ import { accessToken, setSessionLostHandler, setTokenRefreshedHandler, startSess
 import { setActiveSite } from './site'
 import { getSocket, startSocket } from './socket'
 import SitePicker from './SitePicker.vue'
-import { type Site, isAddingSite, rememberAccount, savedSite, siteProblem, siteStatus } from './sites'
+import { type Site, isAddingSite, reloadApp, rememberAccount, savedSite, siteProblem, siteStatus } from './sites'
 
 type Boot = {
   user: string
@@ -73,7 +73,7 @@ export async function startNative(): Promise<boolean> {
     await tokenStore.remove(site.url)
     await trimMediaCache(0)
     await clearOfflineData()
-    window.location.replace('/')
+    reloadApp()
   })
   await setMediaSession(accessToken())
 
