@@ -25,13 +25,13 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 	initial: "suggestionsLoading",
 	states: {
 		suggestionsLoading: {
-			meta: { description: "People and places are still loading: only the search box, nothing under it, no spinner." },
+			meta: { description: "People and places are still loading: the search box with a spinner under it." },
 			on: { LOADS: "suggestions", FAILS: "suggestionsFailed" },
 		},
 		suggestionsFailed: {
 			meta: {
 				description:
-					"People and places failed to load: the page shows the same “Search your photos” hint a new, empty library gets, with no sign of the error.",
+					"People and places failed to load: “Couldn't load suggestions” with a hint to check the connection and a Try again button.",
 			},
 		},
 		suggestions: {
@@ -52,7 +52,7 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 		},
 		resultsFailed: {
 			meta: {
-				description: "The search request failed: the server's message appears under the “No results” empty state, as if nothing matched.",
+				description: "The search request failed: “Couldn't load this” with a Try again button, not the “No results” empty state.",
 			},
 		},
 		noResults: {
@@ -107,9 +107,13 @@ export const search = defineFlow<Event>({
 		async FAILS(scene) {
 			await holds.get(scene)?.abort();
 			if (scene.page.url().includes("q=")) {
-				await expect(scene.page.getByText("No results")).toBeVisible({ timeout: 30_000 });
-				await expect(scene.page.getByText("Something went wrong").first()).toBeVisible();
-			} else await expect(scene.page.getByText("Search your photos")).toBeVisible({ timeout: 30_000 });
+				await expect(scene.page.getByText("Couldn't load this")).toBeVisible({ timeout: 30_000 });
+				await expect(scene.page.getByText("No results")).toHaveCount(0);
+			} else {
+				await expect(scene.page.getByText("Couldn't load suggestions")).toBeVisible({ timeout: 30_000 });
+				await expect(scene.page.getByText("Search your photos")).toHaveCount(0);
+			}
+			await expect(scene.page.getByRole("button", { name: "Try again" })).toBeVisible();
 		},
 		async TYPE(scene) {
 			await box(scene).fill("beach");

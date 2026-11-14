@@ -38,11 +38,11 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 	initial: "listLoading",
 	states: {
 		listLoading: {
-			meta: { description: "The albums request is still out: the header and New album, nothing under them, no spinner." },
+			meta: { description: "The albums request is still out: the header and New album, with a spinner under them." },
 			on: { LOADS: "listPopulated", FAILS: "listFailed" },
 		},
 		listFailed: {
-			meta: { description: "The albums request failed: the page stays blank with no message and no way to retry." },
+			meta: { description: "The albums request failed: Couldn't load albums, a line to check the connection, and Try again." },
 		},
 		listPopulated: {
 			meta: { description: "Maya's albums as cover tiles with title and count, newest activity first, with a sort control." },
@@ -111,13 +111,13 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 			meta: { description: "A comment posted: it shows with Maya's name and time." },
 		},
 		albumLoading: {
-			meta: { description: "The album request is still out: the header has no title and no actions yet." },
+			meta: { description: "The album request is still out: a spinner under a header with no title and no actions yet." },
 		},
 		albumFailed: {
-			meta: { description: "The album request failed with a server error: the page says the album was deleted or not shared." },
+			meta: { description: "The album request failed with a server error: Couldn't load this album, with Try again." },
 		},
 		albumNotFound: {
-			meta: { description: "An album link that does not exist: You can't open this album, with Go to albums." },
+			meta: { description: "An album link that does not exist: This link is no longer available, with Go to albums." },
 		},
 	},
 });
@@ -206,8 +206,8 @@ export const albums = defineFlow<Event>({
 		},
 		async FAILS(scene) {
 			await holds.get(scene)?.abort();
-			await scene.page.waitForResponse((response) => response.url().includes("photos.api.albums.albums") && response.status() === 500);
-			await scene.settle(1500);
+			await expect(scene.page.getByText("Couldn't load albums")).toBeVisible({ timeout: 30_000 });
+			await expect(scene.page.getByRole("button", { name: "Try again" })).toBeVisible();
 		},
 		async OPEN_EMPTY_LIBRARY(scene) {
 			await scene.signInAs("fresh");
@@ -293,16 +293,18 @@ export const albums = defineFlow<Event>({
 			await tile(scene, album?.title ?? "").tap();
 			await scene.page.waitForURL(/\/photos\/albums\/[^/]+$/);
 			await expect(scene.page.getByRole("button", { name: "Album options" })).toHaveCount(0);
+			await expect(scene.page.locator("svg.fui-spinner").first()).toBeVisible();
 		},
 		async ALBUM_FAILS(scene) {
 			const hold = await scene.hold(GET_ALBUM);
 			await hold.abort();
 			await tile(scene, seeded.get(scene)?.title ?? "").tap();
-			await expect(scene.page.getByText("You can't open this album")).toBeVisible({ timeout: 30_000 });
+			await expect(scene.page.getByText("Couldn't load this album")).toBeVisible({ timeout: 30_000 });
+			await expect(scene.page.getByRole("button", { name: "Try again" })).toBeVisible();
 		},
 		async OPEN_MISSING(scene) {
 			await scene.goto("/albums/0000000000");
-			await expect(scene.page.getByText("You can't open this album")).toBeVisible();
+			await expect(scene.page.getByText("This link is no longer available")).toBeVisible();
 		},
 	},
 });

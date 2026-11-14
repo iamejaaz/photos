@@ -6,7 +6,7 @@ import type { Hold, Scene } from "../scene";
 type Event =
 	| { type: "LOADS" }
 	| { type: "FAILS" }
-	| { type: "RELOAD" }
+	| { type: "RETRY" }
 	| { type: "OPEN_NEW_PERSON" }
 	| { type: "ASK_EMPTY_TRASH" }
 	| { type: "CANCEL_EMPTY_TRASH" }
@@ -38,8 +38,8 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 			on: { LOADS: "populated", FAILS: "failed" },
 		},
 		failed: {
-			meta: { description: "The trash request failed: the server's error under an empty page, with no retry control." },
-			on: { RELOAD: "populated" },
+			meta: { description: "The trash request failed: “Couldn't load this” with a hint to check the connection and a Try again button." },
+			on: { RETRY: "populated" },
 		},
 		populated: {
 			meta: { description: "Trashed photos and videos with a days-left badge on each tile, and Empty trash in the header." },
@@ -75,7 +75,7 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 		restoreFailed: {
 			meta: {
 				description:
-					"Restore fails on the server: no toast or error shows, the photo stays in trash and the selection bar stays up, so the tap looks ignored.",
+					"Restore fails on the server: a “Could not restore. Try again.” toast shows, the photo stays in trash and the selection bar stays up to try again.",
 			},
 		},
 		viewer: {
@@ -155,12 +155,14 @@ export const trash = defineFlow<Event>({
 		},
 		async FAILS(scene) {
 			await holds.get(scene)?.abort();
-			await expect(scene.page.getByText("Something went wrong").first()).toBeVisible({ timeout: 30_000 });
+			await expect(scene.page.getByText("Couldn't load this")).toBeVisible({ timeout: 30_000 });
+			await expect(scene.page.getByRole("button", { name: "Try again" })).toBeVisible();
 		},
-		async RELOAD(scene) {
+		async RETRY(scene) {
 			await holds.get(scene)?.release();
-			await scene.page.reload();
+			await scene.page.getByRole("button", { name: "Try again" }).click();
 			await expect(tile(scene)).toBeVisible();
+			await expect(scene.page.getByRole("button", { name: "Empty trash" })).toBeVisible();
 		},
 		async OPEN_NEW_PERSON(scene) {
 			await scene.signInAs("fresh");
@@ -190,6 +192,7 @@ export const trash = defineFlow<Event>({
 		async RESTORE_SELECTED(scene) {
 			await (await selectionButton(scene, "Restore")).click();
 			await expect(scene.page.getByText("Restored", { exact: true })).toBeVisible();
+			await expect(scene.page.getByRole("button", { name: "Undo" })).toHaveCount(0);
 			await expect(tile(scene)).toHaveCount(0);
 		},
 		async RESTORE_FAILS(scene) {
@@ -198,7 +201,7 @@ export const trash = defineFlow<Event>({
 			const failed = scene.page.waitForResponse((response) => response.url().includes("remove_or_restore"));
 			await (await selectionButton(scene, "Restore")).click();
 			await failed;
-			await scene.settle(1500);
+			await expect(scene.page.getByText("Could not restore. Try again.")).toBeVisible({ timeout: 30_000 });
 			await expect(scene.page.getByText("1 selected")).toBeVisible();
 			await expect(tile(scene)).toBeVisible();
 		},
@@ -218,6 +221,7 @@ export const trash = defineFlow<Event>({
 		async RESTORE_PHOTO(scene) {
 			await viewerAction(scene, "Restore").click();
 			await expect(scene.page.getByText("Restored", { exact: true })).toBeVisible();
+			await expect(scene.page.getByRole("button", { name: "Undo" })).toHaveCount(0);
 		},
 	},
 });

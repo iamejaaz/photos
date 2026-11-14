@@ -6,7 +6,7 @@ import type { Hold, Scene } from "../scene";
 type Event =
 	| { type: "LOADS" }
 	| { type: "FAILS" }
-	| { type: "RELOAD" }
+	| { type: "RETRY" }
 	| { type: "SELECT_TWO" }
 	| { type: "CLEAR_SELECTION" }
 	| { type: "OPEN_EMPTY_LIBRARY" };
@@ -26,8 +26,8 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 			on: { LOADS: "populated", FAILS: "failed" },
 		},
 		failed: {
-			meta: { description: "The timeline request failed: what the grid shows when the server errors." },
-			on: { RELOAD: "populated" },
+			meta: { description: "The timeline request failed: a cloud icon, “Couldn't load this”, a hint to check the connection and a Try again button." },
+			on: { RETRY: "populated" },
 		},
 		populated: {
 			meta: { description: "A full library: photos grouped by month and day, newest first." },
@@ -71,12 +71,14 @@ export const timeline = defineFlow<Event>({
 		},
 		async FAILS(scene) {
 			await holds.get(scene)?.abort();
-			await expect(scene.page.getByText("Something went wrong").first()).toBeVisible({ timeout: 30_000 });
+			await expect(scene.page.getByText("Couldn't load this")).toBeVisible({ timeout: 30_000 });
+			await expect(scene.page.getByRole("button", { name: "Try again" })).toBeVisible();
 		},
-		async RELOAD(scene) {
+		async RETRY(scene) {
 			await holds.get(scene)?.release();
-			await scene.page.reload();
+			await scene.page.getByRole("button", { name: "Try again" }).tap();
 			await expectTiles(scene);
+			await expect(scene.page.getByText("Couldn't load this")).toHaveCount(0);
 		},
 		async SELECT_TWO(scene) {
 			const tiles = scene.page.locator("img[src*='thumbnail']");

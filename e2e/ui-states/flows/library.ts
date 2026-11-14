@@ -68,7 +68,7 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 			on: { FAILS: "favouritesFailed" },
 		},
 		favouritesFailed: {
-			meta: { description: "Favourites failed to load: the 'No favourites yet' empty state and the server error show together." },
+			meta: { description: "Favourites failed to load: Couldn't load this, a line to check the connection, and Try again, with no empty state." },
 		},
 		favouritesEmpty: {
 			meta: { description: "No favourites yet: the star icon and how to add one." },
@@ -84,7 +84,7 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 			on: { FAILS: "hiddenCheckFailed" },
 		},
 		hiddenCheckFailed: {
-			meta: { description: "The lock check failed: the page stays blank under the header for good, with no error and no retry." },
+			meta: { description: "The lock check failed: Couldn't load this with Try again under the header." },
 		},
 		hiddenLocked: {
 			meta: { description: "Hidden is locked on the web: password field, Unlock and Email me a code." },
@@ -120,7 +120,7 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 			on: { FAILS: "duplicatesFailed" },
 		},
 		duplicatesFailed: {
-			meta: { description: "The duplicates scan failed: the spinner keeps turning for good, with no error and no retry." },
+			meta: { description: "The duplicates scan failed: Couldn't load this with Try again instead of the spinner." },
 		},
 		duplicatesEmpty: {
 			meta: { description: "No duplicates found: the empty state." },
@@ -130,11 +130,11 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 			on: { OPEN_FOLDER: "folderPage" },
 		},
 		foldersLoading: {
-			meta: { description: "Folders still loading: the intro line and nothing under it, no spinner." },
+			meta: { description: "Folders still loading: the intro line and a spinner under it." },
 			on: { FAILS: "foldersFailed" },
 		},
 		foldersFailed: {
-			meta: { description: "Folders failed to load: the intro line and a blank page for good, no error and no empty text." },
+			meta: { description: "Folders failed to load: the intro line, then Couldn't load this with Try again." },
 		},
 		foldersEmpty: {
 			meta: { description: "No Drive folders with photos yet." },
@@ -273,11 +273,8 @@ export const library = defineFlow<Event>({
 			const failed = scene.page.waitForResponse((response) => response.status() >= 500);
 			await holds.get(scene)?.abort();
 			await failed;
-			if (await scene.page.getByRole("heading", { name: "Favourites" }).isVisible()) {
-				await expect(scene.page.getByText("Something went wrong").first()).toBeVisible({ timeout: 30_000 });
-			} else {
-				await scene.settle(3000);
-			}
+			await expect(scene.page.getByText("Couldn't load this")).toBeVisible({ timeout: 30_000 });
+			await expect(scene.page.getByRole("button", { name: "Try again" })).toBeVisible();
 		},
 		async WRONG_PASSWORD(scene) {
 			await scene.page.route(`${HIDDEN}.unlock`, (route) =>

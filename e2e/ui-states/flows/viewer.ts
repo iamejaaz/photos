@@ -51,7 +51,7 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 			on: { DETAILS_FAIL: "infoFailed" },
 		},
 		infoFailed: {
-			meta: { description: "The details request failed: the sheet keeps the same spinner forever, with no error and no retry." },
+			meta: { description: "The details request failed: the sheet shows “Couldn't load details” with a Try again button instead of a spinner." },
 		},
 		moreMenu: {
 			meta: { description: "The more menu: Slideshow, Download, Add to album, Edit and Archive." },
@@ -68,7 +68,7 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 			on: { UNDO: "restored" },
 		},
 		restored: {
-			meta: { description: "Undo tapped: the photo is back in the viewer. The Restored toast is unreliable: some runs it vanishes at once, others it shows with a stale Undo button." },
+			meta: { description: "Undo tapped: the photo is back in the viewer and a Restored toast shows, with no Undo button." },
 		},
 		albumPhoto: {
 			meta: { description: "A photo opened from an album: the top bar adds a Like heart next to the favourite star." },
@@ -175,8 +175,8 @@ export const viewer = defineFlow<Event>({
 		},
 		async DETAILS_FAIL(scene) {
 			await holds.get(scene)?.abort();
-			await scene.settle(6_000);
-			await expect(infoSheet(scene).getByText("Details")).toBeHidden();
+			await expect(infoSheet(scene).getByText("Couldn't load details")).toBeVisible({ timeout: 30_000 });
+			await expect(infoSheet(scene).getByRole("button", { name: "Try again" })).toBeVisible();
 		},
 		async OPEN_MORE(scene) {
 			await scene.page.getByRole("button", { name: "More" }).tap();
@@ -214,8 +214,9 @@ export const viewer = defineFlow<Event>({
 			const restored = scene.page.waitForResponse((response) => response.url().includes("remove_or_restore"));
 			await scene.page.getByRole("button", { name: "Undo" }).tap();
 			await restored;
-			await scene.settle(1_000);
 			await expect(scene.page.locator(`img.object-contain[alt="${target.file_name}"]`)).toBeVisible();
+			await expect(scene.page.getByText("Restored", { exact: true })).toBeVisible();
+			await expect(scene.page.getByRole("button", { name: "Undo" })).toHaveCount(0);
 		},
 		async OPEN_FROM_ALBUM(scene) {
 			const albums = await scene.call<{ name: string; title: string }[]>("photos.api.albums.albums");

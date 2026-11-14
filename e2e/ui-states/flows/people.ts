@@ -33,11 +33,11 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 	initial: "loading",
 	states: {
 		loading: {
-			meta: { description: "The people request is still out: the header and an empty page, no spinner." },
+			meta: { description: "The people request is still out: the header and a spinner." },
 			on: { LOADS: "populated", FAILS: "failed" },
 		},
 		failed: {
-			meta: { description: "The people request failed: the page stays blank, with no message and no way to retry." },
+			meta: { description: "The people request failed: Couldn't load people, a line to check the connection, and Try again." },
 		},
 		populated: {
 			meta: { description: "Everyone found in the library, biggest first; people without a name read Add a name." },
@@ -79,7 +79,10 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 			meta: {
 				description: "A name another person already has: the Same person? dialog with both faces, before anything is saved.",
 			},
-			on: { DISMISS: "person" },
+			on: { DISMISS: "draftKept" },
+		},
+		draftKept: {
+			meta: { description: "Same person? dismissed: the name field comes back with the typed name still in it, nothing saved." },
 		},
 		personMenu: {
 			meta: { description: "The person options menu: rename, cover photo, same person as, this is me, hide." },
@@ -170,13 +173,16 @@ export const people = defineFlow<Event>({
 			const failed = scene.page.waitForResponse((response) => PEOPLE.test(response.url()) && response.status() >= 500);
 			await holds.get(scene)?.abort();
 			await failed;
-			await scene.settle(1500);
+			await expect(scene.page.getByText("Couldn't load people")).toBeVisible({ timeout: 30_000 });
+			await expect(scene.page.getByRole("button", { name: "Try again" })).toBeVisible();
 			await expect(personLink(scene)).toHaveCount(0);
 		},
 		async SHOW_HIDDEN(scene) {
 			const { third } = pick(scene);
 			scene.defer(() => scene.call("photos.api.people.set_hidden", { person: third, hidden: false }));
 			await scene.call("photos.api.people.set_hidden", { person: third, hidden: true });
+			await scene.page.reload();
+			await expect(personLink(scene).first()).toBeVisible();
 			await scene.page.getByRole("button", { name: "Show hidden people" }).tap();
 			await expect(scene.page.getByRole("button", { name: "Hide hidden people" })).toBeVisible();
 			await expect(personLink(scene, third)).toHaveClass(/opacity-50/);
@@ -236,7 +242,8 @@ export const people = defineFlow<Event>({
 		async DISMISS(scene) {
 			await scene.page.keyboard.press("Escape");
 			await expect(scene.page.getByRole("dialog")).toHaveCount(0);
-			await expect(scene.page.getByRole("button", { name: "Add a name" })).toBeVisible();
+			await expect(scene.page.getByPlaceholder("Add a name")).toHaveValue(TAKEN_NAME);
+			await expect(scene.page.getByPlaceholder("Add a name")).toBeFocused();
 		},
 		async OPEN_MENU(scene) {
 			await scene.page.getByRole("button", { name: "Person options" }).tap();

@@ -28,11 +28,11 @@ const machine = setup({ types: { events: {} as Event } }).createMachine({
 	initial: "loading",
 	states: {
 		loading: {
-			meta: { description: "Explore, people and places requests still out: only the Places heading shows, no spinner." },
+			meta: { description: "Explore, people and places requests still out: the header and a spinner." },
 			on: { LOADS: "populated", FAILS: "failed" },
 		},
 		failed: {
-			meta: { description: "All three requests failed: the page keeps the bare Places heading, with no message and no retry." },
+			meta: { description: "The requests failed: Couldn't load Explore, a line to check the connection, and Try again." },
 		},
 		populated: {
 			meta: { description: "The top of Explore: a row of people, the places map and named places with their counts." },
@@ -125,7 +125,7 @@ export const explore = defineFlow<Event>({
 	},
 	settle: {
 		async loading(scene) {
-			await expect(scene.page.getByRole("heading", { name: "Places" })).toBeVisible();
+			await expect(scene.page.locator("svg.fui-spinner").first()).toBeVisible();
 		},
 	},
 	events: {
@@ -139,8 +139,8 @@ export const explore = defineFlow<Event>({
 			const failed = scene.page.waitForResponse((response) => LOADS.test(response.url()) && response.status() >= 500);
 			await holds.get(scene)?.abort();
 			await failed;
-			await scene.settle(1500);
-			await expect(scene.page.getByRole("heading", { name: "Places" })).toBeVisible();
+			await expect(scene.page.getByText("Couldn't load Explore")).toBeVisible({ timeout: 30_000 });
+			await expect(scene.page.getByRole("button", { name: "Try again" })).toBeVisible();
 		},
 		async SCROLL_DOWN(scene) {
 			await scene.page.getByRole("heading", { name: "Things" }).scrollIntoViewIfNeeded();
