@@ -62,11 +62,7 @@
         >
           <div class="text-base font-medium text-ink-gray-8">{{ __('Free up space') }}</div>
           <div class="text-p-base text-ink-gray-6">
-            {{
-              __(
-                'Remove photos and videos from this phone that are already backed up. They stay in your library.',
-              )
-            }}
+            {{ __('Remove backed-up photos from this phone. They stay in your library.') }}
           </div>
           <div class="flex items-center gap-3">
             <Button v-if="!freeable" :loading="checking" @click="check">{{ __('Check this phone') }}</Button>
@@ -74,7 +70,7 @@
               __('Free up {0}', [formatBytes(freeable.bytes)])
             }}</Button>
             <span v-else class="text-base text-ink-gray-6">{{
-              __('Nothing to free up. Everything here is either not backed up yet or already removed.')
+              __('Nothing to free up.')
             }}</span>
             <span v-if="freeable?.count" class="text-base text-ink-gray-6">{{
               freeable.count === 1 ? __('1 item') : __('{0} items', [freeable.count])
