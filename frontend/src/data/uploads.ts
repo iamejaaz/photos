@@ -40,6 +40,7 @@ interface Batch {
   finish: (names: string[]) => void
 }
 const queue: Task[] = []
+const failedTasks: Task[] = []
 const HASH_LIMIT = 200 * 1024 * 1024
 
 async function knownUploads(files: File[]) {
@@ -70,6 +71,7 @@ export async function uploadPhotos(files: File[], album?: string): Promise<strin
   }
   if (!upload.active) {
     Object.assign(upload, { active: true, done: 0, total: 0, bytes: 0, totalBytes: 0, items: [] })
+    failedTasks.length = 0
   }
   upload.open = true
   preparing++
@@ -115,11 +117,11 @@ async function run() {
           if (album) await addToAlbum(album, [name])
         }
         item.status = 'done'
+        upload.bytes = before + file.size
       } catch (error) {
-        item.status = 'failed'
-        item.error = (error as Error).message
+        fail(task, (error as Error).message)
+        upload.bytes = before
       }
-      upload.bytes = before + file.size
       upload.done++
       if (!--batch.left) batch.finish(batch.names)
       if (Date.now() - refreshed > REFRESH_MS) {
@@ -128,10 +130,35 @@ async function run() {
       }
     }
   } finally {
-    for (const { batch } of queue.splice(0)) if (batch.left) (batch.finish(batch.names), (batch.left = 0))
+    for (const task of queue.splice(0)) {
+      fail(task)
+      upload.done++
+      if (task.batch.left) (task.batch.finish(task.batch.names), (task.batch.left = 0))
+    }
     running = false
     if (!preparing) finish()
   }
+}
+
+function fail(task: Task, error?: string) {
+  task.item.status = 'failed'
+  task.item.error = error || __('Upload failed. Try again.')
+  upload.totalBytes -= task.file.size
+  failedTasks.push(task)
+}
+
+export function retryFailed() {
+  const tasks = failedTasks.splice(0)
+  if (!tasks.length) return
+  const batch: Batch = { names: [], left: tasks.length, finish: () => {} }
+  for (const task of tasks) {
+    Object.assign(task.item, { status: 'waiting', error: undefined })
+    upload.totalBytes += task.file.size
+    queue.push({ ...task, batch })
+  }
+  upload.done -= tasks.length
+  Object.assign(upload, { active: true, open: true })
+  if (!running) run()
 }
 
 function finish() {

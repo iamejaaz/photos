@@ -11,6 +11,7 @@
       <LucideCircleCheck v-else-if="!failed" class="size-4 shrink-0 text-ink-green-3" />
       <LucideCircleAlert v-else class="size-4 shrink-0 text-ink-red-3" />
       <span class="min-w-0 flex-1 truncate text-base font-medium text-ink-gray-9">{{ title }}</span>
+      <Button v-if="!upload.active && failed" variant="ghost" :label="__('Retry')" @click="retryFailed" />
       <Button variant="ghost" :aria-label="expanded ? __('Hide details') : __('Show details')" @click="expanded = !expanded">
         <template #icon>
           <LucideChevronDown class="size-4 transition-transform" :class="{ 'rotate-180': !expanded }" />
@@ -57,7 +58,7 @@ import LucideCircleMinus from '~icons/lucide/circle-minus'
 import LucideClock from '~icons/lucide/clock'
 import LucideX from '~icons/lucide/x'
 
-import { upload } from '../data/uploads'
+import { retryFailed, upload } from '../data/uploads'
 
 const expanded = ref(false)
 const count = (status: string) => upload.items.filter((item) => item.status === status).length
@@ -68,7 +69,9 @@ const title = computed(() => {
   const queued = upload.items.length - count('skipped')
   if (upload.active)
     return upload.preparing
-      ? __('Preparing {0} items', [upload.items.length])
+      ? upload.items.length === 1
+        ? __('Preparing 1 item')
+        : __('Preparing {0} items', [upload.items.length])
       : __('Uploading {0} of {1}', [Math.min(upload.done + 1, queued), queued])
   const done = count('done')
   if (failed.value) return __('{0} uploaded, {1} failed', [done, failed.value])

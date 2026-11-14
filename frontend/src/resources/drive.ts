@@ -26,6 +26,8 @@ export async function uploadFile(file: File, parent: string, onProgress: (loaded
       method: 'POST',
       body: form,
       headers: { 'X-Frappe-CSRF-Token': window.csrf_token ?? '' },
+    }).catch(() => {
+      throw new Error(__('Upload failed. Try again.'))
     })
     if (!response.ok) throw new Error(await errorMessage(response))
     onProgress(Math.min(file.size, offset + CHUNK_SIZE))
@@ -34,12 +36,14 @@ export async function uploadFile(file: File, parent: string, onProgress: (loaded
   return null
 }
 export async function errorMessage(response: Response) {
+  const fallback = response.status === 413 ? __('This file is too large') : __('Upload failed. Try again.')
   try {
     const body = await response.json()
     const messages = JSON.parse(body._server_messages || '[]')
-    return messages.length ? JSON.parse(messages[0]).message : body.exception || response.statusText
+    if (messages.length) return JSON.parse(messages[0]).message
+    return (response.status < 500 && body.exception) || fallback
   } catch {
-    return response.statusText
+    return fallback
   }
 }
 const OLDER_SITE = /Failed to get method for command|has no attribute|Method not found/
