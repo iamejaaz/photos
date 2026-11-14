@@ -20,6 +20,7 @@ import { ref, watch } from 'vue'
 import { Dialog, FormControl, toast } from 'frappe-ui'
 
 import { createMovie } from '../resources/movies'
+import { errorText } from '../resources/drive'
 import { clearSelection } from '../data/selection'
 import { movie } from '../data/dialogs'
 
@@ -46,6 +47,8 @@ async function create() {
     movie.open = false
     clearSelection()
     toast.info(__('Making your movie. You will get a message when it is ready.'))
+  } catch (error) {
+    toast.error(errorText(error))
   } finally {
     saving.value = false
   }
