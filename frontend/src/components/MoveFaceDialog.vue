@@ -3,6 +3,11 @@
     <div class="flex flex-col gap-3">
       <TextInput v-model="query" :placeholder="__('Search or type a new name')" autofocus />
       <div class="flex max-h-72 flex-col overflow-y-auto">
+        <div v-if="status === 'loading'" class="flex justify-center py-4"><LoadingIndicator class="size-5" /></div>
+        <div v-else-if="status === 'failed'" class="flex items-center justify-between gap-3 px-2 py-1.5 text-base text-ink-gray-5">
+          {{ __('Could not load people') }}
+          <Button @click="load">{{ __('Try again') }}</Button>
+        </div>
         <button
           v-for="person in matches"
           :key="person.name"
@@ -30,7 +35,7 @@
 <script setup lang="ts">
 import { errorText } from '../resources/drive'
 import { computed, ref, watch } from 'vue'
-import { Dialog, TextInput, toast } from 'frappe-ui'
+import { Button, Dialog, LoadingIndicator, TextInput, toast } from 'frappe-ui'
 import LucidePlus from '~icons/lucide/plus'
 
 import { type Person, getPeople, moveFace } from '../resources/people'
@@ -41,11 +46,23 @@ const open = defineModel<boolean>({ default: false })
 const emit = defineEmits<{ moved: [] }>()
 const people = ref<Person[]>([])
 const query = ref('')
+const status = ref<'loading' | 'failed' | 'ready'>('loading')
 
-watch(open, async (value) => {
+async function load() {
+  status.value = 'loading'
+  people.value = []
+  try {
+    people.value = (await getPeople(true)).people
+    status.value = 'ready'
+  } catch {
+    status.value = 'failed'
+  }
+}
+
+watch(open, (value) => {
   if (!value) return
   query.value = ''
-  people.value = (await getPeople(true)).people
+  load()
 })
 
 const matches = computed(() =>

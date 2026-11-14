@@ -36,7 +36,14 @@
     </template>
   </PhotosHeader>
   <Dialog v-model:open="choosingCover" :title="__('Change cover photo')" size="lg">
-    <div v-if="!coverFaces.length" class="flex justify-center py-8"><LoadingIndicator class="size-5" /></div>
+    <div v-if="coverStatus === 'loading'" class="flex justify-center py-8"><LoadingIndicator class="size-5" /></div>
+    <div v-else-if="coverStatus === 'failed'" class="flex flex-col items-center gap-3 py-8 text-base text-ink-gray-5">
+      {{ __('Could not load faces') }}
+      <Button @click="openCovers">{{ __('Try again') }}</Button>
+    </div>
+    <div v-else-if="!coverFaces.length" class="py-8 text-center text-base text-ink-gray-5">
+      {{ __('No faces to pick from') }}
+    </div>
     <div v-else class="grid max-h-[60vh] grid-cols-4 gap-3 overflow-y-auto p-1 sm:grid-cols-6">
       <button
         v-for="face in coverFaces"
@@ -64,7 +71,15 @@
         ])
       }}
     </p>
-    <div class="grid max-h-80 grid-cols-4 gap-3 overflow-y-auto sm:grid-cols-6">
+    <div v-if="mergeStatus === 'loading'" class="flex justify-center py-8"><LoadingIndicator class="size-5" /></div>
+    <div v-else-if="mergeStatus === 'failed'" class="flex flex-col items-center gap-3 py-8 text-base text-ink-gray-5">
+      {{ __('Could not load people') }}
+      <Button @click="openMerge">{{ __('Try again') }}</Button>
+    </div>
+    <div v-else-if="!others.length" class="py-8 text-center text-base text-ink-gray-5">
+      {{ __('No one else to pick') }}
+    </div>
+    <div v-else class="grid max-h-80 grid-cols-4 gap-3 overflow-y-auto sm:grid-cols-6">
       <button
         v-for="other in others"
         :key="other.name"
@@ -84,7 +99,7 @@
             <LucideCheck class="size-3" />
           </span>
         </div>
-        <span class="w-full truncate text-sm text-ink-gray-7">{{ other.person_name || __('No name') }}</span>
+        <span class="w-full truncate text-sm text-ink-gray-7">{{ other.person_name || __('Unnamed') }}</span>
       </button>
     </div>
     <template #actions>
@@ -99,7 +114,7 @@
     :open="Boolean(duplicate)"
     :title="__('Same person?')"
     size="sm"
-    @update:open="(open: boolean) => !open && (duplicate = null)"
+    @update:open="(open: boolean) => !open && duplicate && backToEditing()"
   >
     <div class="flex flex-col items-center gap-4 py-2 text-center">
       <div class="flex items-center gap-3">
@@ -175,23 +190,44 @@ async function refresh() {
 }
 refresh()
 
-async function startEditing() {
+function startEditing() {
   nameDraft.value = info.value?.person_name ?? ''
+  return openEditor()
+}
+
+async function openEditor() {
   editing.value = true
   await nextTick()
   nameForm.value?.querySelector('input')?.focus()
 }
 
+function backToEditing() {
+  duplicate.value = null
+  openEditor()
+}
+
+let savingName = false
+
 async function saveName() {
-  if (!editing.value) return
-  editing.value = false
-  if ((nameDraft.value || '') === (info.value?.person_name || '')) return
-  const result = await renamePerson(props.person, nameDraft.value)
-  if (result?.duplicate) {
-    duplicate.value = result.duplicate
+  if (!editing.value || savingName) return
+  if ((nameDraft.value || '') === (info.value?.person_name || '')) {
+    editing.value = false
     return
   }
-  await refresh()
+  savingName = true
+  try {
+    const result = await renamePerson(props.person, nameDraft.value)
+    editing.value = false
+    if (result?.duplicate) {
+      duplicate.value = result.duplicate
+      return
+    }
+    await refresh()
+  } catch (error) {
+    toast.error(errorText(error) || __('Could not save the name'))
+  } finally {
+    savingName = false
+  }
 }
 
 async function keepSeparate() {
@@ -223,11 +259,18 @@ const menu = computed(() => [
 
 const choosingCover = ref(false)
 const coverFaces = ref<{ name: string; file: string }[]>([])
+const coverStatus = ref<'loading' | 'failed' | 'ready'>('loading')
 
 async function openCovers() {
   coverFaces.value = []
+  coverStatus.value = 'loading'
   choosingCover.value = true
-  coverFaces.value = await personFaces(props.person)
+  try {
+    coverFaces.value = await personFaces(props.person)
+    coverStatus.value = 'ready'
+  } catch {
+    coverStatus.value = 'failed'
+  }
 }
 
 async function chooseCover(face: string) {
@@ -242,10 +285,19 @@ async function chooseCover(face: string) {
   }
 }
 
+const mergeStatus = ref<'loading' | 'failed' | 'ready'>('loading')
+
 async function openMerge() {
   mergePicks.clear()
-  others.value = (await getPeople(true)).people.filter((person) => person.name !== props.person)
+  others.value = []
+  mergeStatus.value = 'loading'
   merging.value = true
+  try {
+    others.value = (await getPeople(true)).people.filter((person) => person.name !== props.person)
+    mergeStatus.value = 'ready'
+  } catch {
+    mergeStatus.value = 'failed'
+  }
 }
 
 function toggleMerge(name: string) {

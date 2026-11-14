@@ -9,7 +9,12 @@
       <div class="text-base text-ink-gray-6">
         {{ __('Photos of the people you pick are added to this album, now and whenever new ones come in.') }}
       </div>
-      <div v-if="people.length" class="grid grid-cols-4 gap-3 sm:grid-cols-5">
+      <div v-if="status === 'loading'" class="flex justify-center py-8"><LoadingIndicator class="size-5" /></div>
+      <div v-else-if="status === 'failed'" class="flex flex-col items-center gap-3 py-8 text-base text-ink-gray-5">
+        {{ __('Could not load people') }}
+        <Button @click="load">{{ __('Try again') }}</Button>
+      </div>
+      <div v-else-if="people.length" class="grid grid-cols-4 gap-3 sm:grid-cols-5">
         <button
           v-for="person in people"
           :key="person.name"
@@ -35,8 +40,11 @@
           }}</span>
         </button>
       </div>
-      <div v-else class="text-base text-ink-gray-5">
+      <div v-else-if="!enabled" class="text-base text-ink-gray-5">
         {{ __('Turn on People in Settings to group photos by face first.') }}
+      </div>
+      <div v-else class="text-base text-ink-gray-5">
+        {{ __('People show up here once photos with faces are processed.') }}
       </div>
     </div>
   </Dialog>
@@ -45,7 +53,7 @@
 <script setup lang="ts">
 import { errorText } from '../resources/drive'
 import { ref, watch } from 'vue'
-import { Dialog, toast } from 'frappe-ui'
+import { Button, Dialog, LoadingIndicator, toast } from 'frappe-ui'
 import LucideCheck from '~icons/lucide/check'
 
 import { type Album, setAutoPeople } from '../resources/albums'
@@ -58,11 +66,25 @@ const emit = defineEmits<{ saved: [] }>()
 const people = ref<Person[]>([])
 const picked = ref(new Set<string>())
 const saving = ref(false)
+const enabled = ref(true)
+const status = ref<'loading' | 'failed' | 'ready'>('loading')
 
-watch(open, async (value) => {
+async function load() {
+  status.value = 'loading'
+  try {
+    const result = await getPeople()
+    enabled.value = result.enabled
+    people.value = result.people
+    status.value = 'ready'
+  } catch {
+    status.value = 'failed'
+  }
+}
+
+watch(open, (value) => {
   if (!value) return
   picked.value = new Set(props.album.auto_people ?? [])
-  people.value = (await getPeople()).people
+  load()
 })
 
 function toggle(name: string) {

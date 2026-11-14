@@ -1,11 +1,13 @@
 <template>
   <PhotosHeader :title="__('People')" hide-upload>
     <template #actions>
-      <Button v-if="data?.enabled" variant="ghost" @click="showHidden = !showHidden">
+      <Button v-if="data?.enabled && data.people.length" variant="ghost" @click="showHidden = !showHidden">
         {{ showHidden ? __('Hide hidden people') : __('Show hidden people') }}
       </Button>
     </template>
   </PhotosHeader>
+  <div v-if="!data && !failed" class="flex justify-center py-24"><LoadingIndicator class="size-5" /></div>
+  <LoadFailed v-else-if="failed" :title="__('Couldn\'t load people')" :retrying="retrying" @retry="retry" />
   <div v-if="data && !data.enabled" class="flex flex-col items-center gap-3 py-24 text-center">
     <div class="text-lg font-medium text-ink-gray-8">{{ __('People is off') }}</div>
     <div class="max-w-sm text-base text-ink-gray-5">
@@ -39,7 +41,7 @@
     </div>
   </div>
   <div
-    v-if="!data || data.enabled"
+    v-if="data?.enabled"
     class="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-x-3 gap-y-5 p-3 sm:p-5"
   >
     <router-link
@@ -64,7 +66,7 @@
   </div>
   <div ref="sentinel" class="h-px" />
   <div
-    v-if="data?.enabled && !data.people.length"
+    v-if="data?.enabled && !people.length"
     class="flex flex-col items-center gap-3 py-24 text-center text-base text-ink-gray-5"
   >
     {{ __('People show up here once photos with faces are processed.') }}
@@ -74,11 +76,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useIntersectionObserver } from '@vueuse/core'
-import { Button, toast, usePageMeta } from 'frappe-ui'
+import { Button, LoadingIndicator, toast, usePageMeta } from 'frappe-ui'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import { type Person, getPeople, mergePeople, mergeSuggestions, notSamePeople } from '../resources/people'
 import FaceAvatar from '../components/FaceAvatar.vue'
+import LoadFailed from '../components/LoadFailed.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { openSettings, settings } from '../data/dialogs'
 import { itemCount } from '../utils'
@@ -89,18 +92,19 @@ const showHidden = ref(false)
 const PAGE = 60
 const limit = ref(PAGE)
 const sentinel = ref<HTMLElement | null>(null)
-const shownPeople = computed(() => (data.value?.people ?? []).slice(0, limit.value))
+const people = computed(() => (data.value?.people ?? []).filter((person) => showHidden.value || !person.hidden))
+const shownPeople = computed(() => people.value.slice(0, limit.value))
 useIntersectionObserver(
   sentinel,
   ([entry]) => {
-    if (entry?.isIntersecting && limit.value < (data.value?.people.length ?? 0)) limit.value += PAGE
+    if (entry?.isIntersecting && limit.value < people.value.length) limit.value += PAGE
   },
   { rootMargin: '600px' },
 )
 watch(limit, async () => {
   await nextTick()
   const box = sentinel.value?.getBoundingClientRect()
-  if (box && box.top < window.innerHeight + 600 && limit.value < (data.value?.people.length ?? 0))
+  if (box && box.top < window.innerHeight + 600 && limit.value < people.value.length)
     limit.value += PAGE
 })
 watch(showHidden, () => (limit.value = PAGE))
@@ -108,11 +112,27 @@ const suggestions = ref<Awaited<ReturnType<typeof mergeSuggestions>>>([])
 const suggestion = computed(() => suggestions.value[0])
 const answering = ref(false)
 
+const failed = ref(false)
+const retrying = ref(false)
+
 async function load() {
-  data.value = await getPeople(showHidden.value)
+  try {
+    data.value = await getPeople(true)
+    failed.value = false
+  } catch {
+    if (data.value) toast.error(__('Could not load people'))
+    else failed.value = true
+    return
+  }
   suggestions.value = data.value.enabled ? await mergeSuggestions().catch(() => []) : []
 }
-watch([showHidden, () => settings.data?.people, () => settings.data?.status], load, { immediate: true })
+watch([() => settings.data?.people, () => settings.data?.status], load, { immediate: true })
+
+async function retry() {
+  retrying.value = true
+  await load()
+  retrying.value = false
+}
 
 async function answer(same: boolean) {
   const pair = suggestion.value
