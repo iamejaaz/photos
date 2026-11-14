@@ -12,6 +12,7 @@ public class PhotosBackupPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setOptions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "runNow", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "signOut", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveToDevice", returnType: CAPPluginReturnPromise),
@@ -83,6 +84,13 @@ public class PhotosBackupPlugin: CAPPlugin, CAPBridgedPlugin {
                 self.engine.start()
                 call.resolve(self.status())
             }
+        }
+    }
+
+    @objc func openSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            call.resolve()
         }
     }
 

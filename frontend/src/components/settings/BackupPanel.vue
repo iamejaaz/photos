@@ -9,24 +9,6 @@
         {{ __('Backup is connecting to your account. Open this again in a moment.') }}
       </div>
       <template v-else>
-        <div
-          v-if="status.permission === 'prompt' || status.permission === 'denied'"
-          class="flex flex-col gap-2"
-        >
-          <div class="text-base text-ink-gray-7">
-            {{ __('Allow Photos to see the photos on this phone to back them up.') }}
-          </div>
-          <div>
-            <Button variant="solid" @click="allow">{{ __('Allow access') }}</Button>
-          </div>
-        </div>
-        <div v-else-if="status.permission === 'partial'" class="text-base text-ink-gray-6">
-          {{
-            __(
-              'Only the photos you picked are backed up. Allow all photos in Android settings to back up everything.',
-            )
-          }}
-        </div>
         <div class="flex flex-col gap-3">
           <div class="flex items-center gap-3">
             <Avatar size="xl" :label="status.user" />
@@ -35,6 +17,17 @@
               <div class="truncate text-base font-medium text-ink-gray-8">{{ status.user }}</div>
               <div class="truncate text-sm text-ink-gray-5">{{ hostOf(status.site) }}</div>
             </div>
+          </div>
+        </div>
+        <div v-if="status.permission === 'prompt'">
+          <Button variant="solid" @click="allow">{{ __('Allow photo access') }}</Button>
+        </div>
+        <div v-else-if="status.permission !== 'granted'" class="flex flex-col gap-2">
+          <div class="text-base text-ink-gray-7">
+            {{ status.permission === 'denied' ? __('Photo access is off.') : __('Only selected photos are backed up.') }}
+          </div>
+          <div>
+            <Button variant="solid" @click="openSettings">{{ __('Open settings') }}</Button>
           </div>
         </div>
         <div class="divide-y divide-outline-gray-1">
@@ -106,6 +99,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
+import { useEventListener } from '@vueuse/core'
 import {
   Avatar,
   Button,
@@ -131,6 +125,15 @@ photosBackup().then(async ({ plugin }) => {
   stop = () => handle.remove()
 })
 onBeforeUnmount(() => stop?.())
+
+useEventListener(document, 'visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return
+  const { plugin } = await photosBackup()
+  const before = status.value?.permission
+  status.value = await plugin.getStatus()
+  if ((before === 'denied' || before === 'partial') && status.value.permission === 'granted')
+    status.value = await plugin.requestPermission()
+})
 
 const waiting = computed(() => (status.value ? waitingFor(status.value) : null))
 const percent = computed(() =>
@@ -160,6 +163,11 @@ async function set(options: Partial<Pick<BackupStatus, 'enabled' | 'wifiOnly' | 
 async function allow() {
   const { plugin } = await photosBackup()
   status.value = await plugin.requestPermission()
+}
+
+async function openSettings() {
+  const { plugin } = await photosBackup()
+  await plugin.openSettings()
 }
 
 const hostOf = (url: string) => (url ? new URL(url).host : '')

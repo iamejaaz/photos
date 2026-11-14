@@ -95,7 +95,7 @@ public class PhotosBackupPlugin extends Plugin {
 
     static void emit(Context context) {
         PhotosBackupPlugin plugin = instance.get();
-        if (plugin != null) plugin.notifyListeners("status", status(context));
+        if (plugin != null) plugin.notifyListeners("status", plugin.current());
     }
 
     static JSObject status(Context context) {
@@ -114,6 +114,15 @@ public class PhotosBackupPlugin extends Plugin {
         status.put("signedIn", store.signedIn());
         status.put("site", store.site());
         status.put("user", store.user());
+        return status;
+    }
+
+    private JSObject current() {
+        JSObject status = status(getContext());
+        String alias = Build.VERSION.SDK_INT >= 33 ? "media" : "mediaLegacy";
+        if ("prompt".equals(status.getString("permission")) && getPermissionState(alias) == PermissionState.DENIED) {
+            status.put("permission", "denied");
+        }
         return status;
     }
 
@@ -149,32 +158,51 @@ public class PhotosBackupPlugin extends Plugin {
         }
         new BackupStore(getContext()).signIn(site, call.getString("user", ""), clientId, accessToken, refreshToken, call.getInt("expiresIn", 3600));
         BackupScheduler.schedule(getContext());
-        call.resolve(status(getContext()));
+        call.resolve(current());
     }
 
     @PluginMethod
-    public void getStatus(PluginCall call) { call.resolve(status(getContext())); }
+    public void getStatus(PluginCall call) { call.resolve(current()); }
 
     @PluginMethod
     public void setOptions(PluginCall call) {
         new BackupStore(getContext()).setOptions(call.getBoolean("enabled"), call.getBoolean("wifiOnly"), call.getBoolean("includeVideos"));
         BackupScheduler.schedule(getContext());
-        call.resolve(status(getContext()));
+        call.resolve(current());
     }
 
     @PluginMethod
     public void requestPermission(PluginCall call) {
         String[] aliases;
-        if (Build.VERSION.SDK_INT >= 34) aliases = new String[]{"media", "mediaSelected", "notifications"};
-        else if (Build.VERSION.SDK_INT >= 33) aliases = new String[]{"media", "notifications"};
+        if (Build.VERSION.SDK_INT >= 34) aliases = new String[]{"media", "mediaSelected"};
+        else if (Build.VERSION.SDK_INT >= 33) aliases = new String[]{"media"};
         else aliases = new String[]{"mediaLegacy"};
         requestPermissionForAliases(aliases, call, "permissionResult");
     }
 
     @PermissionCallback
     private void permissionResult(PluginCall call) {
+        String access = permission(getContext());
+        boolean allowed = "granted".equals(access) || "partial".equals(access);
+        if (allowed && Build.VERSION.SDK_INT >= 33 && getPermissionState("notifications") == PermissionState.PROMPT) {
+            requestPermissionForAlias("notifications", call, "notificationResult");
+            return;
+        }
+        notificationResult(call);
+    }
+
+    @PermissionCallback
+    private void notificationResult(PluginCall call) {
         BackupScheduler.schedule(getContext());
-        call.resolve(status(getContext()));
+        call.resolve(current());
+    }
+
+    @PluginMethod
+    public void openSettings(PluginCall call) {
+        Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", getContext().getPackageName(), null));
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
+        call.resolve();
     }
 
     @PluginMethod

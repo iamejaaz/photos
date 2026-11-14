@@ -32,6 +32,7 @@ export type PhotosBackupPlugin = {
     includeVideos?: boolean
   }): Promise<BackupStatus>
   requestPermission(): Promise<BackupStatus>
+  openSettings(): Promise<void>
   runNow(): Promise<void>
   signOut(): Promise<void>
   findFreeable(): Promise<{ count: number; bytes: number }>
