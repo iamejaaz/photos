@@ -33,12 +33,12 @@
       </div>
     </section>
 
-    <section v-if="explore?.places.length">
+    <section v-if="places.length">
       <h2 class="mb-3 text-base font-semibold text-ink-gray-8">{{ __('Places') }}</h2>
       <div class="flex flex-wrap gap-2">
         <router-link
-          v-for="place in explore.places.slice(0, 10)"
-          :key="place.place ?? ''"
+          v-for="place in places"
+          :key="place.place!"
           :to="{ name: 'photos-search', query: { place: place.place } }"
           class="flex items-center gap-1.5 rounded-full bg-surface-gray-2 px-3 py-1.5 text-base text-ink-gray-8"
         >
@@ -63,7 +63,7 @@
     </section>
 
     <div
-      v-if="loaded && !recent.length && !people.length && !explore?.places.length && !explore?.things.length"
+      v-if="loaded && !recent.length && !people.length && !places.length && !explore?.things.length"
       class="flex flex-col items-center gap-2 py-20 text-center"
     >
       <div class="text-lg font-medium text-ink-gray-8">{{ __('Search your photos') }}</div>
@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Button } from 'frappe-ui'
 import LucideHistory from '~icons/lucide/history'
 import LucideMapPin from '~icons/lucide/map-pin'
@@ -88,6 +88,7 @@ import FaceAvatar from './FaceAvatar.vue'
 const recent = recentSearches
 const people = ref<Person[]>([])
 const explore = ref<Awaited<ReturnType<typeof getExplore>> | null>(null)
+const places = computed(() => (explore.value?.places ?? []).filter((place) => place.place).slice(0, 10))
 const loaded = ref(false)
 
 const clearRecent = () => clearRecentSearches()
