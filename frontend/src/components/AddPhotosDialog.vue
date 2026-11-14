@@ -27,7 +27,7 @@
         <div class="flex items-center gap-3">
           <Button @click="uploadFromComputer">
             <template #prefix><LucideUpload class="size-4" /></template>
-            {{ __('Upload from computer') }}
+            {{ __('Upload') }}
           </Button>
           <span class="text-base text-ink-gray-6">{{ __('{0} selected', [picked.size]) }}</span>
         </div>
