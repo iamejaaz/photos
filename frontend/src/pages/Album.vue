@@ -111,6 +111,13 @@
     <div class="text-lg font-medium text-ink-gray-8">{{ __('This link has expired') }}</div>
     <div class="text-base text-ink-gray-5">{{ __('Ask the person who shared it for a new one.') }}</div>
   </div>
+  <div v-else-if="gate === 'missing'" class="flex flex-col items-center gap-2 px-6 py-24 text-center">
+    <div class="text-lg font-medium text-ink-gray-8">{{ __('This link is no longer available') }}</div>
+    <div class="text-base text-ink-gray-5">{{ __('The album was deleted or its link was stopped.') }}</div>
+    <Button v-if="loggedIn" variant="subtle" size="md" class="mt-2" :route="{ name: 'photos-albums' }">
+      {{ __('Go to albums') }}
+    </Button>
+  </div>
   <div v-else-if="error" class="flex flex-col items-center justify-center gap-3 px-6 py-24 text-center">
     <div class="flex size-14 items-center justify-center rounded-full bg-surface-gray-2">
       <LucideLock class="size-6 text-ink-gray-6" />
@@ -120,8 +127,9 @@
     <Button v-if="loggedIn" variant="subtle" size="md" class="mt-2" :route="{ name: 'photos-albums' }">
       {{ __('Go to albums') }}
     </Button>
-    <Button v-else variant="solid" size="md" class="mt-2" @click="signIn">{{ __('Sign in') }}</Button>
   </div>
+  <LoadFailed v-else-if="failed" :title="__('Couldn\'t load this album')" :retrying="retrying" @retry="retry" />
+  <div v-else-if="!album" class="flex justify-center py-24"><LoadingIndicator class="size-5" /></div>
   <div v-else class="flex min-h-full">
     <div class="min-w-0 flex-1">
       <div v-if="found" class="flex items-center gap-2 px-4 py-3 sm:px-5">
@@ -142,7 +150,7 @@
       />
     </div>
     <ActivityPanel
-      v-if="showActivity && album"
+      v-if="showActivity"
       class="sticky top-0 h-[calc(100vh-3rem)]"
       :album="album.name"
       :can-moderate="Boolean(album.access?.owner)"
@@ -211,7 +219,18 @@ import { errorText } from '../resources/drive'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
-import { Button, Checkbox, Dialog, Dropdown, ErrorMessage, Password, TextInput, toast, usePageMeta } from 'frappe-ui'
+import {
+  Button,
+  Checkbox,
+  Dialog,
+  Dropdown,
+  ErrorMessage,
+  LoadingIndicator,
+  Password,
+  TextInput,
+  toast,
+  usePageMeta,
+} from 'frappe-ui'
 import LucideLock from '~icons/lucide/lock'
 import LucideChevronRight from '~icons/lucide/chevron-right'
 import LucideEllipsis from '~icons/lucide/ellipsis'
@@ -246,6 +265,7 @@ import SelfieCamera from '../components/SelfieCamera.vue'
 import AddPhotosDialog from '../components/AddPhotosDialog.vue'
 import AlbumLinkDialog from '../components/AlbumLinkDialog.vue'
 import AutoPeopleDialog from '../components/AutoPeopleDialog.vue'
+import LoadFailed from '../components/LoadFailed.vue'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import ShareAlbumDialog from '../components/ShareAlbumDialog.vue'
@@ -260,7 +280,6 @@ import { startExport } from '../data/imports'
 const props = defineProps<{ album: string }>()
 const router = useRouter()
 const loggedIn = computed(() => useSessionStore().isLoggedIn)
-const signIn = () => location.assign(`/login?redirect-to=${encodeURIComponent(location.pathname)}`)
 
 const handle = createFeed(ALBUM_PHOTOS, { album: props.album })
 const album = ref<Album | null>(null)
@@ -341,14 +360,36 @@ function openPhoto(file: string) {
   if (handle.feed.rows.some((row) => row.name === file)) openLightbox(handle, file)
 }
 
+const failed = ref(false)
+const retrying = ref(false)
+const denied = (e: unknown) => {
+  const { exc_type, status } = e as { exc_type?: string; status?: number }
+  return ['PermissionError', 'DoesNotExistError'].includes(exc_type ?? '') || status === 403 || status === 404
+}
+
+async function retry() {
+  retrying.value = true
+  await refresh()
+  retrying.value = false
+}
+
 async function refresh() {
   try {
     album.value = await getAlbum(props.album)
     gate.value = null
-  } catch {
-    const state = await albumGate(props.album).catch(() => null)
-    if (state?.locked || state?.expired) {
-      gate.value = state.locked ? 'locked' : 'expired'
+    error.value = ''
+    failed.value = false
+  } catch (e) {
+    if (!denied(e)) {
+      if (!album.value) failed.value = true
+      return
+    }
+    failed.value = false
+    const state = (await albumGate(props.album).catch(() => null)) as
+      | { locked: boolean; expired: boolean; missing?: boolean }
+      | null
+    if (state?.locked || state?.expired || state?.missing) {
+      gate.value = state.missing ? 'missing' : state.locked ? 'locked' : 'expired'
       return
     }
     error.value = loggedIn.value
@@ -415,7 +456,7 @@ async function downloadAll() {
   download(files.map((name) => ({ name, album: props.album }) as Photo))
 }
 
-const gate = ref<'locked' | 'expired' | null>(null)
+const gate = ref<'locked' | 'expired' | 'missing' | null>(null)
 const password = ref('')
 const passwordError = ref('')
 const unlocking = ref(false)

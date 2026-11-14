@@ -1,12 +1,18 @@
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { type Album, getAlbums, getSharedAlbums } from '../resources/albums'
 
 export const albums = ref<Album[]>([])
 export const sharedAlbums = ref<Album[]>([])
-export const albumsLoaded = ref(false)
+export const albumsStatus = ref<'loading' | 'ready' | 'failed'>('loading')
+export const albumsLoaded = computed(() => albumsStatus.value === 'ready')
 export async function loadAlbums() {
-  ;[albums.value, sharedAlbums.value] = await Promise.all([getAlbums(), getSharedAlbums()])
-  albumsLoaded.value = true
+  try {
+    ;[albums.value, sharedAlbums.value] = await Promise.all([getAlbums(), getSharedAlbums()])
+    albumsStatus.value = 'ready'
+  } catch (error) {
+    if (albumsStatus.value !== 'ready') albumsStatus.value = 'failed'
+    throw error
+  }
 }
 export const albumPicker = reactive<{ open: boolean; files: string[] }>({
   open: false,

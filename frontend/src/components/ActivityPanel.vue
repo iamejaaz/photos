@@ -1,6 +1,6 @@
 <template>
   <aside
-    class="flex w-80 shrink-0 flex-col border-l bg-surface-base max-md:fixed max-md:inset-0 max-md:z-30 max-md:w-full"
+    class="flex w-80 shrink-0 flex-col border-l bg-surface-base max-md:fixed max-md:inset-0 max-md:z-30 max-md:w-full max-md:pb-[var(--photos-bottom-bar,0px)]"
   >
     <div class="flex items-center justify-between px-4 py-3">
       <span class="text-base font-semibold text-ink-gray-9">{{ __('Activity') }}</span>

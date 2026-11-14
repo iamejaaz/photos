@@ -47,7 +47,7 @@
       </div>
     </div>
     <template #actions>
-      <Button variant="solid" class="w-full" :loading="saving" @click="save">{{ __('Save') }}</Button>
+      <Button variant="solid" class="w-full" :disabled="!settings" :loading="saving" @click="save">{{ __('Save') }}</Button>
     </template>
   </Dialog>
 </template>
@@ -70,15 +70,27 @@ const removePassword = ref(false)
 const saving = ref(false)
 
 watch(open, async (value) => {
-  if (!value) return
-  settings.value = await getLinkSettings(props.album)
+  if (!value) {
+    settings.value = null
+    return
+  }
+  let loaded: LinkSettings
+  try {
+    loaded = await getLinkSettings(props.album)
+  } catch {
+    toast.error(__('Could not load link settings. Try again.'))
+    open.value = false
+    return
+  }
+  if (!open.value) return
   removePassword.value = false
   Object.assign(form, {
-    allow_uploads: Boolean(settings.value.allow_uploads),
-    allow_download: Boolean(settings.value.allow_download),
-    link_expires_on: settings.value.link_expires_on?.slice(0, 10) ?? '',
+    allow_uploads: Boolean(loaded.allow_uploads),
+    allow_download: Boolean(loaded.allow_download),
+    link_expires_on: loaded.link_expires_on?.slice(0, 10) ?? '',
     password: '',
   })
+  settings.value = loaded
 })
 
 async function save() {

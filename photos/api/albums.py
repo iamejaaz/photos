@@ -85,8 +85,10 @@ def _has_public_link(album):
 @frappe.whitelist(allow_guest=True)
 def album_gate(album: str):
     doc = frappe.db.get_value(ALBUM, album, ["title", "link_expires_on"], as_dict=True)
-    if not doc or not _has_public_link(album):
-        frappe.throw("This album doesn't exist or isn't shared with you.", frappe.PermissionError)
+    if not doc:
+        return {"missing": True, "expired": False, "locked": False}
+    if not _has_public_link(album):
+        frappe.throw("This album isn't shared with you.", frappe.PermissionError)
     expired = bool(doc.link_expires_on and now_datetime() > get_datetime(doc.link_expires_on))
     password = get_decrypted_password(ALBUM, album, "link_password", raise_exception=False)
     return {

@@ -60,7 +60,16 @@
     </div>
     <h2 class="mb-1 mt-6 text-base font-semibold text-ink-gray-8">{{ __('Albums') }}</h2>
   </section>
-  <div class="grid grid-cols-2 gap-x-4 gap-y-6 p-3 sm:grid-cols-3 sm:p-5 lg:grid-cols-4 xl:grid-cols-5">
+  <LoadFailed
+    v-if="albumsStatus === 'failed'"
+    :title="__('Couldn\'t load albums')"
+    :retrying="retrying"
+    @retry="retry"
+  />
+  <div v-else-if="albumsStatus === 'loading'" class="flex justify-center py-24">
+    <LoadingIndicator class="size-5" />
+  </div>
+  <div v-else class="grid grid-cols-2 gap-x-4 gap-y-6 p-3 sm:grid-cols-3 sm:p-5 lg:grid-cols-4 xl:grid-cols-5">
     <router-link
       v-for="album in list"
       :key="album.name"
@@ -92,7 +101,7 @@
       </div>
     </router-link>
   </div>
-  <div v-if="albumsLoaded && !list.length" class="flex flex-col items-center gap-3 py-24 text-center">
+  <div v-if="albumsStatus === 'ready' && !list.length" class="flex flex-col items-center gap-3 py-24 text-center">
     <div class="flex size-14 items-center justify-center rounded-full bg-surface-gray-2">
       <component :is="shared ? LucideUsers : LucideImages" class="size-6 text-ink-gray-6" />
     </div>
@@ -122,7 +131,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, Dialog, Dropdown, TextInput, toast, usePageMeta } from 'frappe-ui'
+import { Button, Dialog, Dropdown, LoadingIndicator, TextInput, toast, usePageMeta } from 'frappe-ui'
 import LucideArrowUpDown from '~icons/lucide/arrow-up-down'
 import LucideGlobe from '~icons/lucide/globe'
 import LucideImages from '~icons/lucide/images'
@@ -134,8 +143,9 @@ import { readString, writeString } from '@/utils/localStorage'
 import { type Album, albumLink, createAlbum, deleteAlbum, getShareLinks } from '../resources/albums'
 import { type Folder, getFolders, getLibraryFolder } from '../resources/photos'
 import { thumbnailUrl } from '../resources/media'
+import LoadFailed from '../components/LoadFailed.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
-import { albums, albumsLoaded, loadAlbums, sharedAlbums } from '../data/albums'
+import { albums, albumsStatus, loadAlbums, sharedAlbums } from '../data/albums'
 import { markSharingSeen } from '../data/prefs'
 import { itemCount } from '../utils'
 
@@ -191,7 +201,18 @@ if (props.shared) {
     libraries.value = folders.filter((folder) => folder.title === 'Photos' && folder.name !== mine.name)
   })
 }
-loadAlbums().then(() => props.shared && markSharingSeen())
+const retrying = ref(false)
+const load = () =>
+  loadAlbums()
+    .then(() => props.shared && markSharingSeen())
+    .catch(() => {})
+load()
+
+async function retry() {
+  retrying.value = true
+  await load()
+  retrying.value = false
+}
 
 async function create() {
   if (!title.value.trim()) return
