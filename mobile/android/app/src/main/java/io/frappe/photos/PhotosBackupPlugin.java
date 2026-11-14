@@ -296,7 +296,9 @@ public class PhotosBackupPlugin extends Plugin {
                 for (int i = 0; i < files.length(); i++) {
                     JSONObject file = files.getJSONObject(i);
                     String name = file.optString("name", "photo").replaceAll("[/\\\\]", "_");
-                    File target = new File(folder, i + "-" + name);
+                    File slot = new File(folder, String.valueOf(i));
+                    slot.mkdirs();
+                    File target = new File(slot, name);
                     String mime = download(file.getString("url"), headers, target);
                     uris.add(FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", target));
                     String kind = mime.contains("/") ? mime.substring(0, mime.indexOf('/')) + "/*" : "*/*";
@@ -348,7 +350,10 @@ public class PhotosBackupPlugin extends Plugin {
 
     private static void deleteChildren(File folder) {
         File[] children = folder.listFiles();
-        if (children != null) for (File child : children) child.delete();
+        if (children != null) for (File child : children) {
+            if (child.isDirectory()) deleteChildren(child);
+            child.delete();
+        }
     }
 
     private void save(String url, String name, JSONObject headers) throws IOException {

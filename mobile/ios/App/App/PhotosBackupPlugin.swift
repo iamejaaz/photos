@@ -148,7 +148,9 @@ public class PhotosBackupPlugin: CAPPlugin, CAPBridgedPlugin {
                     return call.reject("The site could not send the files")
                 }
                 let name = ((file["name"] as? String) ?? http.suggestedFilename ?? "photo").replacingOccurrences(of: "/", with: "_")
-                let target = folder.appendingPathComponent("\(index)-\(name)")
+                let slot = folder.appendingPathComponent(String(index), isDirectory: true)
+                try? FileManager.default.createDirectory(at: slot, withIntermediateDirectories: true)
+                let target = slot.appendingPathComponent(name)
                 try? FileManager.default.moveItem(at: location, to: target)
                 downloaded.append(target)
             }
