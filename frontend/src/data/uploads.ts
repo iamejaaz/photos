@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 import { toast } from 'frappe-ui'
 import { addToAlbum } from '../resources/albums'
-import { existingUploads, getUploadFolder } from '../resources/photos'
+import { existingUploads, getUploadFolder, missingHashes } from '../resources/photos'
 import { uploadFile } from '../resources/drive'
 
 export type UploadStatus = 'waiting' | 'uploading' | 'done' | 'failed' | 'skipped'
@@ -40,6 +40,24 @@ interface Batch {
   finish: (names: string[]) => void
 }
 const queue: Task[] = []
+const HASH_LIMIT = 200 * 1024 * 1024
+
+async function knownUploads(files: File[]) {
+  const known = new Set(await existingUploads(files))
+  if (!globalThis.crypto?.subtle) return known
+  const pending = files
+    .map((file, index) => ({ file, key: String(index) }))
+    .filter(({ file, key }) => !known.has(key) && file.size <= HASH_LIMIT)
+  const hashes: string[] = []
+  for (const { file } of pending) {
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-1', await file.arrayBuffer()))
+    hashes.push([...digest].map((byte) => byte.toString(16).padStart(2, '0')).join(''))
+  }
+  if (!hashes.length) return known
+  const missing = new Set(await missingHashes(hashes))
+  pending.forEach(({ key }, index) => missing.has(hashes[index]) || known.add(key))
+  return known
+}
 let refreshed = 0
 let running = false
 let preparing = 0
@@ -59,7 +77,7 @@ export async function uploadPhotos(files: File[], album?: string): Promise<strin
   const items = media.map((file) => reactive<UploadItem>({ name: file.name, size: file.size, status: 'waiting' }))
   upload.items.push(...items)
   upload.total += media.length
-  const existing = new Set(await existingUploads(media).catch(() => []))
+  const existing = await knownUploads(media).catch(() => new Set<string>())
   const tasks = media
     .map((file, index) => ({ file, item: items[index], album }))
     .filter(({ item }, index) => {

@@ -89,3 +89,5 @@ export const existingUploads = (files: File[]) =>
     items: files.map((file, index) => ({ key: String(index), name: file.name, size: file.size })),
   }) as Promise<string[]>
 export const getUploadFolder = () => call(`${PHOTOS}.get_upload_folder`) as Promise<string>
+export const missingHashes = (hashes: string[]) =>
+  call('photos.api.backup.missing', { hashes }) as Promise<string[]>
