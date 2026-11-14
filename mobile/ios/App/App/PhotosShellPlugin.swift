@@ -3,6 +3,7 @@ import Capacitor
 import Foundation
 import LocalAuthentication
 import UIKit
+import UserNotifications
 
 @objc(PhotosShellPlugin)
 public class PhotosShellPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -15,10 +16,15 @@ public class PhotosShellPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "confirmScreenLock", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "captureScreen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setLandscape", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "movieProgress", returnType: CAPPluginReturnPromise),
     ]
 
     private static let screenshotSide: CGFloat = 1280
     private var signIn: ASWebAuthenticationSession?
+
+    override public func load() {
+        bridge?.notificationRouter.localNotificationHandler = self
+    }
 
     @objc func authorize(_ call: CAPPluginCall) {
         guard let address = call.getString("url"), let url = URL(string: address), let scheme = call.getString("scheme") else {
@@ -87,6 +93,27 @@ public class PhotosShellPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve()
         }
     }
+
+    @objc func movieProgress(_ call: CAPPluginCall) {
+        guard let id = call.getString("id"), let state = call.getString("state") else { return call.resolve() }
+        let title = call.getString("title") ?? ""
+        let done = call.getInt("done") ?? 0
+        let total = call.getInt("total") ?? 0
+        let left = call.getDouble("left")
+        DispatchQueue.main.async {
+            MovieProgress.shared.handle(id: id, title: title, done: done, total: total, left: left, state: state)
+            call.resolve()
+        }
+    }
+}
+
+extension PhotosShellPlugin: NotificationHandlerProtocol {
+    public func willPresent(notification: UNNotification) -> UNNotificationPresentationOptions {
+        guard notification.request.identifier.hasPrefix(MovieProgress.notificationPrefix) else { return [] }
+        return [.banner, .list, .sound]
+    }
+
+    public func didReceive(response: UNNotificationResponse) {}
 }
 
 extension PhotosShellPlugin: ASWebAuthenticationPresentationContextProviding {
