@@ -12,4 +12,12 @@
     <string name="backup_channel">Backup</string>
     <string name="backup_running">Backing up to Photos</string>
     <string name="backup_progress">%1$d of %2$d</string>
+    <string name="movies_channel">Movies</string>
+    <string name="movie_running">Making “%1$s”</string>
+    <string name="movie_ready">“%1$s” is ready</string>
+    <string name="movie_failed">Couldn\'t make “%1$s”</string>
+    <string name="movie_progress">%1$d of %2$d photos</string>
+    <string name="movie_minutes_left">About %1$d min left</string>
+    <string name="movie_minute_left">Less than a minute left</string>
+    <string name="movie_finishing">Finishing…</string>
 </resources>

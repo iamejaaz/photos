@@ -1,5 +1,9 @@
 package io.frappe.photos;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
@@ -14,6 +18,8 @@ import android.view.PixelCopy;
 import android.view.View;
 import android.view.Window;
 import androidx.browser.customtabs.CustomTabsIntent;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.FileProvider;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -237,5 +243,55 @@ public class PhotosShellPlugin extends Plugin {
             );
             call.resolve();
         });
+    }
+
+    private static final String MOVIE_CHANNEL = "movies";
+    private static final int MOVIE_NOTIFICATION = 3;
+
+    @PluginMethod
+    public void movieProgress(PluginCall call) {
+        Context context = getContext();
+        String id = call.getString("id", "");
+        String title = call.getString("title", "");
+        String state = call.getString("state", "running");
+        int done = call.getInt("done", 0);
+        int total = call.getInt("total", 0);
+        Integer left = call.getInt("left");
+        NotificationManagerCompat manager = NotificationManagerCompat.from(context);
+        if (!manager.areNotificationsEnabled()) {
+            call.resolve();
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 26 && manager.getNotificationChannel(MOVIE_CHANNEL) == null) {
+            manager.createNotificationChannel(new NotificationChannel(MOVIE_CHANNEL, context.getString(R.string.movies_channel), NotificationManager.IMPORTANCE_LOW));
+        }
+        Intent open = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, MOVIE_CHANNEL)
+            .setSmallIcon(R.drawable.ic_backup)
+            .setSilent(true)
+            .setContentIntent(PendingIntent.getActivity(context, id.hashCode(), open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        if ("running".equals(state)) {
+            String text = context.getString(R.string.movie_progress, done, total);
+            if (total > 0 && done >= total) {
+                text += " · " + context.getString(R.string.movie_finishing);
+            } else if (left != null) {
+                text += " · " + (left >= 90
+                    ? context.getString(R.string.movie_minutes_left, Math.round(left / 60f))
+                    : context.getString(R.string.movie_minute_left));
+            }
+            builder.setContentTitle(context.getString(R.string.movie_running, title))
+                .setContentText(text)
+                .setProgress(Math.max(total, 1), done, false)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true);
+        } else {
+            builder.setContentTitle(context.getString("ready".equals(state) ? R.string.movie_ready : R.string.movie_failed, title))
+                .setAutoCancel(true);
+        }
+        try {
+            manager.notify(id, MOVIE_NOTIFICATION, builder.build());
+        } catch (SecurityException ignored) {
+        }
+        call.resolve();
     }
 }
