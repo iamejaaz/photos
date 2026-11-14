@@ -1,22 +1,31 @@
 <template>
   <Teleport to="body">
-    <div v-if="photo" class="fixed inset-0 z-[60] flex flex-col bg-black text-white">
+    <div v-if="photo" ref="root" class="fixed inset-0 z-[60] flex flex-col bg-black text-white">
       <div class="flex items-center justify-between p-3">
-        <button class="editor-button" :aria-label="__('Cancel')" @click="emit('close')">
+        <button
+          class="editor-button disabled:opacity-40"
+          :aria-label="__('Cancel')"
+          :disabled="saving"
+          @click="requestClose"
+        >
           <LucideX class="size-5" />
         </button>
         <div class="flex items-center gap-2">
-          <button class="rounded-full px-4 py-2 text-sm text-white/80 hover:bg-white/10" @click="reset">
+          <button
+            class="rounded-full px-4 py-2 text-sm text-white/80 hover:bg-white/10 disabled:opacity-40"
+            :disabled="saving"
+            @click="reset"
+          >
             {{ __('Reset') }}
           </button>
-          <Button variant="solid" :loading="saving" :disabled="!ready" @click="save">{{
+          <Button variant="solid" :loading="saving" :disabled="status !== 'ready'" @click="save">{{
             __('Save copy')
           }}</Button>
         </div>
       </div>
 
       <div class="flex min-h-0 flex-1 items-center justify-center p-4">
-        <div v-show="ready" ref="stage" class="relative max-h-full max-w-full overflow-hidden">
+        <div v-show="status === 'ready'" ref="stage" class="relative max-h-full max-w-full overflow-hidden">
           <canvas ref="canvas" class="block max-h-[calc(100vh-14rem)] max-w-full" />
           <div
             v-if="active === 'crop'"
@@ -42,7 +51,12 @@
             />
           </div>
         </div>
-        <LoadingIndicator v-if="!ready" class="size-6" />
+        <LoadingIndicator v-if="status === 'loading'" class="size-6" />
+        <div v-else-if="status === 'failed'" class="flex flex-col items-center gap-3 text-center">
+          <LucideCloudOff class="size-6 text-white/60" />
+          <div class="text-base text-white/80">{{ __("Couldn't load this photo") }}</div>
+          <Button @click="load">{{ __('Try again') }}</Button>
+        </div>
       </div>
 
       <div class="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
@@ -58,22 +72,24 @@
           </button>
         </div>
 
-        <div v-if="active === 'filters'" class="flex justify-center gap-3 overflow-x-auto pb-1">
-          <button
-            v-for="filter in FILTERS"
-            :key="filter.name"
-            class="flex w-20 shrink-0 flex-col items-center gap-1.5 text-xs"
-            @click="state.filter = filter.name"
-          >
-            <img
-              :src="thumbnailUrl(photo.name)"
-              class="size-16 rounded-lg object-cover"
-              :class="{ 'ring-2 ring-white ring-offset-2 ring-offset-black': state.filter === filter.name }"
-              :style="{ filter: filter.css }"
-              alt=""
-            />
-            {{ filter.label }}
-          </button>
+        <div v-if="active === 'filters'" class="overflow-x-auto pb-1 pt-1">
+          <div class="mx-auto flex w-max gap-3 px-1">
+            <button
+              v-for="filter in FILTERS"
+              :key="filter.name"
+              class="flex w-20 shrink-0 flex-col items-center gap-1.5 text-xs"
+              @click="state.filter = filter.name"
+            >
+              <img
+                :src="thumbnailUrl(photo.name)"
+                class="size-16 rounded-lg object-cover"
+                :class="{ 'ring-2 ring-white ring-offset-2 ring-offset-black': state.filter === filter.name }"
+                :style="{ filter: filter.css }"
+                alt=""
+              />
+              {{ filter.label }}
+            </button>
+          </div>
         </div>
 
         <div v-else-if="active === 'adjust'" class="grid gap-3 sm:grid-cols-2">
@@ -90,32 +106,44 @@
           </label>
         </div>
 
-        <div v-else class="flex flex-wrap items-center justify-center gap-2">
-          <button
-            v-for="ratio in RATIOS"
-            :key="ratio.label"
-            class="rounded-full px-3 py-1.5 text-sm"
-            :class="state.ratio === ratio.value ? 'bg-white text-black' : 'text-white/80 hover:bg-white/10'"
-            @click="setRatio(ratio.value)"
-          >
-            {{ ratio.label }}
-          </button>
-          <span class="mx-2 h-5 w-px bg-white/20" />
-          <button class="editor-button" :aria-label="__('Rotate')" @click="rotate">
-            <LucideRotateCw class="size-5" />
-          </button>
-          <button class="editor-button" :aria-label="__('Flip')" @click="state.flip = !state.flip">
-            <LucideFlipHorizontal2 class="size-5" />
-          </button>
+        <div v-else class="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+          <div class="flex flex-wrap justify-center gap-1 sm:gap-2">
+            <button
+              v-for="ratio in RATIOS"
+              :key="ratio.label"
+              class="rounded-full px-3 py-1.5 text-sm"
+              :class="state.ratio === ratio.value ? 'bg-white text-black' : 'text-white/80 hover:bg-white/10'"
+              @click="setRatio(ratio.value)"
+            >
+              {{ ratio.label }}
+            </button>
+          </div>
+          <span class="mx-2 hidden h-5 w-px bg-white/20 sm:block" />
+          <div class="flex gap-2">
+            <button class="editor-button" :aria-label="__('Rotate')" @click="rotate">
+              <LucideRotateCw class="size-5" />
+            </button>
+            <button class="editor-button" :aria-label="__('Flip')" @click="state.flip = !state.flip">
+              <LucideFlipHorizontal2 class="size-5" />
+            </button>
+          </div>
         </div>
       </div>
+      <Dialog
+        v-model:open="confirmDiscard"
+        :title="__('Discard edits?')"
+        :message="__('Your changes to this photo will be lost.')"
+        size="sm"
+        :actions="[{ label: __('Discard'), variant: 'solid', theme: 'red', onClick: discard }]"
+      />
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
-import { Button, LoadingIndicator, toast } from 'frappe-ui'
+import { computed, reactive, ref, watch } from 'vue'
+import { Button, Dialog, LoadingIndicator, providePortalTarget, toast } from 'frappe-ui'
+import LucideCloudOff from '~icons/lucide/cloud-off'
 import LucideFlipHorizontal2 from '~icons/lucide/flip-horizontal-2'
 import LucideRotateCw from '~icons/lucide/rotate-cw'
 import LucideX from '~icons/lucide/x'
@@ -124,15 +152,14 @@ import { type Photo, getUploadFolder } from '../resources/photos'
 import { originalUrl, thumbnailUrl } from '../resources/media'
 import { markEdited } from '../resources/edit'
 import { addToAlbum } from '../resources/albums'
-import { uploadFile, errorText } from '../resources/drive'
+import { uploadFile } from '../resources/drive'
 import { useBackClose } from '../composables/useBackClose'
 
 const props = defineProps<{ photo: Photo | null; folder?: string | null; album?: string | null }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
-useBackClose(
-  () => Boolean(props.photo),
-  () => emit('close'),
-)
+const root = ref<HTMLElement>()
+providePortalTarget(root)
+const confirmDiscard = ref(false)
 
 type SliderKey = 'brightness' | 'contrast' | 'saturation' | 'warmth'
 const FILTERS = [
@@ -186,11 +213,33 @@ const state = reactive(initial())
 const active = ref<'crop' | 'adjust' | 'filters'>('crop')
 const canvas = ref<HTMLCanvasElement>()
 const stage = ref<HTMLElement>()
-const ready = ref(false)
+const status = ref<'loading' | 'failed' | 'ready'>('loading')
 const saving = ref(false)
 let source: HTMLImageElement | null = null
 
 const reset = () => Object.assign(state, initial())
+const dirty = computed(() => JSON.stringify(state) !== JSON.stringify(initial()))
+
+function requestClose() {
+  if (saving.value) return
+  if (dirty.value) confirmDiscard.value = true
+  else emit('close')
+}
+
+function discard() {
+  confirmDiscard.value = false
+  emit('close')
+}
+
+useBackClose(() => Boolean(props.photo) && !confirmDiscard.value, requestClose)
+useBackClose(
+  () => confirmDiscard.value,
+  () => (confirmDiscard.value = false),
+)
+useBackClose(
+  () => saving.value,
+  () => {},
+)
 
 function cssFilter() {
   const parts = [FILTERS.find((f) => f.name === state.filter)?.css ?? 'none']
@@ -320,20 +369,30 @@ function endDrag() {
   window.removeEventListener('pointermove', onDrag)
 }
 
+function load() {
+  const name = props.photo?.name
+  status.value = 'loading'
+  if (!name) return
+  const image = new Image()
+  image.onload = () => {
+    if (props.photo?.name !== name) return
+    source = image
+    status.value = 'ready'
+    draw()
+  }
+  image.onerror = () => {
+    if (props.photo?.name === name) status.value = 'failed'
+  }
+  image.crossOrigin = 'anonymous'
+  image.src = originalUrl(name)
+}
+
 watch(
   () => props.photo?.name,
-  (name) => {
-    ready.value = false
+  () => {
+    confirmDiscard.value = false
     reset()
-    if (!name) return
-    const image = new Image()
-    image.onload = () => {
-      source = image
-      ready.value = true
-      draw()
-    }
-    image.crossOrigin = 'anonymous'
-    image.src = originalUrl(name)
+    load()
   },
   { immediate: true },
 )
@@ -356,20 +415,16 @@ async function save() {
       type: 'image/jpeg',
       lastModified: new Date(props.photo.taken).getTime(),
     })
-    let saved: string | null
-    try {
-      if (!props.folder) throw new Error()
-      saved = await uploadFile(file, props.folder, () => {})
-    } catch {
-      saved = await uploadFile(file, await getUploadFolder(), () => {})
-    }
+    const saved = await uploadFile(file, props.folder || (await getUploadFolder()), () => {})
     if (saved) await markEdited(saved, props.photo.name).catch(() => {})
-    if (saved && props.album) await addToAlbum(props.album, [saved])
-    toast.success(__('Saved a copy next to the original'))
+    let added = true
+    if (saved && props.album) await addToAlbum(props.album, [saved]).catch(() => (added = false))
+    if (added) toast.success(__('Saved a copy next to the original'))
+    else toast.error(__("Saved the copy, but couldn't add it to the album"))
     emit('saved')
     emit('close')
-  } catch (error) {
-    toast.error(errorText(error) || __('Could not save'))
+  } catch {
+    toast.error(__("Couldn't save the copy. Try again."))
   } finally {
     saving.value = false
   }
