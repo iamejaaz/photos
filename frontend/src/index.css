@@ -33,6 +33,13 @@ body {
   margin: 0;
 }
 
+html.native {
+  --inset-top: env(safe-area-inset-top, 0px);
+  --inset-right: env(safe-area-inset-right, 0px);
+  --inset-bottom: env(safe-area-inset-bottom, 0px);
+  --inset-left: env(safe-area-inset-left, 0px);
+}
+
 html.native .fixed.inset-0 {
   top: var(--inset-top, 0px);
   right: var(--inset-right, 0px);
