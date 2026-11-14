@@ -179,6 +179,7 @@ function loadImage(name: string) {
     const image = new Image()
     image.onload = () => resolve(image)
     image.onerror = reject
+    image.crossOrigin = 'anonymous'
     image.src = contentUrl(name)
   })
 }

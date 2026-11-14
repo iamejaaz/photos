@@ -332,6 +332,7 @@ watch(
       ready.value = true
       draw()
     }
+    image.crossOrigin = 'anonymous'
     image.src = originalUrl(name)
   },
   { immediate: true },

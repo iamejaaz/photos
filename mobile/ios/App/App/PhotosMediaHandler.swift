@@ -81,7 +81,7 @@ final class PhotosMediaHandler: NSObject, WKURLSchemeHandler {
         fetch(file, index: opening, bearer: bearer) { block in
             guard block != nil, let total = file.total else { return self.fail(delivery, status: 502) }
             guard let (start, end) = Self.bounds(asked, total: total) else { return self.fail(delivery, status: 416) }
-            var headers = ["Content-Type": file.type, "Accept-Ranges": "bytes", "Content-Length": String(end - start + 1), "X-Content-Type-Options": "nosniff"]
+            var headers = ["Content-Type": file.type, "Accept-Ranges": "bytes", "Content-Length": String(end - start + 1), "X-Content-Type-Options": "nosniff", "Access-Control-Allow-Origin": "*"]
             if range != nil { headers["Content-Range"] = "bytes \(start)-\(end)/\(total)" }
             self.begin(delivery, status: range == nil ? 200 : 206, headers: headers)
             self.stream(delivery, file: file, from: start, to: end, bearer: bearer)
@@ -237,7 +237,7 @@ final class PhotosMediaHandler: NSObject, WKURLSchemeHandler {
     private func fromDisk(_ schemeTask: WKURLSchemeTask, file: URL, range: String?) {
         guard let data = try? Data(contentsOf: file, options: .mappedIfSafe) else { return fail(schemeTask, status: 500) }
         guard let (start, end) = Self.bounds(Self.parse(range), total: data.count) else { return fail(schemeTask, status: 416) }
-        var headers = ["Content-Type": mime(for: file), "Accept-Ranges": "bytes", "Content-Length": String(end - start + 1), "X-Content-Type-Options": "nosniff"]
+        var headers = ["Content-Type": mime(for: file), "Accept-Ranges": "bytes", "Content-Length": String(end - start + 1), "X-Content-Type-Options": "nosniff", "Access-Control-Allow-Origin": "*"]
         if range != nil { headers["Content-Range"] = "bytes \(start)-\(end)/\(data.count)" }
         let response = HTTPURLResponse(url: schemeTask.request.url!, statusCode: range == nil ? 200 : 206, httpVersion: "HTTP/1.1", headerFields: headers)!
         schemeTask.didReceive(response)
