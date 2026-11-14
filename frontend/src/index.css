@@ -40,6 +40,10 @@ html.native {
   --inset-left: env(safe-area-inset-left, 0px);
 }
 
+html.native [data-slot='desktop-shell'] {
+  padding: var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
+}
+
 html.native .fixed.inset-0 {
   top: var(--inset-top, 0px);
   right: var(--inset-right, 0px);
