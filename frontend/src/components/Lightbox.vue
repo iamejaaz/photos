@@ -282,7 +282,7 @@
       >
         <aside
           v-if="lightbox.showInfo"
-          class="flex w-full max-w-sm shrink-0 flex-col overflow-y-auto bg-surface-base text-ink-gray-8 max-sm:absolute max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-[45%] max-sm:z-20 max-sm:max-w-none max-sm:rounded-t-2xl max-sm:shadow-2xl"
+          class="flex w-full max-w-sm shrink-0 flex-col overflow-y-auto bg-surface-base text-ink-gray-8 max-sm:absolute max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-[55%] max-sm:z-20 max-sm:max-w-none max-sm:rounded-t-2xl max-sm:shadow-2xl"
         >
           <div class="flex items-center gap-2 px-5 py-4">
             <button
@@ -294,7 +294,7 @@
             </button>
             <span class="text-lg font-medium">{{ __('Info') }}</span>
           </div>
-          <div v-if="details" class="flex flex-col gap-5 px-5 pb-8 text-base">
+          <div v-if="details" class="flex flex-col gap-5 px-5 pb-8 text-base max-sm:pb-4">
             <Textarea
               v-if="photo.write"
               v-model="caption"

@@ -58,7 +58,6 @@ html.native .fixed.inset-0.edge-to-edge {
 
 @media (max-width: 639px) {
   html.native .edge-to-edge > aside {
-    padding-top: var(--inset-top, 0px);
     padding-bottom: var(--inset-bottom, 0px);
   }
 }
