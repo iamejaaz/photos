@@ -35,6 +35,7 @@ interface Removal {
   names: string[]
   steps: { row: Photo; index: number }[][]
   viewing: boolean
+  undone?: boolean
 }
 let lastRemoval: Removal | null = null
 
@@ -64,13 +65,16 @@ function removeWithUndo(
     action: {
       label: __('Undo'),
       onClick: async () => {
+        if (removal.undone) return
+        removal.undone = true
         forget()
-        await revert(removal.names)
+        toast.dismiss(UNDO_TOAST)
+        if (!(await attempt(() => revert(removal.names), __('Could not undo. Try again.')))) return
         putBack(removal)
         notifyUploaded()
         const last = removal.names[removal.names.length - 1]
         if (removal.viewing && removal.feed) openLightbox(removal.feed, last)
-        toast.success(countLabel('Restored', '{0} items restored', removal.names.length), { id: UNDO_TOAST })
+        toast.success(countLabel('Restored', '{0} items restored', removal.names.length))
       },
     },
   })
@@ -90,16 +94,26 @@ export function mergedToast(token: string | undefined, afterUndo: () => unknown)
       ? {
           label: __('Undo'),
           onClick: async () => {
+            toast.dismiss(UNDO_TOAST)
             await undoMerge(token)
             await afterUndo()
-            toast.success(__('Merge undone'), { id: UNDO_TOAST })
+            toast.success(__('Merge undone'))
           },
         }
       : undefined,
   })
 }
+async function attempt(work: () => Promise<unknown>, message: string) {
+  try {
+    await work()
+    return true
+  } catch {
+    toast.error(message)
+    return false
+  }
+}
 export async function trash(names: string[]) {
-  await toggleTrash(names)
+  if (!(await attempt(() => toggleTrash(names), __('Could not move to trash. Try again.')))) return false
   removeWithUndo(
     'trash',
     names,
@@ -108,18 +122,18 @@ export async function trash(names: string[]) {
   )
 }
 export async function restore(names: string[]) {
-  await toggleTrash(names)
+  if (!(await attempt(() => toggleTrash(names), __('Could not restore. Try again.')))) return false
   dropFromFeed(names)
   notifyUploaded()
   toast.success(countLabel('Restored', '{0} items restored', names.length))
 }
 export async function removeForever(names: string[]) {
-  await deleteForever(names)
+  if (!(await attempt(() => deleteForever(names), __('Could not delete. Try again.')))) return false
   dropFromFeed(names)
   toast.success(countLabel('Deleted forever', '{0} items deleted forever', names.length))
 }
 export async function archive(names: string[], value = true) {
-  await setArchived(names, value)
+  if (!(await attempt(() => setArchived(names, value), __('Could not update. Try again.')))) return false
   removeWithUndo(
     `archive:${value}`,
     names,
@@ -131,7 +145,7 @@ export async function archive(names: string[], value = true) {
   )
 }
 export async function hide(names: string[], value = true) {
-  await setHidden(names, value)
+  if (!(await attempt(() => setHidden(names, value), __('Could not update. Try again.')))) return false
   dropFromFeed(names)
   notifyUploaded()
   toast.success(

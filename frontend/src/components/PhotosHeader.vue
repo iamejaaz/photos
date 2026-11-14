@@ -382,13 +382,13 @@ const moreActions = computed(() =>
 )
 
 async function run(action: Action) {
-  await action.run([...selection])
+  if ((await action.run([...selection])) === false) return
   if (!action.keepSelection) clearSelection()
 }
 
 async function deleteSelected() {
   confirmDelete.value = false
-  await removeForever([...selection])
+  if ((await removeForever([...selection])) === false) return
   clearSelection()
 }
 
