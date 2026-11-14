@@ -9,6 +9,7 @@ import { startExport } from './imports'
 import { type FeedHandle, activeFeed } from './feed'
 import { lightbox, openLightbox } from './viewer'
 import { selection } from './selection'
+import { notifyUploaded } from './uploads'
 
 export async function toggleFavourite(photos: Photo[], value?: boolean) {
   const target = value ?? !photos.every((photo) => photo.is_favourite)
@@ -47,6 +48,7 @@ function removeWithUndo(
   const wanted = new Set(names)
   const step = (feed?.feed.rows ?? []).flatMap((row, index) => (wanted.has(row.name) ? [{ row, index }] : []))
   dropFromFeed(names)
+  notifyUploaded()
   if (lastRemoval?.key === key && lastRemoval.feed === feed) {
     lastRemoval.names.push(...names)
     lastRemoval.steps.push(step)
@@ -65,6 +67,7 @@ function removeWithUndo(
         forget()
         await revert(removal.names)
         putBack(removal)
+        notifyUploaded()
         const last = removal.names[removal.names.length - 1]
         if (removal.viewing && removal.feed) openLightbox(removal.feed, last)
         toast.success(countLabel('Restored', '{0} items restored', removal.names.length), { id: UNDO_TOAST })
@@ -107,6 +110,7 @@ export async function trash(names: string[]) {
 export async function restore(names: string[]) {
   await toggleTrash(names)
   dropFromFeed(names)
+  notifyUploaded()
   toast.success(countLabel('Restored', '{0} items restored', names.length))
 }
 export async function removeForever(names: string[]) {
@@ -129,6 +133,7 @@ export async function archive(names: string[], value = true) {
 export async function hide(names: string[], value = true) {
   await setHidden(names, value)
   dropFromFeed(names)
+  notifyUploaded()
   toast.success(
     value
       ? countLabel('Hidden', '{0} items hidden', names.length)
