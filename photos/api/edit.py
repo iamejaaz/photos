@@ -215,7 +215,14 @@ def create_animation(files: list[str] | str, album: str | None = None):
 def mark_edited(file: str, original: str):
     from photos.api.albums import can_read
 
-    _writable([file])
     if not can_read(original, None):
         frappe.throw("You don't have access to the original.", frappe.PermissionError)
-    frappe.db.set_value(METADATA, file, "edited_from", original, update_modified=False)
+    for attempt in range(3):
+        try:
+            _writable([file])
+            frappe.db.set_value(METADATA, file, "edited_from", original, update_modified=False)
+            return
+        except frappe.QueryDeadlockError:
+            if attempt == 2:
+                raise
+            frappe.db.rollback()

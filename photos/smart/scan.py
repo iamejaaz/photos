@@ -4,10 +4,15 @@ from suite.drive.utils.files import FileManager, storage_key
 from photos.smart import clip, faces, places, text, things
 
 
-def safe_enrich(name):
+def safe_enrich(name, retry=False):
     frappe.db.savepoint("photos_enrich")
     try:
         enrich(name)
+    except frappe.QueryDeadlockError:
+        if not retry:
+            raise
+        frappe.db.rollback()
+        safe_enrich(name)
     except Exception:
         frappe.db.rollback(save_point="photos_enrich")
         frappe.log_error(f"Photos could not enrich {name}")
@@ -27,7 +32,8 @@ def enrich(file_name):
         found = places.lookup(meta.latitude, meta.longitude)
         if found:
             updates.update(place=f"{found['city']}, {found['country']}", country=found["country"])
-    faces.scan_file(file_name)
+    if faces.scan_file(file_name):
+        updates["faces_scanned"] = 1
     if not meta.things_scanned and things.available():
         image = _preview(file_name)
         if image is not None:

@@ -67,7 +67,7 @@ def scan_file(file_name):
                 ignore_permissions=True
             )
             _assign(doc, file.owner)
-    frappe.db.set_value("Photo Metadata", metadata.name, "faces_scanned", 1, update_modified=False)
+    return True
 
 
 def _image_faces(path):

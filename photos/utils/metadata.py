@@ -38,6 +38,7 @@ def _enqueue(name, **kwargs):
         frappe.enqueue(
             "photos.utils.metadata.extract",
             file_name=name,
+            commit=True,
             queue="short",
             deduplicate=True,
             job_id=f"photo-metadata::{name}",
@@ -48,7 +49,7 @@ def _enqueue(name, **kwargs):
     return True
 
 
-def extract(file_name):
+def extract(file_name, commit=False):
     if frappe.db.exists("Photo Metadata", file_name):
         return
     file = frappe.db.get_value(
@@ -86,10 +87,12 @@ def extract(file_name):
     frappe.get_doc({"doctype": "Photo Metadata", "file": file_name, **data}).insert(
         ignore_permissions=True, ignore_if_duplicate=True
     )
+    if commit:
+        frappe.db.commit()
     _prepare_formats(file, path)
     from photos.smart.scan import safe_enrich
 
-    safe_enrich(file_name)
+    safe_enrich(file_name, retry=commit)
 
 
 def _prepare_formats(file, path):
