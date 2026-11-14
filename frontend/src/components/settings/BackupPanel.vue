@@ -70,7 +70,7 @@
           </div>
           <div class="flex items-center gap-3">
             <Button v-if="!freeable" :loading="checking" @click="check">{{ __('Check this phone') }}</Button>
-            <Button v-else-if="freeable.count" variant="solid" @click="freeUp">{{
+            <Button v-else-if="freeable.count" variant="solid" :loading="freeing" @click="freeUp">{{
               __('Free up {0}', [formatBytes(freeable.bytes)])
             }}</Button>
             <span v-else class="text-base text-ink-gray-6">{{
@@ -167,6 +167,7 @@ const errorText = (error: string) =>
     ? __("Can't reach {0} right now. Backup tries again by itself.", [hostOf(status.value?.site ?? '')])
     : error
 const checking = ref(false)
+const freeing = ref(false)
 const freeable = ref<{ count: number; bytes: number } | null>(null)
 
 async function check() {
@@ -183,6 +184,7 @@ async function check() {
 
 async function freeUp() {
   const { plugin } = await photosBackup()
+  freeing.value = true
   try {
     const freed = await plugin.freeUpSpace()
     if (!freed.count) return
@@ -190,6 +192,8 @@ async function freeUp() {
     freeable.value = null
   } catch (error) {
     toast.error((error as Error).message)
+  } finally {
+    freeing.value = false
   }
 }
 
