@@ -253,7 +253,7 @@ import { clearSelection } from '../data/selection'
 import { createFeed } from '../data/feed'
 import { download } from '../data/actions'
 import { loadAlbums } from '../data/albums'
-import { onUploaded } from '../data/uploads'
+import { chooseFiles, onUploaded } from '../data/uploads'
 import { openLightbox } from '../data/viewer'
 import { startExport } from '../data/imports'
 
@@ -448,12 +448,7 @@ function pickContributions() {
   if (!loggedIn.value && !guestName.value.trim()) return
   askingName.value = false
   writeString('photos-guest-name', guestName.value.trim())
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.multiple = true
-  input.accept = 'image/*,video/*'
-  input.onchange = () => input.files && uploadContributions([...input.files])
-  input.click()
+  chooseFiles('image/*,video/*', uploadContributions)
 }
 
 async function uploadContributions(files: File[]) {

@@ -47,7 +47,7 @@ import LucideUpload from '~icons/lucide/upload'
 import { type Album, addToAlbum } from '../resources/albums'
 import { thumbnailUrl } from '../resources/media'
 import { createFeed } from '../data/feed'
-import { uploadPhotos } from '../data/uploads'
+import { chooseFiles, uploadPhotos } from '../data/uploads'
 
 const props = defineProps<{ album: Album }>()
 const open = defineModel<boolean>({ default: false })
@@ -73,17 +73,12 @@ function onScroll(event: Event) {
 }
 
 function uploadFromComputer() {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.multiple = true
-  input.accept = 'image/*,video/*'
-  input.onchange = async () => {
-    const names = await uploadPhotos([...(input.files ?? [])], props.album.name)
+  chooseFiles('image/*,video/*', async (files) => {
+    const names = await uploadPhotos(files, props.album.name)
     if (!names.length) return
     open.value = false
     emit('added')
-  }
-  input.click()
+  })
 }
 
 async function save() {

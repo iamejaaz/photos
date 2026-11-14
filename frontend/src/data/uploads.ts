@@ -122,11 +122,21 @@ function finish() {
   notifyUploaded()
 }
 
-export function pickAndUpload(album?: string) {
+export function chooseFiles(accept: string, onPick: (files: File[]) => void) {
   const input = document.createElement('input')
   input.type = 'file'
   input.multiple = true
-  input.accept = 'image/*,video/*'
-  input.onchange = () => input.files && uploadPhotos([...input.files], album)
+  input.accept = accept
+  input.hidden = true
+  input.onchange = () => {
+    input.remove()
+    if (input.files?.length) onPick([...input.files])
+  }
+  input.oncancel = () => input.remove()
+  document.body.append(input)
   input.click()
+}
+
+export function pickAndUpload(album?: string) {
+  chooseFiles('image/*,video/*', (files) => uploadPhotos(files, album))
 }

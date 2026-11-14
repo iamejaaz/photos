@@ -152,6 +152,7 @@ import LucideUpload from '~icons/lucide/upload'
 import type { ImportOptions } from '../../resources/takeout'
 import GooglePicker from './GooglePicker.vue'
 import { discardImport, loadImport, runImport, startTakeout, takeout } from '../../data/imports'
+import { chooseFiles } from '../../data/uploads'
 
 const job = computed(() => takeout.job)
 const items = computed(() => job.value?.summary?.items ?? [])
@@ -243,11 +244,6 @@ async function start() {
 }
 
 function pick() {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.multiple = true
-  input.accept = '.zip,application/zip'
-  input.onchange = () => input.files?.length && startTakeout([...input.files])
-  input.click()
+  chooseFiles('.zip,application/zip', startTakeout)
 }
 </script>
