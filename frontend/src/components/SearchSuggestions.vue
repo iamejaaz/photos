@@ -62,8 +62,17 @@
       </div>
     </section>
 
+    <div v-if="status === 'loading'" class="flex justify-center py-8">
+      <LoadingIndicator class="size-5 text-ink-gray-5" />
+    </div>
+    <LoadFailed
+      v-else-if="status === 'failed'"
+      :title="__('Couldn\'t load suggestions')"
+      :retrying="retrying"
+      @retry="load"
+    />
     <div
-      v-if="loaded && !recent.length && !people.length && !places.length && !explore?.things.length"
+      v-else-if="!recent.length && !people.length && !places.length && !explore?.things.length"
       class="flex flex-col items-center gap-2 py-20 text-center"
     >
       <div class="text-lg font-medium text-ink-gray-8">{{ __('Search your photos') }}</div>
@@ -76,7 +85,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Button } from 'frappe-ui'
+import { Button, LoadingIndicator } from 'frappe-ui'
 import LucideHistory from '~icons/lucide/history'
 import LucideMapPin from '~icons/lucide/map-pin'
 
@@ -84,20 +93,26 @@ import { type Person, getPeople } from '../resources/people'
 import { getExplore } from '../resources/photos'
 import { clearRecentSearches, recentSearches } from '../data/search'
 import FaceAvatar from './FaceAvatar.vue'
+import LoadFailed from './LoadFailed.vue'
 
 const recent = recentSearches
 const people = ref<Person[]>([])
 const explore = ref<Awaited<ReturnType<typeof getExplore>> | null>(null)
 const places = computed(() => (explore.value?.places ?? []).filter((place) => place.place).slice(0, 10))
-const loaded = ref(false)
+const status = ref<'loading' | 'failed' | 'ready'>('loading')
+const retrying = ref(false)
 
 const clearRecent = () => clearRecentSearches()
 
-onMounted(async () => {
+async function load() {
+  if (status.value === 'failed') retrying.value = true
   const [peopleResult, exploreResult] = await Promise.allSettled([getPeople(), getExplore()])
   if (peopleResult.status === 'fulfilled')
     people.value = peopleResult.value.people.filter((person) => person.person_name).slice(0, 20)
   if (exploreResult.status === 'fulfilled') explore.value = exploreResult.value
-  loaded.value = true
-})
+  retrying.value = false
+  status.value = peopleResult.status === 'rejected' || exploreResult.status === 'rejected' ? 'failed' : 'ready'
+}
+
+onMounted(load)
 </script>
