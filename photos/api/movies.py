@@ -33,12 +33,16 @@ def create_movie(
         )
     )
     photos.sort(key=lambda name: str(taken.get(name) or ""))
+    movie_id = frappe.generate_hash(length=10)
+    title = (title or "").strip() or "Movie"
     frappe.enqueue(
         "photos.utils.movies.build_movie",
         queue="long",
         timeout=1800,
+        movie_id=movie_id,
         files=photos,
-        title=(title or "").strip() or "Movie",
+        title=title,
         seconds=seconds,
         user=frappe.session.user,
     )
+    return {"id": movie_id, "title": title, "total": len(photos)}

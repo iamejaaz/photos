@@ -1,4 +1,5 @@
 import { nativePlugin } from './platform'
+import type { MovieProgress } from './movie'
 
 export type PhotosShellPlugin = {
   authorize(options: {
@@ -12,6 +13,7 @@ export type PhotosShellPlugin = {
   captureScreen(): Promise<{ dataUrl: string }>
   setLandscape(options: { landscape: boolean }): Promise<void>
   installUpdate(options: { url: string }): Promise<{ needsPermission?: boolean }>
+  movieProgress(options: MovieProgress): Promise<void>
   addListener(
     event: 'updateProgress',
     listener: (progress: { percent: number }) => void,

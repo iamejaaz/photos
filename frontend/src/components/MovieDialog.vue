@@ -23,6 +23,7 @@ import { createMovie } from '../resources/movies'
 import { errorText } from '../resources/drive'
 import { clearSelection } from '../data/selection'
 import { movie } from '../data/dialogs'
+import { updateMovie } from '../data/movies'
 
 const speeds = [
   { label: __('2 seconds'), value: '2' },
@@ -43,10 +44,10 @@ watch(
 async function create() {
   saving.value = true
   try {
-    await createMovie(movie.files, title.value, Number(seconds.value), movie.album)
+    const made = await createMovie(movie.files, title.value, Number(seconds.value), movie.album)
+    updateMovie(made.id, { title: made.title, total: made.total })
     movie.open = false
     clearSelection()
-    toast.info(__('Making your movie. You will get a message when it is ready.'))
   } catch (error) {
     toast.error(errorText(error))
   } finally {

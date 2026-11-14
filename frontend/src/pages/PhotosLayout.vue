@@ -79,7 +79,8 @@
         </div>
       </div>
     </div>
-    <UploadPanel v-if="loggedIn" />
+    <UploadPanel v-if="loggedIn" ref="uploadPanel" />
+    <MovieProgress v-if="loggedIn" :upload-panel="uploadPanel" />
     <Lightbox />
     <MemoryStory />
     <AlbumPicker />
@@ -132,6 +133,7 @@ import AlbumPicker from '../components/AlbumPicker.vue'
 import CollageDialog from '../components/CollageDialog.vue'
 import LibraryShareDialog from '../components/LibraryShareDialog.vue'
 import MovieDialog from '../components/MovieDialog.vue'
+import MovieProgress from '../components/MovieProgress.vue'
 import PhotosSettings from '../components/settings/PhotosSettings.vue'
 import AccountSheet from '../components/AccountSheet.vue'
 import ReportProblemDialog from '../components/ReportProblemDialog.vue'
@@ -161,6 +163,7 @@ import { lightbox } from '../data/viewer'
 import { openSettings, loadSettings } from '../data/dialogs'
 import { loadAlbums } from '../data/albums'
 import { notifyUploaded, uploadPhotos } from '../data/uploads'
+import { updateMovie } from '../data/movies'
 
 setupTheme()
 useBackClose(() => selection.size > 0, clearSelection)
@@ -213,12 +216,18 @@ if (loggedIn.value) {
     toast.success(__('The trimmed video is ready in Photos'))
   })
   initSocket().on('photos-trim-failed', () => toast.error(__('Could not trim this video')))
-  initSocket().on('photos-movie-ready', (data: { title: string }) => {
+  initSocket().on(
+    'photos-movie-progress',
+    (data: { id: string; title: string; done: number; total: number; left: number | null }) =>
+      updateMovie(data.id, data),
+  )
+  initSocket().on('photos-movie-ready', (data: { id: string; name: string; title: string }) => {
     notifyUploaded()
-    toast.success(__('“{0}” is ready in Photos', [data.title]), {
-      action: { label: __('View'), onClick: () => router.push({ name: 'photos-home' }) },
-    })
+    updateMovie(data.id, { ...data, state: 'ready' })
   })
+  initSocket().on('photos-movie-failed', (data: { id: string; title: string }) =>
+    updateMovie(data.id, { ...data, state: 'failed' }),
+  )
   loadAlbums()
   loadSettings()
   receiveShared()
@@ -255,6 +264,7 @@ const signIn = () =>
   window.location.assign(`/login?redirect-to=${encodeURIComponent(router.resolve(route.fullPath).href)}`)
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const mobileNavBar = ref<HTMLElement>()
+const uploadPanel = ref<InstanceType<typeof UploadPanel> | null>(null)
 useBottomBar(mobileNavBar, () => !selection.size && route.name !== 'photos-settings')
 const dragging = ref(false)
 
