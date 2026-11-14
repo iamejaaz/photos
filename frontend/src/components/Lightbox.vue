@@ -454,7 +454,11 @@
         </aside>
       </Transition>
     </div>
-    <VideoTrimmer :photo="editing && photo && isVideo(photo) ? photo : null" @close="editing = false" />
+    <VideoTrimmer
+      :photo="editing && photo && isVideo(photo) ? photo : null"
+      :album="writableAlbum"
+      @close="editing = false"
+    />
     <PhotoEditor
       :photo="editing && photo && !isVideo(photo) ? photo : null"
       :folder="details?.folder"

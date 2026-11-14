@@ -87,7 +87,7 @@ import { notifyUploaded } from '../data/uploads'
 import { useBackClose } from '../composables/useBackClose'
 import { errorText } from '../resources/drive'
 
-const props = defineProps<{ photo: Photo | null }>()
+const props = defineProps<{ photo: Photo | null; album?: string | null }>()
 const emit = defineEmits<{ close: [] }>()
 
 const EDGES = ['start', 'end'] as const
@@ -200,7 +200,7 @@ async function save() {
   if (!props.photo) return
   saving.value = true
   try {
-    await trimVideo(props.photo.name, range.start, range.end, muted.value)
+    await trimVideo(props.photo.name, range.start, range.end, muted.value, props.album)
     toast.success(__('Trimming. The new copy will appear in Photos when it is ready.'))
     emit('close')
   } catch (error) {

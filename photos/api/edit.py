@@ -77,8 +77,8 @@ def _writable(files):
 
 @frappe.whitelist(methods=["POST"])
 @rate_limit(limit=30, seconds=60 * 60, user_based=True)
-def trim_video(file: str, start: float, end: float, mute: int = 0):
-    from photos.api.albums import can_read
+def trim_video(file: str, start: float, end: float, mute: int = 0, album: str | None = None):
+    from photos.api.albums import _require, can_read
 
     start, end = max(0.0, float(start)), float(end)
     if end - start < 0.5:
@@ -87,6 +87,8 @@ def trim_video(file: str, start: float, end: float, mute: int = 0):
         "video/"
     ):
         frappe.throw("You can only trim videos you can see.", frappe.PermissionError)
+    if album:
+        _require(album, "write")
     frappe.enqueue(
         "photos.api.edit.build_trim",
         queue="long",
@@ -96,14 +98,16 @@ def trim_video(file: str, start: float, end: float, mute: int = 0):
         end=end,
         mute=int(mute or 0),
         user=frappe.session.user,
+        album=album,
     )
 
 
-def build_trim(file, start, end, user, mute=0):
+def build_trim(file, start, end, user, mute=0, album=None):
     import tempfile
     from datetime import timedelta
     from pathlib import Path
 
+    from photos.api.albums import add_to_album
     from photos.utils import formats
     from photos.utils.library import add_file
 
@@ -117,6 +121,8 @@ def build_trim(file, start, end, user, mute=0):
             target = Path(folder) / f"{stem}-trimmed.mp4"
             formats.transcode(formats.source_path(source), target, start=start, end=end, mute=bool(mute))
             name = add_file(target, user, get_datetime(taken) + timedelta(seconds=start), parent)
+        if album:
+            add_to_album(album, [name])
         frappe.db.commit()
         frappe.publish_realtime("photos-trim-ready", {"name": name}, user=user)
     except Exception:
