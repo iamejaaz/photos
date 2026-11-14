@@ -86,6 +86,7 @@ import { streamUrl, thumbnailUrl } from '../resources/media'
 import { notifyUploaded } from '../data/uploads'
 import { useBackClose } from '../composables/useBackClose'
 import { errorText } from '../resources/drive'
+import { addToAlbum } from '../resources/albums'
 
 const props = defineProps<{ photo: Photo | null; album?: string | null }>()
 const emit = defineEmits<{ close: [] }>()
@@ -186,7 +187,8 @@ async function saveFrame() {
   playing.value = false
   savingFrame.value = true
   try {
-    await exportFrame(props.photo.name, video.value.currentTime)
+    const frame = await exportFrame(props.photo.name, video.value.currentTime)
+    if (props.album) await addToAlbum(props.album, [frame])
     notifyUploaded()
     toast.success(__('Frame saved as a photo'))
   } catch (error) {
