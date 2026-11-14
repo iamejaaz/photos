@@ -31,13 +31,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import dayjs from 'dayjs'
 import { Button, Dialog, call, toast, usePageMeta } from 'frappe-ui'
 import LucideArchive from '~icons/lucide/archive'
 import LucideStar from '~icons/lucide/star'
 import LucideTrash2 from '~icons/lucide/trash-2'
 
+import { initSocket } from '@/apps/drive/socket'
 import { appPageMeta } from '@/utils/documentTitle'
 import type { Photo } from '../resources/photos'
 import PhotoGrid from '../components/PhotoGrid.vue'
@@ -95,16 +96,21 @@ async function emptyTrash() {
       count: number
       queued: boolean
     }
+    if (queued) return toast.info(__('Emptying trash. {0} items are being deleted forever.', [count]))
     handle.feed.rows.splice(0)
     handle.feed.hasNext = false
-    if (queued) toast.info(__('Emptying trash. {0} items are being deleted forever.', [count]))
-    else toast.success(count === 1 ? __('Deleted 1 item forever') : __('Deleted {0} items forever', [count]))
+    toast.success(count === 1 ? __('Deleted 1 item forever') : __('Deleted {0} items forever', [count]))
   } catch (error) {
     toast.error(errorText(error) || __('Could not empty trash'))
   } finally {
     emptying.value = false
   }
 }
+
+const socket = props.kind === 'trash' ? initSocket() : null
+const onTrashEmptied = () => handle.reload()
+socket?.on('photos-trash-emptied', onTrashEmptied)
+onBeforeUnmount(() => socket?.off('photos-trash-emptied', onTrashEmptied))
 
 usePageMeta(() => appPageMeta(config.value.title, 'Photos'))
 </script>
