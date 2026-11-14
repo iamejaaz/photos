@@ -46,6 +46,9 @@
               class="size-full object-cover"
               alt=""
             />
+            <div v-else class="flex size-full items-center justify-center">
+              <LucideImages class="size-8 text-ink-gray-4" />
+            </div>
           </div>
           <div class="min-w-0">
             <div class="truncate text-base font-medium text-ink-gray-8">{{ album.title }}</div>
@@ -81,6 +84,7 @@ import LucideEyeOff from '~icons/lucide/eye-off'
 import LucideFolder from '~icons/lucide/folder'
 import LucideHardDriveDownload from '~icons/lucide/hard-drive-download'
 import LucideHistory from '~icons/lucide/history'
+import LucideImages from '~icons/lucide/images'
 import LucidePlus from '~icons/lucide/plus'
 import LucideSettings from '~icons/lucide/settings'
 import LucideSmartphone from '~icons/lucide/smartphone'

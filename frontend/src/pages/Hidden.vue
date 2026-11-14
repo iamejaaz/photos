@@ -7,8 +7,12 @@
       </Button>
     </template>
   </PhotosHeader>
+  <LoadFailed v-if="checkFailed" :retrying="checking" @retry="check" />
+  <div v-else-if="unlocked === null" class="flex justify-center py-24">
+    <LoadingIndicator class="size-5 text-ink-gray-5" />
+  </div>
   <form
-    v-if="unlocked === false"
+    v-else-if="unlocked === false"
     class="mx-auto flex max-w-xs flex-col items-center gap-3 px-6 py-24 text-center"
     @submit.prevent="unlock"
   >
@@ -66,7 +70,7 @@
 <script setup lang="ts">
 import { errorText } from '../resources/drive'
 import { onBeforeUnmount, ref } from 'vue'
-import { Button, ErrorMessage, Password, TextInput, usePageMeta } from 'frappe-ui'
+import { Button, ErrorMessage, LoadingIndicator, Password, TextInput, usePageMeta } from 'frappe-ui'
 import LucideEyeOff from '~icons/lucide/eye-off'
 import LucideFingerprint from '~icons/lucide/fingerprint'
 import LucideLock from '~icons/lucide/lock'
@@ -82,6 +86,7 @@ import {
   unlockHidden,
   unlockWithCode,
 } from '../resources/hidden'
+import LoadFailed from '../components/LoadFailed.vue'
 import PhotoGrid from '../components/PhotoGrid.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { nativePlatform } from '../native/platform'
@@ -98,12 +103,25 @@ const handle = createFeed(HIDDEN_PHOTOS)
 
 const screenLock = ref(false)
 
-hiddenState().then(async (state) => {
-  unlocked.value = state.unlocked
-  if (!import.meta.env.VITE_NATIVE) return
-  screenLock.value = await (await import('../native/deviceUnlock')).screenLockAvailable()
-  if (!state.unlocked && screenLock.value) screenUnlock()
-})
+const checkFailed = ref(false)
+const checking = ref(false)
+
+async function check() {
+  checking.value = true
+  try {
+    const state = await hiddenState()
+    unlocked.value = state.unlocked
+    checkFailed.value = false
+    if (!import.meta.env.VITE_NATIVE) return
+    screenLock.value = await (await import('../native/deviceUnlock')).screenLockAvailable()
+    if (!state.unlocked && screenLock.value) screenUnlock()
+  } catch {
+    if (unlocked.value === null) checkFailed.value = true
+  } finally {
+    checking.value = false
+  }
+}
+check()
 
 async function screenUnlock() {
   unlocking.value = true

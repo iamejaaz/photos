@@ -6,7 +6,8 @@
       </Button>
     </template>
   </PhotosHeader>
-  <div v-if="loading" class="flex justify-center py-16"><LoadingIndicator class="size-5" /></div>
+  <LoadFailed v-if="failed" :retrying="loading" @retry="load" />
+  <div v-else-if="loading" class="flex justify-center py-16"><LoadingIndicator class="size-5" /></div>
   <div v-else-if="!groups.length" class="flex flex-col items-center gap-3 py-24 text-center">
     <div class="flex size-14 items-center justify-center rounded-full bg-surface-gray-2">
       <LucideCopyCheck class="size-6 text-ink-gray-6" />
@@ -73,6 +74,7 @@ import LucideCopyCheck from '~icons/lucide/copy-check'
 import { appPageMeta } from '@/utils/documentTitle'
 import { thumbnailUrl } from '../resources/media'
 import { toggleTrash } from '../resources/drive'
+import LoadFailed from '../components/LoadFailed.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 
 interface Row {
@@ -86,15 +88,22 @@ interface Row {
 
 const groups = ref<Row[][]>([])
 const loading = ref(true)
+const failed = ref(false)
 const busy = ref(false)
 const selected = reactive(new Set<string>())
 
 async function load() {
   loading.value = true
-  groups.value = await call('photos.api.photos.duplicates')
-  selected.clear()
-  groups.value.forEach((group) => group.slice(1).forEach((row) => selected.add(row.name)))
-  loading.value = false
+  try {
+    groups.value = await call('photos.api.photos.duplicates')
+    failed.value = false
+    selected.clear()
+    groups.value.forEach((group) => group.slice(1).forEach((row) => selected.add(row.name)))
+  } catch {
+    failed.value = true
+  } finally {
+    loading.value = false
+  }
 }
 load()
 

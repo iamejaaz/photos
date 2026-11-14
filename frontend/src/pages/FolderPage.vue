@@ -8,7 +8,9 @@
         {{ __('Folders') }}
       </router-link>
       <LucideChevronRight class="size-4 shrink-0 text-ink-gray-4" />
-      <h1 class="truncate text-lg font-semibold text-ink-gray-9">{{ folder?.title }}</h1>
+      <h1 class="truncate text-lg font-semibold text-ink-gray-9">
+        {{ folder?.title || (titleFailed ? __('Folder') : '') }}
+      </h1>
       <span v-if="folder" class="hidden truncate text-sm text-ink-gray-5 sm:inline">{{
         folder.owner_name
       }}</span>
@@ -37,8 +39,11 @@ import { createFeed } from '../data/feed'
 const props = defineProps<{ folder: string }>()
 const handle = createFeed('folder_photos', { folder: props.folder })
 const folders = ref<Folder[]>([])
-getFolders().then((data) => (folders.value = data))
+const titleFailed = ref(false)
+getFolders()
+  .then((data) => (folders.value = data))
+  .catch(() => (titleFailed.value = true))
 const folder = computed(() => folders.value.find((row) => row.name === props.folder))
 
-usePageMeta(() => appPageMeta(folder.value?.title, 'Photos'))
+usePageMeta(() => appPageMeta(folder.value?.title || (titleFailed.value ? __('Folder') : undefined), 'Photos'))
 </script>

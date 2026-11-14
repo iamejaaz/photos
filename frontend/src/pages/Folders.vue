@@ -3,7 +3,11 @@
   <p class="px-3 pt-4 text-base text-ink-gray-6 sm:px-5">
     {{ __('Drive folders that have photos or videos, including folders people shared with you.') }}
   </p>
-  <div class="grid grid-cols-2 gap-x-4 gap-y-6 p-3 sm:grid-cols-3 sm:p-5 lg:grid-cols-4 xl:grid-cols-5">
+  <LoadFailed v-if="status === 'failed'" :retrying="retrying" @retry="load" />
+  <div v-else-if="status === 'loading'" class="flex justify-center py-16">
+    <LoadingIndicator class="size-5" />
+  </div>
+  <div v-else class="grid grid-cols-2 gap-x-4 gap-y-6 p-3 sm:grid-cols-3 sm:p-5 lg:grid-cols-4 xl:grid-cols-5">
     <router-link
       v-for="folder in folders"
       :key="folder.name"
@@ -31,28 +35,39 @@
       </div>
     </router-link>
   </div>
-  <div v-if="loaded && !folders.length" class="py-24 text-center text-base text-ink-gray-5">
+  <div v-if="status === 'ready' && !folders.length" class="py-24 text-center text-base text-ink-gray-5">
     {{ __('No Drive folders with photos yet.') }}
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { usePageMeta } from 'frappe-ui'
+import { LoadingIndicator, usePageMeta } from 'frappe-ui'
 import LucideFolder from '~icons/lucide/folder'
 
 import { appPageMeta } from '@/utils/documentTitle'
 import { type Folder, getFolders } from '../resources/photos'
 import { thumbnailUrl } from '../resources/media'
+import LoadFailed from '../components/LoadFailed.vue'
 import PhotosHeader from '../components/PhotosHeader.vue'
 import { itemCount } from '../utils'
 
 const folders = ref<Folder[]>([])
-const loaded = ref(false)
-getFolders().then((data) => {
-  folders.value = data
-  loaded.value = true
-})
+const status = ref<'loading' | 'failed' | 'ready'>('loading')
+const retrying = ref(false)
+
+async function load() {
+  retrying.value = status.value === 'failed'
+  try {
+    folders.value = await getFolders()
+    status.value = 'ready'
+  } catch {
+    status.value = 'failed'
+  } finally {
+    retrying.value = false
+  }
+}
+load()
 
 usePageMeta(() => appPageMeta(__('Folders'), 'Photos'))
 </script>
