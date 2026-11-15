@@ -3,7 +3,7 @@
     v-model:open="open"
     :title="count === 1 ? __('Edit date and time') : __('Edit date of {0} items', [count])"
     size="sm"
-    :actions="[{ label: __('Save'), variant: 'solid', loading: saving, onClick: save }]"
+    :actions="[{ label: __('Save'), variant: 'solid', onClick: save }]"
   >
     <div class="flex flex-col gap-4">
       <RadioGroup v-if="count > 1" v-model="mode" orientation="horizontal">
@@ -43,7 +43,6 @@ const takenOn = ref('')
 const amount = ref('1')
 const unit = ref('60')
 const direction = ref('1')
-const saving = ref(false)
 const units = [
   { label: __('Minutes'), value: '1' },
   { label: __('Hours'), value: '60' },
@@ -62,7 +61,6 @@ watch(open, (value) => {
 })
 
 async function save() {
-  saving.value = true
   try {
     const shift = Number(amount.value) * Number(unit.value) * Number(direction.value)
     await editDate(
@@ -77,8 +75,6 @@ async function save() {
     toast.success(__('Date updated'))
   } catch (error) {
     toast.error(errorText(error) || __('Could not update the date'))
-  } finally {
-    saving.value = false
   }
 }
 </script>

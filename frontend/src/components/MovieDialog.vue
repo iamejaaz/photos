@@ -3,7 +3,7 @@
     v-model:open="movie.open"
     :title="__('Create movie')"
     size="sm"
-    :actions="[{ label: __('Create'), variant: 'solid', loading: saving, onClick: create }]"
+    :actions="[{ label: __('Create'), variant: 'solid', onClick: create }]"
   >
     <div class="flex flex-col gap-4">
       <p class="text-base text-ink-gray-6">
@@ -32,7 +32,6 @@ const speeds = [
 ]
 const title = ref('')
 const seconds = ref('3')
-const saving = ref(false)
 
 watch(
   () => movie.open,
@@ -42,7 +41,6 @@ watch(
 )
 
 async function create() {
-  saving.value = true
   try {
     const made = await createMovie(movie.files, title.value, Number(seconds.value), movie.album)
     updateMovie(made.id, { title: made.title, total: made.total })
@@ -50,8 +48,6 @@ async function create() {
     clearSelection()
   } catch (error) {
     toast.error(errorText(error))
-  } finally {
-    saving.value = false
   }
 }
 </script>

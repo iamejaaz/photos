@@ -3,7 +3,7 @@
     v-model:open="open"
     :title="__('Auto-add people')"
     size="md"
-    :actions="[{ label: __('Save'), variant: 'solid', loading: saving, onClick: save }]"
+    :actions="[{ label: __('Save'), variant: 'solid', onClick: save }]"
   >
     <div class="flex flex-col gap-3">
       <div class="text-base text-ink-gray-6">
@@ -65,7 +65,6 @@ const open = defineModel<boolean>({ default: false })
 const emit = defineEmits<{ saved: [] }>()
 const people = ref<Person[]>([])
 const picked = ref(new Set<string>())
-const saving = ref(false)
 const enabled = ref(true)
 const status = ref<'loading' | 'failed' | 'ready'>('loading')
 
@@ -95,7 +94,6 @@ function toggle(name: string) {
 }
 
 async function save() {
-  saving.value = true
   try {
     const added = await setAutoPeople(props.album.name, [...picked.value])
     open.value = false
@@ -107,8 +105,6 @@ async function save() {
     )
   } catch (error) {
     toast.error(errorText(error) || __('Could not save'))
-  } finally {
-    saving.value = false
   }
 }
 </script>
