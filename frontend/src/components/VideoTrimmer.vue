@@ -116,13 +116,13 @@
               <component :is="edge === 'start' ? LucideChevronLeft : LucideChevronRight" class="size-4" />
             </button>
           </div>
-          <p class="mt-2 h-4 text-center text-xs text-white/60">
+          <p class="mt-2 min-h-4 text-center text-xs text-white/60">
             {{
               cuts.length
                 ? selected === null
                   ? __('Tap a part to select it')
                   : ''
-                : __('Drag the white ends to trim, or tap Split to cut at the white line')
+                : __('Drag the ends to trim, or Split at the white line')
             }}
           </p>
         </div>
