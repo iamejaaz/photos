@@ -14,6 +14,7 @@
         :disabled="busy"
         @click="add(album.name, album.title)"
       >
+        <LoadingIndicator v-if="adding === album.name" class="order-last ml-auto size-4" />
         <img
           v-if="album.cover"
           :src="thumbnailUrl(album.cover, album.name)"
@@ -36,10 +37,11 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Button, Dialog, TextInput, toast } from 'frappe-ui'
+import { Button, Dialog, LoadingIndicator, TextInput, toast } from 'frappe-ui'
 
 import { addToAlbum, createAlbum } from '../resources/albums'
 import { thumbnailUrl } from '../resources/media'
+import { errorText } from '../resources/drive'
 import { albumPicker, albums, loadAlbums, sharedAlbums } from '../data/albums'
 import { clearSelection } from '../data/selection'
 import { itemCount } from '../utils'
@@ -50,6 +52,7 @@ const targets = computed(() => [
   ...sharedAlbums.value.filter((album) => album.access?.write),
 ])
 const busy = ref(false)
+const adding = ref<string | null>(null)
 
 watch(
   () => albumPicker.open,
@@ -64,6 +67,8 @@ async function create() {
   try {
     await createAlbum(title.value.trim(), albumPicker.files)
     done(title.value.trim())
+  } catch (error) {
+    toast.error(errorText(error) || __('Could not create the album. Try again.'))
   } finally {
     busy.value = false
   }
@@ -71,11 +76,15 @@ async function create() {
 
 async function add(album: string, albumTitle: string) {
   busy.value = true
+  adding.value = album
   try {
     await addToAlbum(album, albumPicker.files)
     done(albumTitle)
+  } catch (error) {
+    toast.error(errorText(error) || __('Could not add to the album. Try again.'))
   } finally {
     busy.value = false
+    adding.value = null
   }
 }
 
