@@ -156,7 +156,10 @@ export async function hide(names: string[], value = true) {
 }
 export const download = async (photos: Photo[]) => {
   if (!import.meta.env.VITE_NATIVE) {
-    if (photos.length === 1) return window.location.assign(downloadUrl(photos[0].name, photos[0].album))
+    if (photos.length === 1) {
+      toast.success(__('Downloading {0}. Your browser shows the progress.', [photos[0].file_name]))
+      return window.location.assign(downloadUrl(photos[0].name, photos[0].album))
+    }
     return startExport(() =>
       exportFiles(
         photos.map((photo) => photo.name),
