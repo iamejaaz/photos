@@ -111,7 +111,10 @@ public class PhotosBackupPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let address = call.getString("url"), let url = URL(string: address) else { return call.reject("A download needs a url") }
         var request = URLRequest(url: url)
         for (key, value) in call.getObject("headers") ?? [:] { request.setValue("\(value)", forHTTPHeaderField: key) }
-        URLSession.shared.downloadTask(with: request) { location, response, error in
+        let index = call.getInt("index") ?? 1, total = call.getInt("total") ?? 1
+        var watch: NSKeyValueObservation?
+        let task = URLSession.shared.downloadTask(with: request) { location, response, error in
+            watch?.invalidate()
             guard let location = location, let http = response as? HTTPURLResponse, http.statusCode < 400 else {
                 return call.reject(error?.localizedDescription ?? "The download failed")
             }
@@ -136,7 +139,15 @@ public class PhotosBackupPlugin: CAPPlugin, CAPBridgedPlugin {
                     success ? call.resolve() : call.reject(error?.localizedDescription ?? "Could not save")
                 }
             }
-        }.resume()
+        }
+        var shown = -2
+        watch = task.progress.observe(\.fractionCompleted) { [weak self] progress, _ in
+            let percent = progress.totalUnitCount > 0 ? Int(progress.fractionCompleted * 100) : -1
+            guard percent != shown else { return }
+            shown = percent
+            self?.notifyListeners("saveProgress", data: ["index": index, "total": total, "percent": percent])
+        }
+        task.resume()
     }
 
     @objc func shareFiles(_ call: CAPPluginCall) {

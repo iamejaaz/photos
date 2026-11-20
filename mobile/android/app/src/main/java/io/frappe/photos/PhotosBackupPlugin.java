@@ -15,7 +15,11 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.webkit.URLUtil;
 import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.IntentSenderRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -300,14 +304,75 @@ public class PhotosBackupPlugin extends Plugin {
             call.reject("Saving needs Android 10 or later");
             return;
         }
+        int index = call.getInt("index", 1);
+        int total = call.getInt("total", 1);
         io.execute(() -> {
             try {
-                save(url, name, headers);
+                Saved saved = save(url, name, headers, index, total);
+                if (index >= total) notifySaved(saved, total);
                 call.resolve();
             } catch (IOException | RuntimeException e) {
+                notifySave(new NotificationCompat.Builder(getContext(), SAVE_CHANNEL)
+                    .setSmallIcon(android.R.drawable.stat_notify_error)
+                    .setContentTitle(getContext().getString(R.string.save_failed))
+                    .setAutoCancel(true));
                 call.reject(e.getMessage() == null ? "Could not save" : e.getMessage());
             }
         });
+    }
+
+    private static final String SAVE_CHANNEL = "downloads";
+    private static final int SAVE_NOTIFICATION = 4;
+
+    private static final class Saved {
+        final Uri uri;
+        final String mime;
+
+        Saved(Uri uri, String mime) {
+            this.uri = uri;
+            this.mime = mime;
+        }
+    }
+
+    private void notifySave(NotificationCompat.Builder builder) {
+        NotificationManagerCompat manager = NotificationManagerCompat.from(getContext());
+        if (!manager.areNotificationsEnabled()) return;
+        if (Build.VERSION.SDK_INT >= 26 && manager.getNotificationChannel(SAVE_CHANNEL) == null) {
+            manager.createNotificationChannel(new NotificationChannel(SAVE_CHANNEL, getContext().getString(R.string.downloads_channel), NotificationManager.IMPORTANCE_LOW));
+        }
+        try {
+            manager.notify(SAVE_NOTIFICATION, builder.setSilent(true).build());
+        } catch (SecurityException ignored) {
+        }
+    }
+
+    private void saveProgress(String name, int index, int total, long done, long size) {
+        int percent = size > 0 ? (int) Math.min(100, done * 100 / size) : -1;
+        JSObject event = new JSObject();
+        event.put("index", index);
+        event.put("total", total);
+        event.put("percent", percent);
+        notifyListeners("saveProgress", event);
+        String title = total > 1
+            ? getContext().getString(R.string.saving_many, index, total)
+            : getContext().getString(R.string.saving_one, name);
+        notifySave(new NotificationCompat.Builder(getContext(), SAVE_CHANNEL)
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle(title)
+            .setContentText(percent >= 0 ? percent + "%" : null)
+            .setProgress(100, Math.max(percent, 0), percent < 0)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true));
+    }
+
+    private void notifySaved(Saved saved, int total) {
+        Intent view = new Intent(Intent.ACTION_VIEW).setDataAndType(saved.uri, saved.mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        notifySave(new NotificationCompat.Builder(getContext(), SAVE_CHANNEL)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle(total > 1 ? getContext().getString(R.string.saved_many, total) : getContext().getString(R.string.saved_one))
+            .setContentText(getContext().getString(R.string.saved_tap))
+            .setContentIntent(PendingIntent.getActivity(getContext(), 0, view, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT))
+            .setAutoCancel(true));
     }
 
     @PluginMethod
@@ -384,7 +449,7 @@ public class PhotosBackupPlugin extends Plugin {
         }
     }
 
-    private void save(String url, String name, JSONObject headers) throws IOException {
+    private Saved save(String url, String name, JSONObject headers, int index, int total) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setConnectTimeout(20_000);
         connection.setReadTimeout(120_000);
@@ -418,11 +483,23 @@ public class PhotosBackupPlugin extends Plugin {
         values.put(MediaStore.MediaColumns.IS_PENDING, 1);
         Uri item = resolver.insert(collection, values);
         if (item == null) throw new IOException("Could not create the file");
+        long size = connection.getContentLengthLong();
+        saveProgress(name, index, total, 0, size);
         try (InputStream in = connection.getInputStream(); OutputStream out = resolver.openOutputStream(item)) {
             if (out == null) throw new IOException("Could not write the file");
             byte[] buffer = new byte[64 * 1024];
             int read;
-            while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
+            long done = 0;
+            long shown = 0;
+            while ((read = in.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+                done += read;
+                long now = System.currentTimeMillis();
+                if (now - shown > 300) {
+                    shown = now;
+                    saveProgress(name, index, total, done, size);
+                }
+            }
         } catch (IOException e) {
             resolver.delete(item, null, null);
             throw e;
@@ -432,5 +509,6 @@ public class PhotosBackupPlugin extends Plugin {
         values.clear();
         values.put(MediaStore.MediaColumns.IS_PENDING, 0);
         resolver.update(item, values, null, null);
+        return new Saved(item, mime);
     }
 }

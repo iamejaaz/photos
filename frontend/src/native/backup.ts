@@ -37,12 +37,22 @@ export type PhotosBackupPlugin = {
   signOut(): Promise<void>
   findFreeable(): Promise<{ count: number; bytes: number }>
   freeUpSpace(): Promise<{ count: number; bytes: number }>
-  saveToDevice(options: { url: string; name?: string; headers: Record<string, string> }): Promise<void>
+  saveToDevice(options: {
+    url: string
+    name?: string
+    headers: Record<string, string>
+    index?: number
+    total?: number
+  }): Promise<void>
   shareFiles(options: {
     files: { url: string; name: string }[]
     headers: Record<string, string>
   }): Promise<void>
   addListener(event: 'status', listener: (status: BackupStatus) => void): Promise<{ remove(): Promise<void> }>
+  addListener(
+    event: 'saveProgress',
+    listener: (progress: { index: number; total: number; percent: number }) => void,
+  ): Promise<{ remove(): Promise<void> }>
 }
 
 export const photosBackup = nativePlugin<PhotosBackupPlugin>('PhotosBackup')

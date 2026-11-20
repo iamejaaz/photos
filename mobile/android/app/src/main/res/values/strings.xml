@@ -12,6 +12,13 @@
     <string name="backup_channel">Backup</string>
     <string name="backup_running">Backing up to Photos</string>
     <string name="backup_progress">%1$d of %2$d</string>
+    <string name="downloads_channel">Downloads</string>
+    <string name="saving_one">Saving %1$s</string>
+    <string name="saving_many">Saving %1$d of %2$d</string>
+    <string name="saved_one">Saved to your phone</string>
+    <string name="saved_many">%1$d items saved to your phone</string>
+    <string name="saved_tap">Tap to open</string>
+    <string name="save_failed">Couldn\'t save to your phone</string>
     <string name="movies_channel">Movies</string>
     <string name="movie_running">Making “%1$s”</string>
     <string name="movie_ready">“%1$s” is ready</string>
