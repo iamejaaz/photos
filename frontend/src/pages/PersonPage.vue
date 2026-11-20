@@ -104,7 +104,7 @@
     </div>
     <template #actions>
       <div class="flex justify-end">
-        <Button variant="solid" :disabled="!mergePicks.size" @click="merge">
+        <Button variant="solid" :disabled="!mergePicks.size" :loading="mergeBusy" @click="merge">
           {{ __('Merge {0}', [mergePicks.size]) }}
         </Button>
       </div>
@@ -130,7 +130,9 @@
     <template #actions>
       <div class="flex justify-end gap-2">
         <Button @click="keepSeparate">{{ __('Different people') }}</Button>
-        <Button variant="solid" @click="mergeIntoDuplicate">{{ __('Same person') }}</Button>
+        <Button variant="solid" :loading="mergeBusy" @click="mergeIntoDuplicate">{{
+          __('Same person')
+        }}</Button>
       </div>
     </template>
   </Dialog>
@@ -237,9 +239,20 @@ async function keepSeparate() {
   await refresh()
 }
 
+const mergeBusy = ref(false)
+
 async function mergeIntoDuplicate() {
-  if (!duplicate.value) return
-  const result = await renamePerson(props.person, duplicate.value.person_name ?? '', true)
+  if (!duplicate.value || mergeBusy.value) return
+  mergeBusy.value = true
+  let result: Awaited<ReturnType<typeof renamePerson>>
+  try {
+    result = await renamePerson(props.person, duplicate.value.person_name ?? '', true)
+  } catch (error) {
+    toast.error(errorText(error) || __('Could not merge. Try again.'))
+    return
+  } finally {
+    mergeBusy.value = false
+  }
   duplicate.value = null
   mergedToast(result?.undo, () => router.replace({ name: 'photos-person', params: { person: props.person } }))
   if (result?.merged_into) router.replace({ name: 'photos-person', params: { person: result.merged_into } })
@@ -306,7 +319,17 @@ function toggleMerge(name: string) {
 }
 
 async function merge() {
-  const { undo } = await mergePeople(props.person, [...mergePicks])
+  if (mergeBusy.value) return
+  mergeBusy.value = true
+  let undo: Awaited<ReturnType<typeof mergePeople>>['undo']
+  try {
+    ;({ undo } = await mergePeople(props.person, [...mergePicks]))
+  } catch (error) {
+    toast.error(errorText(error) || __('Could not merge. Try again.'))
+    return
+  } finally {
+    mergeBusy.value = false
+  }
   merging.value = false
   mergedToast(undo, async () => {
     await refresh()
