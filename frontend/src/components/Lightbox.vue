@@ -77,11 +77,9 @@
                 </button>
               </Tooltip>
             </template>
-            <Dropdown :options="moreActions" placement="right">
-              <button class="flex lightbox-button sm:hidden" :aria-label="__('More')">
-                <LucideEllipsisVertical class="size-5" />
-              </button>
-            </Dropdown>
+            <button class="flex lightbox-button sm:hidden" :aria-label="__('More')" @click="moreOpen = true">
+              <LucideEllipsisVertical class="size-5" />
+            </button>
             <template v-if="trashed && photo.write">
               <Tooltip :text="__('Restore')">
                 <button
@@ -484,6 +482,7 @@
       size="sm"
       :actions="[{ label: __('Delete forever'), variant: 'solid', theme: 'red', onClick: deleteForever }]"
     />
+    <ActionSheet v-model:open="moreOpen" :options="moreActions" />
   </Teleport>
   <MoveFaceDialog
     v-model="moveOpen"
@@ -542,6 +541,7 @@ import { contentUrl, downloadUrl, liveUrl, originalUrl, streamUrl, thumbnailUrl 
 import { editCaption } from '../resources/edit'
 import { activeFeed, createStaticFeed } from '../data/feed'
 import { albums, pickAlbumFor, sharedAlbums } from '../data/albums'
+import ActionSheet, { type SheetOption } from './ActionSheet.vue'
 import { archive, download, removeForever, restore, toggleFavourite, trash } from '../data/actions'
 import { editMetadata, openShare, editing as metadataEdits } from '../data/dialogs'
 import { openLightbox, lightbox } from '../data/viewer'
@@ -568,30 +568,29 @@ const sharp = ref(false)
 const editing = ref(false)
 const photoPeople = ref<PhotoPerson[]>([])
 
+const moreOpen = ref(false)
 const moreActions = computed(() => {
-  const items: { label: string; icon: string; onClick: () => unknown }[] = [
-    { label: __('Slideshow'), icon: 'lucide-play', onClick: () => (lightbox.slideshow = true) },
-  ]
+  const items: SheetOption[] = [{ label: __('Slideshow'), icon: LucidePlay, onClick: () => (lightbox.slideshow = true) }]
   if (photo.value?.download !== 0)
     items.push({
       label: __('Download'),
-      icon: 'lucide-download',
+      icon: LucideDownload,
       onClick: () => photo.value && download([photo.value]),
     })
   if (inDrive.value) {
     items.push({
       label: __('Add to album'),
-      icon: 'lucide-image-plus',
+      icon: LucideImagePlus,
       onClick: () => pickAlbumFor([photo.value!.name]),
     })
     items.push({
       label: isVideo(photo.value!) ? __('Trim') : __('Edit'),
-      icon: 'lucide-sliders-horizontal',
+      icon: LucideSlidersHorizontal,
       onClick: () => (editing.value = true),
     })
     items.push({
       label: details.value?.archived ? __('Unarchive') : __('Archive'),
-      icon: 'lucide-archive',
+      icon: details.value?.archived ? LucideArchiveRestore : LucideArchive,
       onClick: toggleArchive,
     })
   }
@@ -1124,5 +1123,21 @@ onBeforeUnmount(() => {
 }
 .lightbox-button {
   @apply size-10 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 hover:text-white;
+}
+@media (pointer: coarse) {
+  .lightbox-button {
+    width: 3rem;
+    height: 3rem;
+  }
+  .lightbox-button > svg,
+  .viewer-action > svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  .viewer-action {
+    min-width: 4.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+  }
 }
 </style>
