@@ -538,7 +538,11 @@ async function leave() {
 }
 
 async function removeItems(files: string[]) {
-  await removeFromAlbum(props.album, files)
+  try {
+    await removeFromAlbum(props.album, files)
+  } catch (error) {
+    return toast.error(errorText(error) || __('Could not remove from the album. Try again.'))
+  }
   handle.remove(files)
   clearSelection()
   toast.success(__('Removed from album'))
@@ -546,7 +550,11 @@ async function removeItems(files: string[]) {
 }
 
 async function useAsCover(file: string) {
-  await setCover(props.album, file)
+  try {
+    await setCover(props.album, file)
+  } catch (error) {
+    return toast.error(errorText(error) || __('Could not change the cover. Try again.'))
+  }
   toast.success(__('Album cover updated'))
   loadAlbums()
 }
