@@ -12,5 +12,6 @@ import { library } from "./library";
 import { people } from "./people";
 import { explore } from "./explore";
 import { movie } from "./movie";
+import { trim } from "./trim";
 
-export const flows: AnyFlow[] = [timeline, viewer, editor, upload, search, settings, albums, sharing, trash, library, people, explore, movie];
+export const flows: AnyFlow[] = [timeline, viewer, editor, upload, search, settings, albums, sharing, trash, library, people, explore, movie, trim];
