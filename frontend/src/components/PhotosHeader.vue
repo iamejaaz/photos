@@ -2,12 +2,12 @@
   <PageHeader v-if="active" class="relative">
     <div v-if="selection.size" class="flex w-full items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <Button variant="ghost" :aria-label="__('Clear selection')" @click="clearSelection">
-          <template #icon><LucideX class="size-4" /></template>
+        <Button variant="ghost" :size="phone ? 'lg' : 'sm'" :aria-label="__('Clear selection')" @click="clearSelection">
+          <template #icon><LucideX :class="phone ? 'size-5' : 'size-4'" /></template>
         </Button>
         <span class="text-base font-medium text-ink-gray-8">{{ __('{0} selected', [selection.size]) }}</span>
       </div>
-      <div class="flex items-center gap-1">
+      <div v-if="!phone" class="flex items-center gap-1">
         <Tooltip v-for="action in actions.filter((a) => !a.more)" :key="action.label" :text="action.label">
           <Button
             variant="ghost"
@@ -38,6 +38,7 @@
           class="-ml-2 shrink-0"
           :class="{ 'sm:hidden': !showsOnDesktop }"
           variant="ghost"
+          :size="phone ? 'lg' : 'sm'"
           :aria-label="__('Back')"
           @click="goBack"
         >
@@ -63,20 +64,22 @@
           v-if="searchable && $route.name !== 'photos-search'"
           class="sm:hidden"
           variant="ghost"
+          :size="phone ? 'lg' : 'sm'"
           :aria-label="__('Search')"
           :route="{ name: 'photos-search' }"
         >
-          <template #icon><LucideSearch class="size-4" /></template>
+          <template #icon><LucideSearch :class="phone ? 'size-5' : 'size-4'" /></template>
         </Button>
         <slot name="actions" />
         <template v-if="!hideUpload">
           <Button
             class="sm:hidden"
             variant="subtle"
+            :size="phone ? 'lg' : 'sm'"
             :aria-label="__('Upload')"
             @click="pickFiles"
           >
-            <template #icon><LucideUpload class="size-4" /></template>
+            <template #icon><LucideUpload :class="phone ? 'size-5' : 'size-4'" /></template>
           </Button>
           <Button class="max-sm:hidden" variant="subtle" @click="pickFiles">
             <template #prefix><LucideUpload class="size-4" /></template>
@@ -89,7 +92,7 @@
           :aria-label="__('Account')"
           @click="accountSheet.open = true"
         >
-          <Avatar size="lg" :image="avatarImage" :label="fullName || __('Account')" />
+          <Avatar :size="phone ? '2xl' : 'lg'" :image="avatarImage" :label="fullName || __('Account')" />
         </button>
       </div>
     </template>
@@ -99,6 +102,38 @@
       :style="{ width: `${(upload.bytes / Math.max(upload.totalBytes, 1)) * 100}%` }"
     />
   </PageHeader>
+  <Teleport to="body">
+    <div
+      v-if="phone && selection.size && actions.length"
+      class="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-outline-gray-1 bg-surface-base px-2 pb-[calc(0.5rem+var(--inset-bottom,0px))] pt-2"
+    >
+      <button
+        v-for="action in barActions"
+        :key="action.label"
+        class="flex min-w-[4.5rem] flex-1 flex-col items-center gap-1 rounded-lg px-1 py-2 text-xs text-ink-gray-8 active:bg-surface-gray-2 disabled:opacity-50"
+        :disabled="busy !== null"
+        @click="run(action)"
+      >
+        <LoadingIndicator v-if="busy === action.label" class="size-6" />
+        <component :is="action.icon" v-else class="size-6 text-ink-gray-7" />
+        <span class="w-full truncate text-center">{{ PHONE_LABELS[action.label] ?? action.label }}</span>
+      </button>
+      <button
+        v-if="sheetActions.length"
+        class="flex min-w-[4.5rem] flex-1 flex-col items-center gap-1 rounded-lg px-1 py-2 text-xs text-ink-gray-8 active:bg-surface-gray-2 disabled:opacity-50"
+        :disabled="busy !== null"
+        @click="sheetOpen = true"
+      >
+        <LoadingIndicator v-if="sheetActions.some((each) => each.label === busy)" class="size-6" />
+        <LucideEllipsis v-else class="size-6 text-ink-gray-7" />
+        {{ __('More') }}
+      </button>
+    </div>
+    <ActionSheet
+      v-model:open="sheetOpen"
+      :options="sheetActions.map((action) => ({ label: action.label, icon: action.icon, onClick: () => run(action) }))"
+    />
+  </Teleport>
   <Dialog
     v-model:open="confirmDelete"
     :title="__('Delete forever?')"
@@ -113,7 +148,8 @@
 <script setup lang="ts">
 import { type Component, computed, onActivated, onDeactivated, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Button, Dialog, Dropdown, PageHeader, TextInput, Tooltip, toast } from 'frappe-ui'
+import { useMediaQuery } from '@vueuse/core'
+import { Avatar, Button, Dialog, Dropdown, LoadingIndicator, PageHeader, TextInput, Tooltip, toast } from 'frappe-ui'
 import LucideArchive from '~icons/lucide/archive'
 import LucideArrowLeft from '~icons/lucide/arrow-left'
 import LucideArchiveRestore from '~icons/lucide/archive-restore'
@@ -140,6 +176,7 @@ import LucideUserX from '~icons/lucide/user-x'
 import LucideX from '~icons/lucide/x'
 
 import { fullName, imageURL, useSessionStore } from '@/boot/session'
+import ActionSheet from './ActionSheet.vue'
 import { type Album } from '../resources/albums'
 import { type Photo, getPhotoRow, isVideo, saveToLibrary } from '../resources/photos'
 import { createAnimation } from '../resources/edit'
@@ -393,6 +430,21 @@ const moreActions = computed(() =>
 )
 
 const busy = ref<string | null>(null)
+const phone = useMediaQuery('(max-width: 639px)')
+const sheetOpen = ref(false)
+const PHONE_BAR = 4
+const PHONE_LABELS: Record<string, string> = { [__('Add to album')]: __('Add to'), [__('Move to trash')]: __('Delete') }
+const PHONE_FIRST = [__('Share'), __('Add to album'), __('Download'), __('Move to trash')]
+const phoneOrder = computed(() =>
+  [...actions.value].sort((a, b) => {
+    const rank = (action: Action) => (PHONE_FIRST.indexOf(action.label) + 1 || 99) + (action.more ? 100 : 0)
+    return rank(a) - rank(b)
+  }),
+)
+const barActions = computed(() =>
+  phoneOrder.value.length <= PHONE_BAR + 1 ? phoneOrder.value : phoneOrder.value.slice(0, PHONE_BAR),
+)
+const sheetActions = computed(() => phoneOrder.value.slice(barActions.value.length))
 
 async function run(action: Action) {
   if (busy.value) return
