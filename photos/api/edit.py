@@ -77,11 +77,26 @@ def _writable(files):
 
 @frappe.whitelist(methods=["POST"])
 @rate_limit(limit=30, seconds=60 * 60, user_based=True)
-def trim_video(file: str, start: float, end: float, mute: int = 0, album: str | None = None):
+def trim_video(
+    file: str,
+    start: float | None = None,
+    end: float | None = None,
+    mute: int = 0,
+    album: str | None = None,
+    ranges: str | list | None = None,
+):
     from photos.api.albums import _require, can_read
 
-    start, end = max(0.0, float(start)), float(end)
-    if end - start < 0.5:
+    if ranges:
+        parts = frappe.parse_json(ranges) if isinstance(ranges, str) else ranges
+        if not isinstance(parts, list) or not 0 < len(parts) <= 100:
+            frappe.throw("Choose the parts of the video to keep.")
+        kept = sorted((max(0.0, float(a)), float(b)) for a, b in parts)
+        if any(b <= a for a, b in kept) or any(kept[i][1] > kept[i + 1][0] for i in range(len(kept) - 1)):
+            frappe.throw("The parts to keep overlap.")
+    else:
+        kept = [(max(0.0, float(start or 0)), float(end or 0))]
+    if sum(b - a for a, b in kept) < 0.5:
         frappe.throw("Keep at least half a second.")
     if not can_read(file, None) or not (frappe.db.get_value("File", file, "mime_type") or "").startswith(
         "video/"
@@ -94,15 +109,16 @@ def trim_video(file: str, start: float, end: float, mute: int = 0, album: str | 
         queue="long",
         timeout=3600,
         file=file,
-        start=start,
-        end=end,
+        start=kept[0][0],
+        end=kept[-1][1],
+        ranges=kept,
         mute=int(mute or 0),
         user=frappe.session.user,
         album=album,
     )
 
 
-def build_trim(file, start, end, user, mute=0, album=None):
+def build_trim(file, start, end, user, mute=0, album=None, ranges=None):
     import tempfile
     from datetime import timedelta
     from pathlib import Path
@@ -119,7 +135,9 @@ def build_trim(file, start, end, user, mute=0, album=None):
         stem = Path(source.file_name).stem
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / f"{stem}-trimmed.mp4"
-            formats.transcode(formats.source_path(source), target, start=start, end=end, mute=bool(mute))
+            formats.transcode(
+                formats.source_path(source), target, start=start, end=end, mute=bool(mute), ranges=ranges
+            )
             name = add_file(target, user, get_datetime(taken) + timedelta(seconds=start), parent)
         if album:
             add_to_album(album, [name])

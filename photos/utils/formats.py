@@ -216,8 +216,11 @@ def build_shared_video(name):
         shared_video(source_path(file), name, ".shared.mp4")
 
 
-def transcode(source_file, target_file, start=None, end=None, max_height=None, mute=False):
+def transcode(source_file, target_file, start=None, end=None, max_height=None, mute=False, ranges=None):
     import av
+
+    if ranges:
+        start, end = ranges[0][0], ranges[-1][1]
 
     with av.open(str(source_file)) as source, av.open(str(target_file), "w") as output:
         video = source.streams.video[0]
@@ -242,6 +245,8 @@ def transcode(source_file, target_file, start=None, end=None, max_height=None, m
                 if seconds is not None and start and seconds < start:
                     continue
                 if seconds is not None and end is not None and seconds > end:
+                    continue
+                if seconds is not None and ranges and not any(a <= seconds <= b for a, b in ranges):
                     continue
                 if packet.stream is video:
                     frame = frame.reformat(width=width, height=height, format="yuv420p")
