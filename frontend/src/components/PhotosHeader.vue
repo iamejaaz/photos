@@ -9,12 +9,23 @@
       </div>
       <div class="flex items-center gap-1">
         <Tooltip v-for="action in actions.filter((a) => !a.more)" :key="action.label" :text="action.label">
-          <Button variant="ghost" :aria-label="action.label" @click="run(action)">
+          <Button
+            variant="ghost"
+            :aria-label="action.label"
+            :loading="busy === action.label"
+            :disabled="busy !== null"
+            @click="run(action)"
+          >
             <template #icon><component :is="action.icon" class="size-4" /></template>
           </Button>
         </Tooltip>
         <Dropdown v-if="moreActions.length" :options="moreActions">
-          <Button variant="ghost" :aria-label="__('More')">
+          <Button
+            variant="ghost"
+            :aria-label="__('More')"
+            :loading="busy !== null && moreActions.some((each) => each.label === busy)"
+            :disabled="busy !== null"
+          >
             <template #icon><LucideEllipsis class="size-4" /></template>
           </Button>
         </Dropdown>
@@ -381,8 +392,16 @@ const moreActions = computed(() =>
     .map((action) => ({ label: action.label, icon: action.icon, onClick: () => run(action) })),
 )
 
+const busy = ref<string | null>(null)
+
 async function run(action: Action) {
-  if ((await action.run([...selection])) === false) return
+  if (busy.value) return
+  busy.value = action.label
+  try {
+    if ((await action.run([...selection])) === false) return
+  } finally {
+    busy.value = null
+  }
   if (!action.keepSelection) clearSelection()
 }
 
