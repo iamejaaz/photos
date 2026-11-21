@@ -392,7 +392,7 @@ public class PhotosBackupPlugin extends Plugin {
                     File slot = new File(folder, String.valueOf(i));
                     slot.mkdirs();
                     File target = new File(slot, name);
-                    String mime = download(file.getString("url"), headers, target);
+                    String mime = download(file.getString("url"), headers, target, i + 1, files.length());
                     uris.add(FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", target));
                     String kind = mime.contains("/") ? mime.substring(0, mime.indexOf('/')) + "/*" : "*/*";
                     common = common == null || common.equals(kind) ? kind : "*/*";
@@ -418,7 +418,7 @@ public class PhotosBackupPlugin extends Plugin {
         });
     }
 
-    private String download(String url, JSONObject headers, File target) throws IOException {
+    private String download(String url, JSONObject headers, File target, int index, int total) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setConnectTimeout(20_000);
         connection.setReadTimeout(120_000);
@@ -429,16 +429,36 @@ public class PhotosBackupPlugin extends Plugin {
         try {
             int status = connection.getResponseCode();
             if (status >= 400) throw new IOException("The site answered " + status);
+            long size = connection.getContentLengthLong();
+            shareProgress(index, total, 0, size);
             try (InputStream in = connection.getInputStream(); OutputStream out = new FileOutputStream(target)) {
                 byte[] buffer = new byte[64 * 1024];
                 int read;
-                while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
+                long done = 0;
+                long shown = 0;
+                while ((read = in.read(buffer)) > 0) {
+                    out.write(buffer, 0, read);
+                    done += read;
+                    long now = System.currentTimeMillis();
+                    if (now - shown > 300) {
+                        shown = now;
+                        shareProgress(index, total, done, size);
+                    }
+                }
             }
             String type = connection.getContentType();
             return type == null ? "application/octet-stream" : type.split(";")[0].trim();
         } finally {
             connection.disconnect();
         }
+    }
+
+    private void shareProgress(int index, int total, long done, long size) {
+        JSObject event = new JSObject();
+        event.put("index", index);
+        event.put("total", total);
+        event.put("percent", size > 0 ? (int) Math.min(100, done * 100 / size) : -1);
+        notifyListeners("shareProgress", event);
     }
 
     private static void deleteChildren(File folder) {

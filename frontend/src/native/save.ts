@@ -53,10 +53,25 @@ export async function saveFiles(files: { url: string; name?: string }[]) {
     toast.success(saved === 1 ? __('Saved to your phone') : __('{0} items saved to your phone', [saved]))
 }
 
+const preparingText = (index: number, total: number, percent = -1) => {
+  const label = total > 1 ? __('Preparing {0} of {1} to share', [index, total]) : __('Preparing to share')
+  return percent >= 0 ? `${label} · ${percent}%` : label
+}
+
 export async function shareFiles(files: { url: string; name: string }[]) {
   const { plugin } = await photosBackup()
-  await plugin.shareFiles({
-    files: files.map((file) => ({ url: siteUrl(file.url), name: file.name })),
-    headers: { ...APP_HEADERS, Authorization: `Bearer ${accessToken()}` },
+  const total = files.length
+  const progress = toast.loading(preparingText(1, total), { duration: Infinity })
+  const listener = await plugin.addListener('shareProgress', ({ index, percent }) => {
+    toast.loading(preparingText(index, total, percent), { id: progress, duration: Infinity })
   })
+  try {
+    await plugin.shareFiles({
+      files: files.map((file) => ({ url: siteUrl(file.url), name: file.name })),
+      headers: { ...APP_HEADERS, Authorization: `Bearer ${accessToken()}` },
+    })
+  } finally {
+    listener.remove()
+    toast.dismiss(progress)
+  }
 }

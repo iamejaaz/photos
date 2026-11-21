@@ -82,6 +82,7 @@ async function copy() {
 }
 
 async function sendToApps() {
+  let progress: ReturnType<typeof toast.loading> | undefined
   if (count.value > MAX_SEND) {
     toast.warning(__('Pick up to {0} items to send', [MAX_SEND]))
     return
@@ -101,6 +102,11 @@ async function sendToApps() {
       clearSelection()
       return
     }
+    const total = sharePhotos.files.length
+    let ready = 0
+    const preparing = (done: number) =>
+      total > 1 ? __('Preparing {0} of {1} to share', [Math.min(done + 1, total), total]) : __('Preparing to share')
+    progress = toast.loading(preparing(0), { duration: Infinity })
     const files = await Promise.all(
       sharePhotos.files.map(async (name) => {
         const response = await fetch(downloadUrl(name))
@@ -108,15 +114,19 @@ async function sendToApps() {
         const fileName = /filename\*?=(?:UTF-8'')?"?([^";]+)/.exec(
           response.headers.get('Content-Disposition') || '',
         )
+        ready++
+        toast.loading(preparing(ready), { id: progress, duration: Infinity })
         return new File([blob], decodeURIComponent(fileName?.[1] || name), { type: blob.type })
       }),
     )
+    toast.dismiss(progress)
     await navigator.share({ files })
     sharePhotos.open = false
     clearSelection()
   } catch (error) {
     if ((error as Error).name !== 'AbortError') toast.error(__('Could not send these photos'))
   } finally {
+    if (progress !== undefined) toast.dismiss(progress)
     sending.value = false
   }
 }

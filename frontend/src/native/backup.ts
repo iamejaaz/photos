@@ -50,7 +50,7 @@ export type PhotosBackupPlugin = {
   }): Promise<void>
   addListener(event: 'status', listener: (status: BackupStatus) => void): Promise<{ remove(): Promise<void> }>
   addListener(
-    event: 'saveProgress',
+    event: 'saveProgress' | 'shareProgress',
     listener: (progress: { index: number; total: number; percent: number }) => void,
   ): Promise<{ remove(): Promise<void> }>
 }

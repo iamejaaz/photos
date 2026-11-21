@@ -162,7 +162,7 @@ public class PhotosBackupPlugin: CAPPlugin, CAPBridgedPlugin {
                 guard let address = file["url"] as? String, let url = URL(string: address) else { continue }
                 var request = URLRequest(url: url)
                 for (key, value) in headers { request.setValue("\(value)", forHTTPHeaderField: key) }
-                guard let (location, response) = try? await URLSession.shared.download(for: request),
+                guard let (location, response) = try? await self.download(request, index: index + 1, total: files.count),
                       let http = response as? HTTPURLResponse, http.statusCode < 400 else {
                     return call.reject("The site could not send the files")
                 }
@@ -175,6 +175,33 @@ public class PhotosBackupPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             guard !downloaded.isEmpty else { return call.reject("Nothing to share") }
             await MainActor.run { self.present(downloaded, call) }
+        }
+    }
+
+    private func download(_ request: URLRequest, index: Int, total: Int) async throws -> (URL, URLResponse) {
+        try await withCheckedThrowingContinuation { continuation in
+            var watch: NSKeyValueObservation?
+            let task = URLSession.shared.downloadTask(with: request) { location, response, error in
+                watch?.invalidate()
+                guard let location = location, let response = response else {
+                    return continuation.resume(throwing: error ?? URLError(.badServerResponse))
+                }
+                let kept = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+                do {
+                    try FileManager.default.moveItem(at: location, to: kept)
+                    continuation.resume(returning: (kept, response))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+            var shown = -2
+            watch = task.progress.observe(\.fractionCompleted) { [weak self] progress, _ in
+                let percent = progress.totalUnitCount > 0 ? Int(progress.fractionCompleted * 100) : -1
+                guard percent != shown else { return }
+                shown = percent
+                self?.notifyListeners("shareProgress", data: ["index": index, "total": total, "percent": percent])
+            }
+            task.resume()
         }
     }
 
